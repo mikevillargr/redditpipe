@@ -20,6 +20,11 @@ import {
   CircularProgress,
   TextField,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Checkbox,
   useTheme,
 } from '@mui/material'
 import {
@@ -55,10 +60,13 @@ interface Opportunity {
   subreddit: string
   title: string
   snippet: string
+  topComments: string
+  threadUrl: string
   upvotes: number
   comments: number
   age: string
   relevanceScore: number
+  aiRelevanceNote: string
   client: string
   account: string
   accountPassword: string
@@ -211,14 +219,8 @@ export function Dashboard() {
       const res = await fetch(`/api/opportunities?${params}`)
       if (res.ok) {
         const data = await res.json()
-        setOpportunities(data.map((o: {
-          id: string; subreddit: string; title: string; body: string | null;
-          threadUpvotes: number | null; threadCommentCount: number | null;
-          createdAt: string; relevanceScore: number;
-          client: { name: string } | null; account: { username: string; password: string | null; status: string; postsTodayCount: number; maxPostsPerDay: number; organicPostsWeek: number; citationPostsWeek: number } | null;
-          aiDraftReply: string | null; status: string; permalinkUrl: string | null;
-          discoveredVia: string | null;
-        }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setOpportunities(data.map((o: any) => {
           const acct = o.account
           const totalWeek = (acct?.organicPostsWeek ?? 0) + (acct?.citationPostsWeek ?? 0)
           const citPct = totalWeek > 0 ? Math.round(((acct?.citationPostsWeek ?? 0) / totalWeek) * 100) : 0
@@ -226,11 +228,14 @@ export function Dashboard() {
             id: o.id,
             subreddit: `r/${o.subreddit}`,
             title: o.title,
-            snippet: o.body || '',
-            upvotes: o.threadUpvotes || 0,
-            comments: o.threadCommentCount || 0,
+            snippet: o.bodySnippet || o.body || '',
+            topComments: o.topComments || '',
+            threadUrl: o.threadUrl || '',
+            upvotes: o.score || o.threadUpvotes || 0,
+            comments: o.commentCount || o.threadCommentCount || 0,
             age: getTimeAgo(new Date(o.createdAt)),
-            relevanceScore: o.relevanceScore,
+            relevanceScore: o.relevanceScore ?? 0,
+            aiRelevanceNote: o.aiRelevanceNote || '',
             client: o.client?.name || 'Unknown',
             account: acct ? `u/${acct.username}` : 'Unassigned',
             accountPassword: acct?.password || '',
@@ -272,6 +277,13 @@ export function Dashboard() {
   useEffect(() => {
     fetchOpportunities()
   }, [fetchOpportunities])
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDismissDialog, setShowDismissDialog] = useState(false)
+  const [dismissReason, setDismissReason] = useState('')
+  // Thread preview
+  const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
 
   const [verifyingCards, setVerifyingCards] = useState<Set<string>>(new Set())
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
@@ -384,6 +396,59 @@ export function Dashboard() {
       console.error('Failed to update draft:', err)
     }
   }
+
+  // Bulk selection helpers
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+  const selectAll = () => {
+    if (selectedIds.size === filteredOpportunities.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredOpportunities.map((o) => o.id)))
+    }
+  }
+  const handleBulkPublish = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await fetch('/api/opportunities/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action: 'publish' }),
+      })
+      setSnackbar({ open: true, message: `${selectedIds.size} opportunities marked as published`, severity: 'success' })
+      setSelectedIds(new Set())
+      fetchOpportunities()
+    } catch {
+      setSnackbar({ open: true, message: 'Bulk publish failed', severity: 'warning' })
+    }
+  }
+  const handleBulkDismiss = async () => {
+    if (selectedIds.size === 0) return
+    try {
+      await fetch('/api/opportunities/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          action: 'dismiss',
+          dismissReason: dismissReason.trim() || undefined,
+        }),
+      })
+      setSnackbar({ open: true, message: `${selectedIds.size} opportunities dismissed`, severity: 'info' })
+      setSelectedIds(new Set())
+      setShowDismissDialog(false)
+      setDismissReason('')
+      fetchOpportunities()
+    } catch {
+      setSnackbar({ open: true, message: 'Bulk dismiss failed', severity: 'warning' })
+    }
+  }
+
   const clientFilteredOpps =
     clientFilter === 'all'
       ? opportunities
@@ -945,12 +1010,58 @@ export function Dashboard() {
           },
         }}
       >
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              p: 1.5,
+              mb: 1,
+              bgcolor: isDark ? '#1e293b' : '#f1f5f9',
+              borderRadius: '8px',
+              border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            }}
+          >
+            <Checkbox
+              checked={selectedIds.size === filteredOpportunities.length}
+              indeterminate={selectedIds.size > 0 && selectedIds.size < filteredOpportunities.length}
+              onChange={selectAll}
+              size="small"
+              sx={{ color: '#f97316', '&.Mui-checked': { color: '#f97316' }, '&.MuiCheckbox-indeterminate': { color: '#f97316' } }}
+            />
+            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.primary' }}>
+              {selectedIds.size} selected
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleBulkPublish}
+              sx={{ fontSize: '12px', borderColor: '#22c55e', color: '#22c55e', '&:hover': { borderColor: '#16a34a', bgcolor: 'rgba(34,197,94,0.08)' } }}
+            >
+              Mark Published
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => setShowDismissDialog(true)}
+              sx={{ fontSize: '12px', borderColor: '#ef4444', color: '#ef4444', '&:hover': { borderColor: '#dc2626', bgcolor: 'rgba(239,68,68,0.08)' } }}
+            >
+              Dismiss Selected
+            </Button>
+          </Box>
+        )}
+
         {filteredOpportunities.map((opp) => (
           <OpportunityCard
             key={opp.id}
             opportunity={opp}
             expanded={expandedCards.has(opp.id)}
             verifying={verifyingCards.has(opp.id)}
+            selected={selectedIds.has(opp.id)}
+            onToggleSelect={() => toggleSelect(opp.id)}
             onToggleExpand={() => toggleExpand(opp.id)}
             onMarkPublished={() => handleMarkPublished(opp.id)}
             onManualVerify={(permalink) =>
@@ -958,6 +1069,7 @@ export function Dashboard() {
             }
             onDismiss={() => handleDismiss(opp.id)}
             onUpdateDraft={(text) => handleUpdateDraft(opp.id, text)}
+            onPreview={() => setPreviewOpp(opp)}
           />
         ))}
         {filteredOpportunities.length === 0 && (
@@ -1004,6 +1116,166 @@ export function Dashboard() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Thread Preview Modal */}
+      <Dialog
+        open={!!previewOpp}
+        onClose={() => setPreviewOpp(null)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            borderRadius: '12px',
+            maxHeight: '80vh',
+          },
+        }}
+      >
+        {previewOpp && (
+          <>
+            <DialogTitle sx={{ pb: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Chip
+                  label={previewOpp.subreddit}
+                  size="small"
+                  sx={{ bgcolor: 'rgba(255,69,0,0.08)', color: '#ff4500', border: '1px solid rgba(255,69,0,0.15)', fontWeight: 600, fontSize: '12px' }}
+                />
+                <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>{previewOpp.age}</Typography>
+                <Box sx={{ flex: 1 }} />
+                <Chip
+                  label={`Score: ${Math.round(previewOpp.relevanceScore * 100)}%`}
+                  size="small"
+                  sx={{ fontWeight: 700, fontSize: '12px', bgcolor: previewOpp.relevanceScore >= 0.7 ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)', color: previewOpp.relevanceScore >= 0.7 ? '#10b981' : '#f59e0b' }}
+                />
+              </Box>
+              <Typography sx={{ fontWeight: 700, fontSize: '17px', color: 'text.primary', lineHeight: 1.4 }}>
+                {previewOpp.title}
+              </Typography>
+              {previewOpp.aiRelevanceNote && (
+                <Typography sx={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', mt: 0.5 }}>
+                  AI Assessment: {previewOpp.aiRelevanceNote}
+                </Typography>
+              )}
+            </DialogTitle>
+            <DialogContent dividers sx={{ borderColor: isDark ? '#1e293b' : '#e2e8f0' }}>
+              {previewOpp.snippet && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 0.5 }}>
+                    Post Body
+                  </Typography>
+                  <Typography sx={{ fontSize: '14px', color: 'text.primary', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                    {previewOpp.snippet}
+                  </Typography>
+                </Box>
+              )}
+              {previewOpp.topComments && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontSize: '11px', fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 0.5 }}>
+                    Top Comments
+                  </Typography>
+                  <Box sx={{ bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '8px', p: 2 }}>
+                    {previewOpp.topComments.split('\n\n').map((comment, i) => (
+                      <Typography key={i} sx={{ fontSize: '13px', color: 'text.secondary', lineHeight: 1.6, mb: i < previewOpp.topComments.split('\n\n').length - 1 ? 1.5 : 0 }}>
+                        {comment}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              {previewOpp.draftReply && (
+                <Box>
+                  <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#f97316', textTransform: 'uppercase', mb: 0.5 }}>
+                    AI Draft Reply
+                  </Typography>
+                  <Box sx={{ bgcolor: 'rgba(249,115,22,0.04)', border: '1px solid rgba(249,115,22,0.15)', borderRadius: '8px', p: 2 }}>
+                    <Typography sx={{ fontSize: '14px', color: 'text.primary', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                      {previewOpp.draftReply}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 1.5 }}>
+              {previewOpp.threadUrl && (
+                <Button
+                  size="small"
+                  onClick={() => window.open(previewOpp.threadUrl, '_blank')}
+                  sx={{ color: '#f97316', fontSize: '13px', textTransform: 'none' }}
+                >
+                  Open on Reddit
+                </Button>
+              )}
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                onClick={() => setPreviewOpp(null)}
+                sx={{ color: 'text.secondary', fontSize: '13px', textTransform: 'none' }}
+              >
+                Close
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      {/* Dismiss Reason Dialog */}
+      <Dialog
+        open={showDismissDialog}
+        onClose={() => { setShowDismissDialog(false); setDismissReason('') }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px' }}>
+          Dismiss {selectedIds.size} Opportunit{selectedIds.size === 1 ? 'y' : 'ies'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
+            Providing a reason helps train the model to show more relevant results in the future.
+          </Typography>
+          <TextField
+            label="Reason (optional)"
+            value={dismissReason}
+            onChange={(e) => setDismissReason(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+            size="small"
+            placeholder="e.g. Off-topic, local news, not seeking recommendations..."
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#f97316' },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button
+            size="small"
+            onClick={() => { setShowDismissDialog(false); setDismissReason('') }}
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleBulkDismiss}
+            sx={{ bgcolor: '#ef4444', textTransform: 'none', '&:hover': { bgcolor: '#dc2626' } }}
+          >
+            Dismiss {selectedIds.size} Selected
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
@@ -1014,21 +1286,27 @@ interface OpportunityCardProps {
   opportunity: Opportunity
   expanded: boolean
   verifying: boolean
+  selected: boolean
+  onToggleSelect: () => void
   onToggleExpand: () => void
   onMarkPublished: () => void
   onManualVerify: (permalink: string) => void
   onDismiss: () => void
   onUpdateDraft: (text: string) => void
+  onPreview: () => void
 }
 function OpportunityCard({
   opportunity: opp,
   expanded,
   verifying,
+  selected,
+  onToggleSelect,
   onToggleExpand,
   onMarkPublished,
   onManualVerify,
   onDismiss,
   onUpdateDraft,
+  onPreview,
 }: OpportunityCardProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -1077,7 +1355,9 @@ function OpportunityCard({
       })
       if (res.ok) {
         const data = await res.json()
-        setEditText(data.aiDraftReply || editText)
+        const newDraft = data.aiDraftReply || editText
+        setEditText(newDraft)
+        onUpdateDraft(newDraft)
       }
     } catch (err) {
       console.error('AI rewrite failed:', err)
@@ -1152,6 +1432,18 @@ function OpportunityCard({
             gap: 2,
           }}
         >
+          {/* Checkbox */}
+          <Checkbox
+            checked={selected}
+            onChange={onToggleSelect}
+            size="small"
+            sx={{
+              mt: 0.5,
+              flexShrink: 0,
+              color: isDark ? '#475569' : '#cbd5e1',
+              '&.Mui-checked': { color: '#f97316' },
+            }}
+          />
           {/* Left Content */}
           <Box
             sx={{
@@ -1280,6 +1572,7 @@ function OpportunityCard({
               )}
             </Box>
             <Typography
+              onClick={onPreview}
               sx={{
                 fontSize: '15px',
                 fontWeight: 600,
@@ -1292,11 +1585,24 @@ function OpportunityCard({
                 cursor: 'pointer',
                 '&:hover': {
                   color: '#f97316',
+                  textDecoration: 'underline',
                 },
               }}
             >
               {opp.title}
             </Typography>
+            {opp.aiRelevanceNote && (
+              <Typography
+                sx={{
+                  fontSize: '11px',
+                  color: isDark ? '#64748b' : '#94a3b8',
+                  mb: 0.5,
+                  fontStyle: 'italic',
+                }}
+              >
+                AI: {opp.aiRelevanceNote}
+              </Typography>
+            )}
             <Typography
               sx={{
                 fontSize: '13px',

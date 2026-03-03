@@ -241,6 +241,10 @@ export function Settings() {
   const [searchTimes, setSearchTimes] = useState<string[]>(['09:00'])
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
+  // AI tuning
+  const [relevanceThreshold, setRelevanceThreshold] = useState(0.4)
+  const [aiSearchContext, setAiSearchContext] = useState('')
+  const [aiModel, setAiModel] = useState('claude-sonnet-4-20250514')
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [searchRunning, setSearchRunning] = useState(false)
@@ -266,6 +270,9 @@ export function Settings() {
         )
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
+        setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
+        setAiSearchContext(data.aiSearchContext || '')
+        setAiModel(data.aiModel || 'claude-sonnet-4-20250514')
       }
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -337,6 +344,9 @@ export function Settings() {
         searchTimes: searchTimes.join(','),
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
+        relevanceThreshold,
+        aiSearchContext: aiSearchContext.trim() || null,
+        aiModel,
       }
       // Only include non-masked values
       if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
@@ -693,6 +703,68 @@ export function Settings() {
               {searchResult}
             </Alert>
           )}
+        </Box>
+      </SectionCard>
+
+      {/* AI Search Tuning */}
+      <SectionCard title="AI Search Tuning">
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 0.5 }}>
+              Relevance Threshold: <strong>{Math.round(relevanceThreshold * 100)}%</strong>
+            </Typography>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 1 }}>
+              Opportunities below this score will be automatically filtered out. Higher = stricter.
+            </Typography>
+            <Box sx={{ px: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: -0.5 }}>
+                {[0, 25, 50, 75, 100].map((v) => (
+                  <Typography key={v} sx={{ fontSize: '10px', color: '#64748b' }}>{v}%</Typography>
+                ))}
+              </Box>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={relevanceThreshold}
+                onChange={(e) => setRelevanceThreshold(parseFloat(e.target.value))}
+                style={{ width: '100%', accentColor: '#f97316' }}
+              />
+            </Box>
+          </Box>
+
+          <FormControl size="small" fullWidth sx={inputSx}>
+            <InputLabel>AI Model</InputLabel>
+            <Select
+              value={aiModel}
+              onChange={(e) => setAiModel(e.target.value)}
+              label="AI Model"
+            >
+              <MenuItem value="claude-sonnet-4-20250514">Claude Sonnet 4 (Recommended)</MenuItem>
+              <MenuItem value="claude-haiku-4-20250514">Claude Haiku 4 (Faster/Cheaper)</MenuItem>
+              <MenuItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Custom Scoring Context"
+            value={aiSearchContext}
+            onChange={(e) => setAiSearchContext(e.target.value)}
+            fullWidth
+            multiline
+            rows={4}
+            size="small"
+            placeholder="e.g. Our client focuses on B2B SaaS companies. Ignore consumer-focused discussions, local Philippines-only threads, and posts about physical products..."
+            helperText="This text is injected into the AI scoring prompt to help it understand what makes a good opportunity for your clients."
+            sx={inputSx}
+          />
         </Box>
       </SectionCard>
 

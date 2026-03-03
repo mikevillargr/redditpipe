@@ -23,9 +23,10 @@ import {
   SunIcon,
   MoonIcon,
   LogOutIcon,
+  BarChart3Icon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings'
+type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights'
 interface SidebarProps {
   activePage: Page
   onNavigate: (page: Page) => void
@@ -55,6 +56,11 @@ const navItems = [
     label: 'Reddit Accounts',
     icon: null,
     isReddit: true,
+  },
+  {
+    id: 'insights' as Page,
+    label: 'Insights',
+    icon: BarChart3Icon,
   },
 ]
 export function Sidebar({

@@ -10,6 +10,7 @@ import {
 import { computeRelevanceScore } from "@/lib/scoring";
 import { findBestAccount } from "@/lib/matching";
 import { generateReplyDraft } from "@/lib/ai";
+import { aiScoreRelevance } from "@/lib/ai-scoring";
 
 export async function POST() {
   try {
@@ -20,6 +21,8 @@ export async function POST() {
 
     const maxResults = settings?.maxResultsPerKeyword ?? 10;
     const threadMaxAgeDays = settings?.threadMaxAgeDays ?? 2;
+    const relevanceThreshold = settings?.relevanceThreshold ?? 0.4;
+    const hasAiKey = !!(settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY);
 
     // Get Reddit config (handles both OAuth and public_json modes)
     clearConfigCache();
@@ -100,8 +103,8 @@ export async function POST() {
         console.error(`Failed to fetch comments for ${threadId}:`, err);
       }
 
-      // Score
-      const relevanceScore = computeRelevanceScore({
+      // Heuristic score
+      const heuristicScore = computeRelevanceScore({
         threadTitle: title,
         threadBody: selftext,
         clientKeywords: keywords,
@@ -110,6 +113,34 @@ export async function POST() {
         threadCreatedAt: threadDate,
         threadMaxAgeDays,
       });
+
+      // AI score (if API key is available)
+      let relevanceScore = heuristicScore;
+      let aiRelevanceNote: string | null = null;
+      if (hasAiKey) {
+        try {
+          const aiResult = await aiScoreRelevance({
+            threadTitle: title,
+            threadBody: selftext,
+            topComments,
+            subreddit,
+            clientName: clientObj.name,
+            clientDescription: clientObj.description,
+            clientKeywords: keywords,
+            threshold: relevanceThreshold,
+          });
+          // Blend: 60% AI, 40% heuristic
+          relevanceScore = Math.round((aiResult.score * 0.6 + heuristicScore * 0.4) * 100) / 100;
+          aiRelevanceNote = aiResult.note;
+          if (!aiResult.shouldKeep && relevanceScore < relevanceThreshold) {
+            return false; // Skip low-relevance threads
+          }
+        } catch (err) {
+          console.error(`AI scoring failed for ${threadId}, using heuristic:`, err);
+        }
+      } else if (heuristicScore < relevanceThreshold) {
+        return false; // Skip below threshold even without AI
+      }
 
       // Match account
       const bestAccount = findBestAccount({
@@ -167,6 +198,7 @@ export async function POST() {
           threadAge,
           threadCreatedAt: threadDate,
           relevanceScore,
+          aiRelevanceNote,
           aiDraftReply,
           status: "new",
           discoveredVia,

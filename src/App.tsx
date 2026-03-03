@@ -13,11 +13,12 @@ import { Clients } from './pages/Clients'
 import { Accounts } from './pages/Accounts'
 import { AccountDetail } from './pages/AccountDetail'
 import { Settings } from './pages/Settings'
+import { Insights } from './pages/Insights'
 import { LoginScreen } from './components/LoginScreen'
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings'
+type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights'
 export function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [activePage, setActivePage] = useState<Page>('dashboard')
@@ -154,6 +155,8 @@ export function App() {
         )
       case 'settings':
         return <Settings />
+      case 'insights':
+        return <Insights />
       default:
         return <Dashboard />
     }

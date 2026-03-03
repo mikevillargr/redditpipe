@@ -81,6 +81,8 @@ model Opportunity {
   status          String    @default("new")
   permalinkUrl    String?
   discoveredVia   String?   // "thread_search" | "comment_search"
+  dismissReason   String?   // user-provided reason when dismissing
+  aiRelevanceNote String?   // AI explanation of relevance score
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -99,6 +101,9 @@ model Settings {
   searchFrequency      String @default("daily")
   searchTimezone       String @default("UTC")
   searchTimes          String @default("09:00")        // comma-separated HH:MM times
-  maxResultsPerKeyword Int    @default(10)
-  threadMaxAgeDays     Int    @default(2)
+  maxResultsPerKeyword  Int    @default(10)
+  threadMaxAgeDays      Int    @default(2)
+  relevanceThreshold    Float  @default(0.4)    // min score to keep (0-1)
+  aiSearchContext       String?                  // custom prompt context for AI scoring
+  aiModel               String @default("claude-sonnet-4-20250514")
 }
