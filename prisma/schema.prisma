@@ -97,6 +97,8 @@ model Settings {
   redditPassword       String?
   anthropicApiKey      String?
   searchFrequency      String @default("daily")
+  searchTimezone       String @default("UTC")
+  searchTimes          String @default("09:00")        // comma-separated HH:MM times
   maxResultsPerKeyword Int    @default(10)
   threadMaxAgeDays     Int    @default(2)
 }

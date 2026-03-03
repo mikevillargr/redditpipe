@@ -17,6 +17,8 @@ import {
   Tooltip,
   ToggleButtonGroup,
   ToggleButton,
+  Autocomplete,
+  Chip,
 } from '@mui/material'
 import {
   EyeIcon,
@@ -235,6 +237,8 @@ export function Settings() {
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   // Search
   const [searchFrequency, setSearchFrequency] = useState('daily')
+  const [searchTimezone, setSearchTimezone] = useState('UTC')
+  const [searchTimes, setSearchTimes] = useState<string[]>(['09:00'])
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
   const [showRunConfirm, setShowRunConfirm] = useState(false)
@@ -254,6 +258,12 @@ export function Settings() {
         setRedditPassword(data.redditPassword || '')
         setAnthropicKey(data.anthropicApiKey || '')
         setSearchFrequency(data.searchFrequency || 'daily')
+        setSearchTimezone(data.searchTimezone || 'UTC')
+        setSearchTimes(
+          data.searchTimes
+            ? data.searchTimes.split(',').map((t: string) => t.trim()).filter(Boolean)
+            : ['09:00']
+        )
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
       }
@@ -280,7 +290,11 @@ export function Settings() {
   const handleTestAi = async () => {
     setAiStatus('testing')
     try {
-      const res = await fetch('/api/settings/test-ai', { method: 'POST' })
+      const res = await fetch('/api/settings/test-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: anthropicKey }),
+      })
       const data = await res.json()
       setAiStatus(data.success ? 'success' : 'error')
     } catch {
@@ -319,6 +333,8 @@ export function Settings() {
       const payload: Record<string, unknown> = {
         redditApiMode,
         searchFrequency,
+        searchTimezone,
+        searchTimes: searchTimes.join(','),
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
       }
@@ -526,6 +542,73 @@ export function Settings() {
               <MenuItem value="twice-daily">Twice Daily</MenuItem>
             </Select>
           </FormControl>
+
+          <Autocomplete
+            value={searchTimezone}
+            onChange={(_, val) => val && setSearchTimezone(val)}
+            options={Intl.supportedValuesOf('timeZone')}
+            size="small"
+            fullWidth
+            disableClearable
+            renderInput={(params) => (
+              <TextField {...params} label="Timezone" sx={inputSx} />
+            )}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: '#334155' },
+                '&:hover fieldset': { borderColor: '#475569' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+            }}
+          />
+
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
+              Search Times ({searchTimezone.replace(/_/g, ' ')})
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+              {searchTimes.map((time) => (
+                <Chip
+                  key={time}
+                  label={time}
+                  onDelete={searchTimes.length > 1 ? () => setSearchTimes((prev) => prev.filter((t) => t !== time)) : undefined}
+                  sx={{
+                    bgcolor: 'rgba(249, 115, 22, 0.1)',
+                    color: '#f97316',
+                    border: '1px solid rgba(249, 115, 22, 0.25)',
+                    fontWeight: 600,
+                    fontSize: '13px',
+                    '& .MuiChip-deleteIcon': { color: '#f97316', '&:hover': { color: '#ea6c0a' } },
+                  }}
+                />
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <TextField
+                type="time"
+                size="small"
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val && !searchTimes.includes(val)) {
+                    setSearchTimes((prev) => [...prev, val].sort())
+                  }
+                }}
+                sx={{
+                  ...inputSx,
+                  width: 160,
+                  '& input': { color: 'text.primary' },
+                }}
+                InputLabelProps={{ shrink: true }}
+              />
+              <Typography sx={{ fontSize: '12px', color: '#64748b' }}>
+                Click to add a time. {searchFrequency === 'daily' ? '1 time recommended.' : '2 times recommended.'}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
+
           <TextField
             label="Max Results Per Keyword"
             type="number"

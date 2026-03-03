@@ -163,9 +163,9 @@ export async function rewriteReply(
   return textBlock.text;
 }
 
-export async function testConnection(): Promise<{ success: boolean; error?: string }> {
+export async function testConnection(overrideApiKey?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const apiKey = await getApiKey();
+    const apiKey = overrideApiKey || await getApiKey();
     const client = getClient(apiKey);
 
     const response = await client.messages.create({
