@@ -57,6 +57,7 @@ interface AccountStats {
 }
 interface Opportunity {
   id: string
+  clientId: string
   subreddit: string
   title: string
   snippet: string
@@ -211,7 +212,6 @@ export function Dashboard() {
   const fetchOpportunities = useCallback(async () => {
     try {
       const params = new URLSearchParams()
-      if (clientFilter !== 'all') params.set('clientId', clientFilter)
       if (dateStart) params.set('startDate', dateStart)
       if (dateEnd) params.set('endDate', dateEnd)
       const res = await fetch(`/api/opportunities?${params}`)
@@ -224,6 +224,7 @@ export function Dashboard() {
           const citPct = totalWeek > 0 ? Math.round(((acct?.citationPostsWeek ?? 0) / totalWeek) * 100) : 0
           return {
             id: o.id,
+            clientId: o.client?.id || '',
             subreddit: `r/${o.subreddit}`,
             title: o.title,
             snippet: o.bodySnippet || o.body || '',
@@ -254,7 +255,7 @@ export function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch opportunities:', err)
     }
-  }, [clientFilter, dateStart, dateEnd])
+  }, [dateStart, dateEnd])
 
   const fetchClients = useCallback(async () => {
     try {
@@ -454,7 +455,7 @@ export function Dashboard() {
   const clientFilteredOpps =
     clientFilter === 'all'
       ? opportunities
-      : opportunities.filter((o) => o.client === clientFilter)
+      : opportunities.filter((o) => o.clientId === clientFilter)
   const filteredOpportunities = clientFilteredOpps.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false
     if (scoreFilter !== 'any' && o.relevanceScore < parseFloat(scoreFilter))
