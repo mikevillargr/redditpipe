@@ -21,16 +21,153 @@ let cachedConfig: RedditConfig | null = null;
 let configCachedAt = 0;
 const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
 
-let lastRequestTime = 0;
+// ── Robust Rate Limiter ──────────────────────────────────────────────────────
+// Uses a token-bucket approach with adaptive delays based on Reddit headers,
+// exponential backoff on 429s, and a serial request queue.
 
-async function rateLimitWait(delayMs?: number): Promise<void> {
-  const delay = delayMs ?? cachedConfig?.delayMs ?? 1000;
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < delay) {
-    await new Promise((resolve) => setTimeout(resolve, delay - elapsed));
+const rateLimiter = {
+  lastRequestTime: 0,
+  // Minimum delay between requests (ms). Adapts based on Reddit headers.
+  minDelay: 1000,      // default for OAuth; public_json will use 2000
+  // Remaining requests reported by Reddit's X-Ratelimit-Remaining header.
+  remaining: 100,
+  // When the rate limit window resets (epoch ms) per X-Ratelimit-Reset.
+  resetAt: 0,
+  // Consecutive 429 count — drives exponential backoff
+  consecutive429s: 0,
+  // Serial queue lock
+  _queue: Promise.resolve() as Promise<unknown>,
+};
+
+function updateFromHeaders(headers: Headers): void {
+  const remaining = headers.get("x-ratelimit-remaining");
+  const reset = headers.get("x-ratelimit-reset");
+
+  if (remaining !== null) {
+    rateLimiter.remaining = parseFloat(remaining);
   }
-  lastRequestTime = Date.now();
+  if (reset !== null) {
+    // Reddit sends seconds until reset
+    rateLimiter.resetAt = Date.now() + parseFloat(reset) * 1000;
+  }
+
+  // Adaptive delay: if remaining is low, slow down proportionally
+  if (rateLimiter.remaining < 5) {
+    const secsUntilReset = Math.max(0, (rateLimiter.resetAt - Date.now()) / 1000);
+    // Spread remaining requests evenly across the reset window + buffer
+    rateLimiter.minDelay = Math.max(
+      rateLimiter.minDelay,
+      rateLimiter.remaining > 0
+        ? (secsUntilReset / rateLimiter.remaining) * 1000 + 500
+        : secsUntilReset * 1000 + 2000
+    );
+  }
+}
+
+async function rateLimitWait(): Promise<void> {
+  const baseDelay = rateLimiter.minDelay;
+  const now = Date.now();
+  const elapsed = now - rateLimiter.lastRequestTime;
+
+  // If we've been told we have 0 remaining, wait until reset
+  if (rateLimiter.remaining <= 0 && rateLimiter.resetAt > now) {
+    const waitMs = rateLimiter.resetAt - now + 1000; // +1s buffer
+    console.log(`[Reddit RL] Budget exhausted, waiting ${(waitMs / 1000).toFixed(1)}s until reset`);
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  } else if (elapsed < baseDelay) {
+    await new Promise((resolve) => setTimeout(resolve, baseDelay - elapsed));
+  }
+
+  rateLimiter.lastRequestTime = Date.now();
+}
+
+function getBackoffMs(attempt: number): number {
+  // Exponential backoff: 2s, 4s, 8s, 16s, 32s, capped at 60s, with jitter
+  const base = Math.min(2000 * Math.pow(2, attempt), 60_000);
+  const jitter = Math.random() * base * 0.3; // up to 30% jitter
+  return base + jitter;
+}
+
+const MAX_RETRIES = 5;
+
+// Central fetch wrapper: serial queue + retry + backoff + header parsing
+async function redditFetch(url: string, init: RequestInit): Promise<Response> {
+  // Serialize all Reddit requests through a single queue
+  const result = new Promise<Response>((resolve, reject) => {
+    rateLimiter._queue = rateLimiter._queue.then(async () => {
+      let lastError: Error | null = null;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        await rateLimitWait();
+
+        try {
+          const response = await fetch(url, init);
+
+          // Always parse rate limit headers
+          updateFromHeaders(response.headers);
+
+          if (response.ok) {
+            rateLimiter.consecutive429s = 0;
+            resolve(response);
+            return;
+          }
+
+          if (response.status === 429) {
+            rateLimiter.consecutive429s++;
+            const retryAfter = response.headers.get("retry-after");
+            const backoff = retryAfter
+              ? parseFloat(retryAfter) * 1000 + 500
+              : getBackoffMs(rateLimiter.consecutive429s);
+
+            console.warn(
+              `[Reddit RL] 429 Too Many Requests (attempt ${attempt + 1}/${MAX_RETRIES + 1}). ` +
+              `Backing off ${(backoff / 1000).toFixed(1)}s`
+            );
+
+            if (attempt < MAX_RETRIES) {
+              await new Promise((r) => setTimeout(r, backoff));
+              // After a 429, increase the minimum delay for future requests
+              rateLimiter.minDelay = Math.min(rateLimiter.minDelay * 1.5, 15_000);
+              continue;
+            }
+          }
+
+          if (response.status === 503 || response.status === 502) {
+            // Reddit temporary errors — retry with backoff
+            if (attempt < MAX_RETRIES) {
+              const backoff = getBackoffMs(attempt);
+              console.warn(
+                `[Reddit RL] ${response.status} Server Error (attempt ${attempt + 1}). ` +
+                `Retrying in ${(backoff / 1000).toFixed(1)}s`
+              );
+              await new Promise((r) => setTimeout(r, backoff));
+              continue;
+            }
+          }
+
+          // Non-retryable error — resolve with the error response so caller can handle
+          rateLimiter.consecutive429s = 0;
+          resolve(response);
+          return;
+        } catch (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          if (attempt < MAX_RETRIES) {
+            const backoff = getBackoffMs(attempt);
+            console.warn(
+              `[Reddit RL] Network error (attempt ${attempt + 1}): ${lastError.message}. ` +
+              `Retrying in ${(backoff / 1000).toFixed(1)}s`
+            );
+            await new Promise((r) => setTimeout(r, backoff));
+            continue;
+          }
+        }
+      }
+
+      reject(lastError ?? new Error("Reddit request failed after max retries"));
+    });
+  });
+
+  return result;
 }
 
 // ── Config helper ────────────────────────────────────────────────────────────
@@ -64,9 +201,12 @@ export async function getRedditConfig(): Promise<RedditConfig> {
     mode,
     token,
     userAgent: "RedditPipe/1.0 (internal tool)",
-    delayMs: mode === "oauth" ? 1000 : 6000,
+    delayMs: mode === "oauth" ? 1000 : 2000,
   };
   configCachedAt = Date.now();
+
+  // Set the rate limiter's base delay based on mode
+  rateLimiter.minDelay = cachedConfig.delayMs;
 
   return cachedConfig;
 }
@@ -139,8 +279,6 @@ export async function searchReddit(
   const { sort = "new", time = "day", limit = 10 } = options;
   const cfg = config ?? await getRedditConfig();
 
-  await rateLimitWait(cfg.delayMs);
-
   const params = new URLSearchParams({
     q: keyword,
     sort,
@@ -149,19 +287,15 @@ export async function searchReddit(
     type: "link",
   });
 
-  let response: Response;
+  const url = cfg.mode === "oauth" && cfg.token
+    ? `https://oauth.reddit.com/search?${params}`
+    : `https://www.reddit.com/search.json?${params}`;
+  const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) {
-    response = await fetch(`https://oauth.reddit.com/search?${params}`, {
-      headers: {
-        Authorization: `Bearer ${cfg.token}`,
-        "User-Agent": cfg.userAgent,
-      },
-    });
-  } else {
-    response = await fetch(`https://www.reddit.com/search.json?${params}`, {
-      headers: { "User-Agent": cfg.userAgent },
-    });
+    headers["Authorization"] = `Bearer ${cfg.token}`;
   }
+
+  const response = await redditFetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Reddit search failed: ${response.status} ${response.statusText}`);
@@ -205,8 +339,6 @@ export async function searchRedditComments(
   const { sort = "new", time = "day", limit = 10 } = options;
   const cfg = config ?? await getRedditConfig();
 
-  await rateLimitWait(cfg.delayMs);
-
   const params = new URLSearchParams({
     q: keyword,
     sort,
@@ -215,19 +347,15 @@ export async function searchRedditComments(
     type: "comment",
   });
 
-  let response: Response;
+  const url = cfg.mode === "oauth" && cfg.token
+    ? `https://oauth.reddit.com/search?${params}`
+    : `https://www.reddit.com/search.json?${params}`;
+  const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) {
-    response = await fetch(`https://oauth.reddit.com/search?${params}`, {
-      headers: {
-        Authorization: `Bearer ${cfg.token}`,
-        "User-Agent": cfg.userAgent,
-      },
-    });
-  } else {
-    response = await fetch(`https://www.reddit.com/search.json?${params}`, {
-      headers: { "User-Agent": cfg.userAgent },
-    });
+    headers["Authorization"] = `Bearer ${cfg.token}`;
   }
+
+  const response = await redditFetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Reddit comment search failed: ${response.status} ${response.statusText}`);
@@ -276,27 +404,15 @@ export async function getThreadComments(
 ): Promise<RedditComment[]> {
   const cfg = config ?? await getRedditConfig();
 
-  await rateLimitWait(cfg.delayMs);
-
-  let response: Response;
+  const url = cfg.mode === "oauth" && cfg.token
+    ? `https://oauth.reddit.com/r/${subreddit}/comments/${threadId}?sort=best&limit=5`
+    : `https://www.reddit.com/r/${subreddit}/comments/${threadId}.json?sort=best&limit=5`;
+  const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) {
-    response = await fetch(
-      `https://oauth.reddit.com/r/${subreddit}/comments/${threadId}?sort=best&limit=5`,
-      {
-        headers: {
-          Authorization: `Bearer ${cfg.token}`,
-          "User-Agent": cfg.userAgent,
-        },
-      }
-    );
-  } else {
-    response = await fetch(
-      `https://www.reddit.com/r/${subreddit}/comments/${threadId}.json?sort=best&limit=5`,
-      {
-        headers: { "User-Agent": cfg.userAgent },
-      }
-    );
+    headers["Authorization"] = `Bearer ${cfg.token}`;
   }
+
+  const response = await redditFetch(url, { headers });
 
   if (!response.ok) {
     throw new Error(`Reddit comments fetch failed: ${response.status} ${response.statusText}`);
@@ -326,12 +442,8 @@ export interface RedditUserProfile {
 }
 
 export async function getUserProfile(username: string): Promise<RedditUserProfile> {
-  await rateLimitWait();
-
-  const response = await fetch(`https://www.reddit.com/user/${username}/about.json`, {
-    headers: {
-      "User-Agent": "RedditOutreachPipeline/1.0",
-    },
+  const response = await redditFetch(`https://www.reddit.com/user/${username}/about.json`, {
+    headers: { "User-Agent": "RedditPipe/1.0 (internal tool)" },
   });
 
   if (!response.ok) {
@@ -361,15 +473,9 @@ export async function getUserComments(
   username: string,
   limit: number = 25
 ): Promise<RedditUserComment[]> {
-  await rateLimitWait();
-
-  const response = await fetch(
+  const response = await redditFetch(
     `https://www.reddit.com/user/${username}/comments.json?limit=${limit}&sort=new`,
-    {
-      headers: {
-        "User-Agent": "RedditOutreachPipeline/1.0",
-      },
-    }
+    { headers: { "User-Agent": "RedditPipe/1.0 (internal tool)" } }
   );
 
   if (!response.ok) {

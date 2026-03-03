@@ -212,8 +212,6 @@ export function Dashboard() {
     try {
       const params = new URLSearchParams()
       if (clientFilter !== 'all') params.set('clientId', clientFilter)
-      if (statusFilter !== 'all') params.set('status', statusFilter)
-      if (scoreFilter !== 'any') params.set('minScore', scoreFilter)
       if (dateStart) params.set('startDate', dateStart)
       if (dateEnd) params.set('endDate', dateEnd)
       const res = await fetch(`/api/opportunities?${params}`)
@@ -256,7 +254,7 @@ export function Dashboard() {
     } catch (err) {
       console.error('Failed to fetch opportunities:', err)
     }
-  }, [clientFilter, statusFilter, scoreFilter, dateStart, dateEnd])
+  }, [clientFilter, dateStart, dateEnd])
 
   const fetchClients = useCallback(async () => {
     try {

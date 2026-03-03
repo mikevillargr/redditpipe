@@ -256,6 +256,7 @@ export async function POST() {
           }, redditConfig);
 
           for (const comment of commentResults) {
+            if (!comment.link_id) continue;
             // Extract parent thread ID from link_id (format: t3_xxx)
             const parentThreadId = comment.link_id.replace(/^t3_/, "");
             const pairKey = `${parentThreadId}:${client.id}`;
