@@ -1031,36 +1031,25 @@ export function Dashboard() {
         )}
       </Paper>
 
-      {/* Opportunity Cards */}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: {
-            xs: 1.5,
-            sm: 2,
-          },
-        }}
-      >
-        {/* Bulk action bar — sticky */}
-        {selectedIds.size > 0 && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2,
-              p: 1.5,
-              mb: 1,
-              bgcolor: isDark ? '#1e293b' : '#f1f5f9',
-              borderRadius: '8px',
-              border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-              position: 'sticky',
-              top: { xs: 48, md: 8 },
-              zIndex: 50,
-              backdropFilter: 'blur(8px)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            }}
-          >
+      {/* Bulk action bar — sticky (outside flex column so sticky works) */}
+      {selectedIds.size > 0 && (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            p: 1.5,
+            mb: 2,
+            bgcolor: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(241,245,249,0.95)',
+            borderRadius: '8px',
+            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+            backdropFilter: 'blur(12px)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+        >
             <Checkbox
               checked={selectedIds.size === filteredOpportunities.length}
               indeterminate={selectedIds.size > 0 && selectedIds.size < filteredOpportunities.length}
@@ -1091,6 +1080,14 @@ export function Dashboard() {
           </Box>
         )}
 
+      {/* Opportunity Cards */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: { xs: 1.5, sm: 2 },
+        }}
+      >
         {visibleOpportunities.map((opp) => (
           <OpportunityCard
             key={opp.id}
@@ -1437,17 +1434,24 @@ function OpportunityCard({
     setEditText(opp.draftReply)
     setIsEditing(false)
   }
-  const cardBorder = isPublished
-    ? '1px solid rgba(16,185,129,0.35)'
+  const statusConfig = isPublished
+    ? { borderLeft: '4px solid #10b981', border: '1px solid rgba(16,185,129,0.3)', bg: isDark ? 'rgba(16,185,129,0.04)' : 'rgba(16,185,129,0.03)', opacity: 1 }
     : isUnverified
-      ? '1px solid rgba(245,158,11,0.35)'
-      : `1px solid ${isDark ? '#334155' : '#e2e8f0'}`
+      ? { borderLeft: '4px solid #f59e0b', border: '1px solid rgba(245,158,11,0.3)', bg: isDark ? 'rgba(245,158,11,0.04)' : 'rgba(245,158,11,0.03)', opacity: 1 }
+      : isDismissed
+        ? { borderLeft: '4px solid #64748b', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, bg: isDark ? 'rgba(100,116,139,0.04)' : 'rgba(100,116,139,0.03)', opacity: 0.6 }
+        : isNew
+          ? { borderLeft: '4px solid #3b82f6', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, bg: 'background.paper', opacity: 1 }
+          : { borderLeft: '4px solid transparent', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, bg: 'background.paper', opacity: 1 }
   return (
     <Card
       sx={{
-        bgcolor: 'background.paper',
-        border: cardBorder,
+        bgcolor: statusConfig.bg,
+        border: statusConfig.border,
+        borderLeft: statusConfig.borderLeft,
+        opacity: statusConfig.opacity,
         transition: 'all 0.15s ease',
+        '&:hover': { opacity: 1 },
       }}
     >
       <CardContent
@@ -1570,17 +1574,31 @@ function OpportunityCard({
                   }}
                 />
               )}
+              {isNew && (
+                <Chip
+                  label="● New"
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    bgcolor: 'rgba(59,130,246,0.12)',
+                    color: '#3b82f6',
+                    border: '1px solid rgba(59,130,246,0.3)',
+                  }}
+                />
+              )}
               {isPublished && (
                 <Chip
                   label="✓ Published"
                   size="small"
                   sx={{
-                    height: 20,
+                    height: 22,
                     fontSize: '11px',
-                    fontWeight: 600,
-                    bgcolor: 'rgba(16,185,129,0.1)',
+                    fontWeight: 700,
+                    bgcolor: 'rgba(16,185,129,0.15)',
                     color: '#10b981',
-                    border: '1px solid rgba(16,185,129,0.3)',
+                    border: '1px solid rgba(16,185,129,0.35)',
                   }}
                 />
               )}
@@ -1589,26 +1607,26 @@ function OpportunityCard({
                   label="⚠ Unverified"
                   size="small"
                   sx={{
-                    height: 20,
+                    height: 22,
                     fontSize: '11px',
-                    fontWeight: 600,
-                    bgcolor: 'rgba(245,158,11,0.1)',
+                    fontWeight: 700,
+                    bgcolor: 'rgba(245,158,11,0.15)',
                     color: '#f59e0b',
-                    border: '1px solid rgba(245,158,11,0.3)',
+                    border: '1px solid rgba(245,158,11,0.35)',
                   }}
                 />
               )}
               {isDismissed && (
                 <Chip
-                  label="Dismissed"
+                  label="✕ Dismissed"
                   size="small"
                   sx={{
-                    height: 20,
+                    height: 22,
                     fontSize: '11px',
-                    fontWeight: 600,
-                    bgcolor: isDark ? '#1e293b' : '#f1f5f9',
-                    color: 'text.disabled',
-                    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                    fontWeight: 700,
+                    bgcolor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)',
+                    color: isDark ? '#94a3b8' : '#64748b',
+                    border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`,
                   }}
                 />
               )}

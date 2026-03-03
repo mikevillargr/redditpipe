@@ -62,8 +62,8 @@ export async function POST() {
 
     let totalOpportunities = 0;
     const errors: string[] = [];
-    // Track thread IDs we've already processed this run to deduplicate
-    const processedThreadIds = new Set<string>();
+    // Track thread IDs per client we've already processed this run to deduplicate
+    const processedThreadClientPairs = new Set<string>();
 
     // Helper: create an opportunity from a thread
     async function createOpportunity(
@@ -81,8 +81,8 @@ export async function POST() {
       discoveredVia: "thread_search" | "comment_search"
     ): Promise<boolean> {
       // Check for duplicates in DB
-      const existing = await prisma.opportunity.findUnique({
-        where: { threadId },
+      const existing = await prisma.opportunity.findFirst({
+        where: { threadId, clientId: clientObj.id },
       });
       if (existing) return false;
 
@@ -221,8 +221,9 @@ export async function POST() {
           }, redditConfig);
 
           for (const thread of threads) {
-            if (processedThreadIds.has(thread.id)) continue;
-            processedThreadIds.add(thread.id);
+            const pairKey = `${thread.id}:${client.id}`;
+            if (processedThreadClientPairs.has(pairKey)) continue;
+            processedThreadClientPairs.add(pairKey);
 
             const created = await createOpportunity(
               thread.id,
@@ -257,8 +258,9 @@ export async function POST() {
           for (const comment of commentResults) {
             // Extract parent thread ID from link_id (format: t3_xxx)
             const parentThreadId = comment.link_id.replace(/^t3_/, "");
-            if (processedThreadIds.has(parentThreadId)) continue;
-            processedThreadIds.add(parentThreadId);
+            const pairKey = `${parentThreadId}:${client.id}`;
+            if (processedThreadClientPairs.has(pairKey)) continue;
+            processedThreadClientPairs.add(pairKey);
 
             const created = await createOpportunity(
               parentThreadId,

@@ -66,7 +66,7 @@ model Opportunity {
   id              String    @id @default(cuid())
   clientId        String
   accountId       String?
-  threadId        String    @unique
+  threadId        String
   threadUrl       String
   subreddit       String
   title           String
@@ -88,6 +88,8 @@ model Opportunity {
 
   client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   account RedditAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@unique([threadId, clientId])
 }
 
 model Settings {
