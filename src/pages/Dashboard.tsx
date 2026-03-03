@@ -153,7 +153,7 @@ function CountBadge({
 export function Dashboard() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [clientList, setClientList] = useState<{ id: string; name: string }[]>([])
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('new')
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
   const today = new Date().toISOString().split('T')[0]
@@ -583,10 +583,6 @@ export function Dashboard() {
                 '& .MuiToggleButton-root': toggleBtnSx,
               }}
             >
-              <ToggleButton value="all">
-                All{' '}
-                <CountBadge count={allCount} active={statusFilter === 'all'} />
-              </ToggleButton>
               <ToggleButton value="new">
                 New{' '}
                 <CountBadge
@@ -617,6 +613,10 @@ export function Dashboard() {
                   count={dismissedCount}
                   active={statusFilter === 'dismissed'}
                 />
+              </ToggleButton>
+              <ToggleButton value="all">
+                All{' '}
+                <CountBadge count={allCount} active={statusFilter === 'all'} />
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
