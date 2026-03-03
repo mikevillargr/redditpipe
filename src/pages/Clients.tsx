@@ -21,6 +21,8 @@ import {
   Tooltip,
   ToggleButtonGroup,
   ToggleButton,
+  CircularProgress,
+  Alert,
   useTheme,
 } from '@mui/material'
 import {
@@ -30,6 +32,7 @@ import {
   ExternalLinkIcon,
   UploadIcon,
   XIcon,
+  WandIcon,
 } from 'lucide-react'
 interface Client {
   id: string
@@ -60,6 +63,8 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
     client?.mentionTerms?.join(', ') ?? '',
   )
   const [csvFileName, setCsvFileName] = useState<string | null>(null)
+  const [detecting, setDetecting] = useState(false)
+  const [detectError, setDetectError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (open) {
@@ -70,8 +75,37 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
       setMentionTerms(client?.mentionTerms?.join(', ') ?? '')
       setKeywordMode('comma')
       setCsvFileName(null)
+      setDetectError(null)
     }
   }, [open, client])
+  const handleAutoDetect = async () => {
+    if (!website.trim()) return
+    setDetecting(true)
+    setDetectError(null)
+    try {
+      const res = await fetch('/api/clients/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: website.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDetectError(data.error || 'Detection failed')
+        return
+      }
+      if (data.name && !name) setName(data.name)
+      if (data.description) setDescription(data.description)
+      if (data.keywords?.length) {
+        setKeywords(data.keywords.join(', '))
+        setKeywordMode('comma')
+      }
+      if (data.mentionTerms?.length) setMentionTerms(data.mentionTerms.join(', '))
+    } catch (err) {
+      setDetectError(err instanceof Error ? err.message : 'Network error')
+    } finally {
+      setDetecting(false)
+    }
+  }
   const parseKeywords = (): string[] => {
     if (keywordMode === 'lines') {
       return keywords
@@ -184,15 +218,42 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
           size="small"
           sx={inputSx}
         />
-        <TextField
-          label="Website URL"
-          value={website}
-          onChange={(e) => setWebsite(e.target.value)}
-          fullWidth
-          size="small"
-          placeholder="example.com"
-          sx={inputSx}
-        />
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+          <TextField
+            label="Website URL"
+            value={website}
+            onChange={(e) => { setWebsite(e.target.value); setDetectError(null) }}
+            fullWidth
+            size="small"
+            placeholder="example.com"
+            sx={inputSx}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            disabled={!website.trim() || detecting}
+            onClick={handleAutoDetect}
+            startIcon={detecting ? <CircularProgress size={14} /> : <WandIcon size={14} />}
+            sx={{
+              minWidth: 120,
+              mt: '1px',
+              py: '7px',
+              fontSize: '12px',
+              borderColor: '#f97316',
+              color: '#f97316',
+              flexShrink: 0,
+              '&:hover': { bgcolor: 'rgba(249,115,22,0.08)', borderColor: '#ea6c0a' },
+              '&:disabled': { opacity: 0.5 },
+            }}
+          >
+            {detecting ? 'Detecting...' : 'Auto Detect'}
+          </Button>
+        </Box>
+        {detectError && (
+          <Alert severity="error" sx={{ py: 0.25, fontSize: '12px' }}>
+            {detectError}
+          </Alert>
+        )}
         <TextField
           label="Description"
           value={description}

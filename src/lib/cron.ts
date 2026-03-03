@@ -2,6 +2,53 @@ import cron from "node-cron";
 import { prisma } from "./prisma";
 
 let initialized = false;
+let searchTasks: ReturnType<typeof cron.schedule>[] = [];
+
+async function runSearch() {
+  console.log("[Cron] Running scheduled search pipeline...");
+  try {
+    const res = await fetch(
+      `http://localhost:${process.env.PORT || 3000}/api/search/run`,
+      { method: "POST" }
+    );
+    const data = await res.json();
+    console.log("[Cron] Search complete:", data.summary);
+  } catch (error) {
+    console.error("[Cron] Search failed:", error);
+  }
+}
+
+async function scheduleSearchJobs() {
+  // Stop existing search tasks
+  for (const task of searchTasks) {
+    task.stop();
+  }
+  searchTasks = [];
+
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: "singleton" },
+    });
+
+    const times = (settings?.searchTimes || "09:00")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const tz = settings?.searchTimezone || "UTC";
+
+    for (const time of times) {
+      const [hour, minute] = time.split(":").map(Number);
+      if (isNaN(hour) || isNaN(minute)) continue;
+
+      const cronExpr = `${minute} ${hour} * * *`;
+      const task = cron.schedule(cronExpr, runSearch, { timezone: tz });
+      searchTasks.push(task);
+      console.log(`[Cron] Search scheduled at ${time} ${tz}`);
+    }
+  } catch (error) {
+    console.error("[Cron] Failed to schedule search jobs:", error);
+  }
+}
 
 export function initCronJobs() {
   if (initialized) return;
@@ -9,20 +56,9 @@ export function initCronJobs() {
 
   console.log("[Cron] Initializing cron jobs...");
 
-  // Daily Search — 6 AM
-  cron.schedule("0 6 * * *", async () => {
-    console.log("[Cron] Running daily search pipeline...");
-    try {
-      const res = await fetch(
-        `http://localhost:${process.env.PORT || 3000}/api/search/run`,
-        { method: "POST" }
-      );
-      const data = await res.json();
-      console.log("[Cron] Daily search complete:", data.summary);
-    } catch (error) {
-      console.error("[Cron] Daily search failed:", error);
-    }
-  });
+  // Schedule search jobs from settings (and refresh every 5 min)
+  scheduleSearchJobs();
+  cron.schedule("*/5 * * * *", scheduleSearchJobs);
 
   // Reset Daily Counts — Midnight
   cron.schedule("0 0 * * *", async () => {

@@ -238,7 +238,8 @@ export function Settings() {
   // Search
   const [searchFrequency, setSearchFrequency] = useState('daily')
   const [searchTimezone, setSearchTimezone] = useState('UTC')
-  const [searchTimes, setSearchTimes] = useState<string[]>(['09:00'])
+  const [searchTime1, setSearchTime1] = useState('09:00')
+  const [searchTime2, setSearchTime2] = useState('18:00')
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
   // AI tuning
@@ -263,11 +264,13 @@ export function Settings() {
         setAnthropicKey(data.anthropicApiKey || '')
         setSearchFrequency(data.searchFrequency || 'daily')
         setSearchTimezone(data.searchTimezone || 'UTC')
-        setSearchTimes(
-          data.searchTimes
+        {
+          const times = data.searchTimes
             ? data.searchTimes.split(',').map((t: string) => t.trim()).filter(Boolean)
             : ['09:00']
-        )
+          setSearchTime1(times[0] || '09:00')
+          setSearchTime2(times[1] || '18:00')
+        }
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
@@ -341,7 +344,7 @@ export function Settings() {
         redditApiMode,
         searchFrequency,
         searchTimezone,
-        searchTimes: searchTimes.join(','),
+        searchTimes: searchFrequency === 'twice-daily' ? `${searchTime1},${searchTime2}` : searchTime1,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
         relevanceThreshold,
@@ -574,47 +577,35 @@ export function Settings() {
 
           <Box>
             <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
-              Search Times ({searchTimezone.replace(/_/g, ' ')})
+              Search Time{searchFrequency === 'twice-daily' ? 's' : ''} ({searchTimezone.replace(/_/g, ' ')})
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1 }}>
-              {searchTimes.map((time) => (
-                <Chip
-                  key={time}
-                  label={time}
-                  onDelete={searchTimes.length > 1 ? () => setSearchTimes((prev) => prev.filter((t) => t !== time)) : undefined}
-                  sx={{
-                    bgcolor: 'rgba(249, 115, 22, 0.1)',
-                    color: '#f97316',
-                    border: '1px solid rgba(249, 115, 22, 0.25)',
-                    fontWeight: 600,
-                    fontSize: '13px',
-                    '& .MuiChip-deleteIcon': { color: '#f97316', '&:hover': { color: '#ea6c0a' } },
-                  }}
-                />
-              ))}
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <TextField
+                label={searchFrequency === 'twice-daily' ? 'Morning Run' : 'Run Time'}
                 type="time"
                 size="small"
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value
-                  if (val && !searchTimes.includes(val)) {
-                    setSearchTimes((prev) => [...prev, val].sort())
-                  }
-                }}
-                sx={{
-                  ...inputSx,
-                  width: 160,
-                  '& input': { color: 'text.primary' },
-                }}
+                value={searchTime1}
+                onChange={(e) => setSearchTime1(e.target.value)}
+                sx={{ ...inputSx, width: 180, '& input': { color: 'text.primary' } }}
                 InputLabelProps={{ shrink: true }}
               />
-              <Typography sx={{ fontSize: '12px', color: '#64748b' }}>
-                Click to add a time. {searchFrequency === 'daily' ? '1 time recommended.' : '2 times recommended.'}
-              </Typography>
+              {searchFrequency === 'twice-daily' && (
+                <TextField
+                  label="Evening Run"
+                  type="time"
+                  size="small"
+                  value={searchTime2}
+                  onChange={(e) => setSearchTime2(e.target.value)}
+                  sx={{ ...inputSx, width: 180, '& input': { color: 'text.primary' } }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
             </Box>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
+              {searchFrequency === 'daily'
+                ? 'The automated search will run once per day at this time.'
+                : 'The automated search will run twice per day at these times.'}
+            </Typography>
           </Box>
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
@@ -754,15 +745,15 @@ export function Settings() {
           </FormControl>
 
           <TextField
-            label="Custom Scoring Context"
+            label="AI Scoring Instructions"
             value={aiSearchContext}
             onChange={(e) => setAiSearchContext(e.target.value)}
             fullWidth
             multiline
             rows={4}
             size="small"
-            placeholder="e.g. Our client focuses on B2B SaaS companies. Ignore consumer-focused discussions, local Philippines-only threads, and posts about physical products..."
-            helperText="This text is injected into the AI scoring prompt to help it understand what makes a good opportunity for your clients."
+            placeholder="e.g. We only target English-language B2B discussions. Ignore hiring posts, local community threads, educational tutorials, and posts from niche hobby subreddits unrelated to business services..."
+            helperText="General rules injected into the AI scoring prompt. These apply across all clients to filter out irrelevant results. Use the Insights page to auto-apply learned patterns."
             sx={inputSx}
           />
         </Box>

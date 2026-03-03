@@ -8,6 +8,7 @@ import {
   Chip,
   LinearProgress,
   Alert,
+  Snackbar,
   CircularProgress,
   useTheme,
 } from '@mui/material'
@@ -18,6 +19,8 @@ import {
   LightbulbIcon,
   XCircleIcon,
   TrendingDownIcon,
+  CheckCircleIcon,
+  ZapIcon,
 } from 'lucide-react'
 
 interface DismissalPattern {
@@ -39,6 +42,8 @@ export function Insights() {
   const [analysis, setAnalysis] = useState<DismissalAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [appliedItems, setAppliedItems] = useState<Set<string>>(new Set())
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
 
   const fetchAnalysis = useCallback(async () => {
     setLoading(true)
@@ -58,6 +63,59 @@ export function Insights() {
   useEffect(() => {
     fetchAnalysis()
   }, [fetchAnalysis])
+
+  const applyToSearchContext = async (text: string, key: string) => {
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const current = settings.aiSearchContext || ''
+      const separator = current.trim() ? '\n' : ''
+      const updated = current.trim() + separator + text
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiSearchContext: updated }),
+      })
+      setAppliedItems((prev) => new Set(prev).add(key))
+      setSnackbar({ open: true, message: 'Applied to AI search context' })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply' })
+    }
+  }
+
+  const applyAllRecommendations = async () => {
+    if (!analysis || analysis.recommendations.length === 0) return
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const current = settings.aiSearchContext || ''
+      const newRules = analysis.recommendations
+        .filter((_, i) => !appliedItems.has(`rec-${i}`))
+        .map((r) => `- ${r}`)
+        .join('\n')
+      if (!newRules) return
+
+      const separator = current.trim() ? '\n\nINSIGHTS-BASED RULES:\n' : 'INSIGHTS-BASED RULES:\n'
+      const updated = current.trim() + separator + newRules
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiSearchContext: updated }),
+      })
+      const newApplied = new Set(appliedItems)
+      analysis.recommendations.forEach((_, i) => newApplied.add(`rec-${i}`))
+      setAppliedItems(newApplied)
+      setSnackbar({ open: true, message: `Applied ${analysis.recommendations.length} recommendations to search context` })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply' })
+    }
+  }
 
   const cardBorder = `1px solid ${isDark ? '#334155' : '#e2e8f0'}`
 
@@ -168,55 +226,79 @@ export function Insights() {
                   </Typography>
                 </Box>
                 <Typography sx={{ fontSize: '12px', color: 'text.secondary', mb: 2 }}>
-                  These patterns are automatically extracted from dismissed opportunities. The AI scoring model uses them to avoid showing similar results in the future.
+                  Click &ldquo;Apply&rdquo; to add a pattern as a negative filter in your AI search scoring context.
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                  {analysis.patterns.map((pattern, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        p: 2,
-                        bgcolor: isDark ? '#0f172a' : '#f8fafc',
-                        border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                        <Typography sx={{ fontWeight: 600, fontSize: '14px', color: 'text.primary' }}>
-                          {pattern.pattern}
-                        </Typography>
-                        <Chip
-                          label={`~${pattern.count} occurrences`}
-                          size="small"
-                          sx={{
-                            height: 22,
-                            fontSize: '11px',
-                            fontWeight: 600,
-                            bgcolor: 'rgba(239,68,68,0.08)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239,68,68,0.2)',
-                          }}
-                        />
-                      </Box>
-                      {pattern.examples.length > 0 && (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
-                          {pattern.examples.slice(0, 3).map((ex, j) => (
+                  {analysis.patterns.map((pattern, i) => {
+                    const key = `pat-${i}`
+                    const applied = appliedItems.has(key)
+                    return (
+                      <Box
+                        key={i}
+                        sx={{
+                          p: 2,
+                          bgcolor: isDark ? '#0f172a' : '#f8fafc',
+                          border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: '14px', color: 'text.primary', flex: 1 }}>
+                            {pattern.pattern}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
                             <Chip
-                              key={j}
-                              label={ex.length > 60 ? ex.slice(0, 60) + '...' : ex}
+                              label={`~${pattern.count}`}
                               size="small"
                               sx={{
-                                height: 24,
+                                height: 22,
                                 fontSize: '11px',
-                                bgcolor: isDark ? '#1e293b' : '#e2e8f0',
-                                color: 'text.secondary',
+                                fontWeight: 600,
+                                bgcolor: 'rgba(239,68,68,0.08)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239,68,68,0.2)',
                               }}
                             />
-                          ))}
+                            <Button
+                              size="small"
+                              variant={applied ? 'contained' : 'outlined'}
+                              disabled={applied}
+                              startIcon={applied ? <CheckCircleIcon size={12} /> : <ZapIcon size={12} />}
+                              onClick={() => applyToSearchContext(`EXCLUDE: ${pattern.pattern}`, key)}
+                              sx={{
+                                fontSize: '11px',
+                                py: 0.25,
+                                px: 1,
+                                minWidth: 0,
+                                ...(applied
+                                  ? { bgcolor: '#10b981', color: '#fff', '&.Mui-disabled': { bgcolor: '#10b981', color: '#fff', opacity: 0.8 } }
+                                  : { borderColor: '#f97316', color: '#f97316', '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' } }),
+                              }}
+                            >
+                              {applied ? 'Applied' : 'Apply'}
+                            </Button>
+                          </Box>
                         </Box>
-                      )}
-                    </Box>
-                  ))}
+                        {pattern.examples.length > 0 && (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                            {pattern.examples.slice(0, 3).map((ex, j) => (
+                              <Chip
+                                key={j}
+                                label={ex.length > 60 ? ex.slice(0, 60) + '...' : ex}
+                                size="small"
+                                sx={{
+                                  height: 24,
+                                  fontSize: '11px',
+                                  bgcolor: isDark ? '#1e293b' : '#e2e8f0',
+                                  color: 'text.secondary',
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    )
+                  })}
                 </Box>
               </CardContent>
             </Card>
@@ -226,37 +308,77 @@ export function Insights() {
           {analysis.recommendations.length > 0 && (
             <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
               <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <LightbulbIcon size={16} color="#f97316" />
-                  <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary' }}>
-                    Recommendations
-                  </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <LightbulbIcon size={16} color="#f97316" />
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary' }}>
+                      Recommendations
+                    </Typography>
+                  </Box>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ZapIcon size={12} />}
+                    onClick={applyAllRecommendations}
+                    sx={{
+                      fontSize: '11px',
+                      borderColor: '#f97316',
+                      color: '#f97316',
+                      '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
+                    }}
+                  >
+                    Apply All to Search
+                  </Button>
                 </Box>
                 <Typography sx={{ fontSize: '12px', color: 'text.secondary', mb: 2 }}>
-                  Actionable suggestions to improve your search relevance based on dismissal patterns.
+                  Click &ldquo;Apply&rdquo; on individual items or &ldquo;Apply All&rdquo; to inject these rules into your AI search scoring context.
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {analysis.recommendations.map((rec, i) => (
-                    <Box
-                      key={i}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 1.5,
-                        p: 1.5,
-                        bgcolor: 'rgba(249,115,22,0.04)',
-                        border: '1px solid rgba(249,115,22,0.12)',
-                        borderRadius: '8px',
-                      }}
-                    >
-                      <Typography sx={{ fontSize: '14px', fontWeight: 700, color: '#f97316', mt: '1px', flexShrink: 0 }}>
-                        {i + 1}.
-                      </Typography>
-                      <Typography sx={{ fontSize: '14px', color: 'text.primary', lineHeight: 1.6 }}>
-                        {rec}
-                      </Typography>
-                    </Box>
-                  ))}
+                  {analysis.recommendations.map((rec, i) => {
+                    const key = `rec-${i}`
+                    const applied = appliedItems.has(key)
+                    return (
+                      <Box
+                        key={i}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 1.5,
+                          p: 1.5,
+                          bgcolor: applied ? 'rgba(16,185,129,0.04)' : 'rgba(249,115,22,0.04)',
+                          border: `1px solid ${applied ? 'rgba(16,185,129,0.2)' : 'rgba(249,115,22,0.12)'}`,
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <Typography sx={{ fontSize: '14px', fontWeight: 700, color: applied ? '#10b981' : '#f97316', mt: '1px', flexShrink: 0 }}>
+                          {i + 1}.
+                        </Typography>
+                        <Typography sx={{ fontSize: '14px', color: 'text.primary', lineHeight: 1.6, flex: 1 }}>
+                          {rec}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant={applied ? 'contained' : 'outlined'}
+                          disabled={applied}
+                          startIcon={applied ? <CheckCircleIcon size={12} /> : <ZapIcon size={12} />}
+                          onClick={() => applyToSearchContext(`- ${rec}`, key)}
+                          sx={{
+                            fontSize: '11px',
+                            py: 0.25,
+                            px: 1,
+                            minWidth: 0,
+                            flexShrink: 0,
+                            mt: 0.25,
+                            ...(applied
+                              ? { bgcolor: '#10b981', color: '#fff', '&.Mui-disabled': { bgcolor: '#10b981', color: '#fff', opacity: 0.8 } }
+                              : { borderColor: '#f97316', color: '#f97316', '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' } }),
+                          }}
+                        >
+                          {applied ? 'Applied' : 'Apply'}
+                        </Button>
+                      </Box>
+                    )
+                  })}
                 </Box>
               </CardContent>
             </Card>
@@ -277,6 +399,17 @@ export function Insights() {
           )}
         </Box>
       )}
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="success" sx={{ bgcolor: 'background.paper', color: 'text.primary', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}` }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
   Card,
@@ -284,6 +284,10 @@ export function Dashboard() {
   const [dismissReason, setDismissReason] = useState('')
   // Thread preview
   const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
+  // Lazy load / infinite scroll
+  const PAGE_SIZE = 15
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
 
   const [verifyingCards, setVerifyingCards] = useState<Set<string>>(new Set())
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
@@ -459,6 +463,34 @@ export function Dashboard() {
       return false
     return true
   })
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [clientFilter, statusFilter, scoreFilter, dateStart, dateEnd])
+
+  const visibleOpportunities = useMemo(
+    () => filteredOpportunities.slice(0, visibleCount),
+    [filteredOpportunities, visibleCount],
+  )
+  const hasMore = visibleCount < filteredOpportunities.length
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setVisibleCount((prev) => prev + PAGE_SIZE)
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore])
+
   const countByStatus = (s: StatusFilter) =>
     clientFilteredOpps.filter((o) => o.status === s).length
   const newCount = countByStatus('new')
@@ -1010,7 +1042,7 @@ export function Dashboard() {
           },
         }}
       >
-        {/* Bulk action bar */}
+        {/* Bulk action bar — sticky */}
         {selectedIds.size > 0 && (
           <Box
             sx={{
@@ -1022,6 +1054,11 @@ export function Dashboard() {
               bgcolor: isDark ? '#1e293b' : '#f1f5f9',
               borderRadius: '8px',
               border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+              position: 'sticky',
+              top: { xs: 48, md: 8 },
+              zIndex: 50,
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             }}
           >
             <Checkbox
@@ -1054,7 +1091,7 @@ export function Dashboard() {
           </Box>
         )}
 
-        {filteredOpportunities.map((opp) => (
+        {visibleOpportunities.map((opp) => (
           <OpportunityCard
             key={opp.id}
             opportunity={opp}
@@ -1072,6 +1109,19 @@ export function Dashboard() {
             onPreview={() => setPreviewOpp(opp)}
           />
         ))}
+
+        {/* Infinite scroll sentinel */}
+        <Box ref={sentinelRef} sx={{ height: 1 }} />
+        {hasMore && (
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <CircularProgress size={24} sx={{ color: '#f97316' }} />
+          </Box>
+        )}
+        {filteredOpportunities.length > 0 && (
+          <Typography sx={{ textAlign: 'center', fontSize: '12px', color: 'text.disabled', py: 1 }}>
+            Showing {visibleOpportunities.length} of {filteredOpportunities.length} opportunities
+          </Typography>
+        )}
         {filteredOpportunities.length === 0 && (
           <Box
             sx={{
@@ -1345,21 +1395,26 @@ function OpportunityCard({
     setCopiedDraft(true)
     setTimeout(() => setCopiedDraft(false), 2000)
   }
+  const [aiError, setAiError] = useState<string | null>(null)
   const handleAiAction = async (action: string) => {
     setAiLoading(action)
+    setAiError(null)
     try {
       const res = await fetch(`/api/opportunities/${opp.id}/rewrite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
-      if (res.ok) {
-        const data = await res.json()
-        const newDraft = data.aiDraftReply || editText
-        setEditText(newDraft)
-        onUpdateDraft(newDraft)
+      const data = await res.json()
+      if (res.ok && data.aiDraftReply) {
+        setEditText(data.aiDraftReply)
+        onUpdateDraft(data.aiDraftReply)
+      } else {
+        setAiError(data.error || data.details || 'Rewrite returned empty result')
+        console.error('AI rewrite error:', data)
       }
     } catch (err) {
+      setAiError(err instanceof Error ? err.message : 'Network error')
       console.error('AI rewrite failed:', err)
     } finally {
       setAiLoading(null)
@@ -2399,6 +2454,11 @@ function OpportunityCard({
                     </Button>
                   ))}
                 </Box>
+                {aiError && (
+                  <Typography sx={{ fontSize: '11px', color: '#ef4444', mt: 0.5 }}>
+                    {aiError}
+                  </Typography>
+                )}
 
                 <TextField
                   multiline

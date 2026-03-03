@@ -181,7 +181,12 @@ export async function analyzeDismissals(): Promise<{
   }
 
   try {
-    const parsed = JSON.parse(text.text) as {
+    // Strip markdown code fences if present (```json ... ```)
+    let jsonStr = text.text.trim();
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+    const parsed = JSON.parse(jsonStr) as {
       patterns: DismissalPattern[];
       summary: string;
       recommendations: string[];
