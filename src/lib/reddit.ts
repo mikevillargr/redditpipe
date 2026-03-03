@@ -1,21 +1,82 @@
+import { prisma } from "@/lib/prisma";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
 interface RedditToken {
   accessToken: string;
   expiresAt: number;
 }
 
-let cachedToken: RedditToken | null = null;
+export interface RedditConfig {
+  mode: "oauth" | "public_json";
+  token?: string;
+  userAgent: string;
+  delayMs: number;
+}
 
-const RATE_LIMIT_MS = 1000;
+// ── Cached state ─────────────────────────────────────────────────────────────
+
+let cachedToken: RedditToken | null = null;
+let cachedConfig: RedditConfig | null = null;
+let configCachedAt = 0;
+const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
+
 let lastRequestTime = 0;
 
-async function rateLimitWait(): Promise<void> {
+async function rateLimitWait(delayMs?: number): Promise<void> {
+  const delay = delayMs ?? cachedConfig?.delayMs ?? 1000;
   const now = Date.now();
   const elapsed = now - lastRequestTime;
-  if (elapsed < RATE_LIMIT_MS) {
-    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
+  if (elapsed < delay) {
+    await new Promise((resolve) => setTimeout(resolve, delay - elapsed));
   }
   lastRequestTime = Date.now();
 }
+
+// ── Config helper ────────────────────────────────────────────────────────────
+
+export async function getRedditConfig(): Promise<RedditConfig> {
+  if (cachedConfig && Date.now() - configCachedAt < CONFIG_TTL_MS) {
+    return cachedConfig;
+  }
+
+  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+
+  const mode = (settings?.redditApiMode === "oauth" ? "oauth" : "public_json") as "oauth" | "public_json";
+
+  let token: string | undefined;
+  if (
+    mode === "oauth" &&
+    settings?.redditClientId &&
+    settings?.redditClientSecret &&
+    settings?.redditUsername &&
+    settings?.redditPassword
+  ) {
+    token = await getRedditAccessToken(
+      settings.redditClientId,
+      settings.redditClientSecret,
+      settings.redditUsername,
+      settings.redditPassword
+    );
+  }
+
+  cachedConfig = {
+    mode,
+    token,
+    userAgent: "RedditPipe/1.0 (internal tool)",
+    delayMs: mode === "oauth" ? 1000 : 6000,
+  };
+  configCachedAt = Date.now();
+
+  return cachedConfig;
+}
+
+export function clearConfigCache(): void {
+  cachedConfig = null;
+  configCachedAt = 0;
+}
+
+// ── OAuth token ──────────────────────────────────────────────────────────────
 
 export async function getRedditAccessToken(
   clientId: string,
@@ -34,7 +95,7 @@ export async function getRedditAccessToken(
     headers: {
       Authorization: `Basic ${credentials}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": `RedditOutreachPipeline/1.0 by ${username}`,
+      "User-Agent": `RedditPipe/1.0 by ${username}`,
     },
     body: `grant_type=password&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`,
   });
@@ -72,11 +133,13 @@ export interface RedditThread {
 export async function searchReddit(
   token: string,
   keyword: string,
-  options: { sort?: string; time?: string; limit?: number } = {}
+  options: { sort?: string; time?: string; limit?: number } = {},
+  config?: RedditConfig
 ): Promise<RedditThread[]> {
   const { sort = "new", time = "day", limit = 10 } = options;
+  const cfg = config ?? await getRedditConfig();
 
-  await rateLimitWait();
+  await rateLimitWait(cfg.delayMs);
 
   const params = new URLSearchParams({
     q: keyword,
@@ -86,12 +149,19 @@ export async function searchReddit(
     type: "link",
   });
 
-  const response = await fetch(`https://oauth.reddit.com/search?${params}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "User-Agent": "RedditOutreachPipeline/1.0",
-    },
-  });
+  let response: Response;
+  if (cfg.mode === "oauth" && cfg.token) {
+    response = await fetch(`https://oauth.reddit.com/search?${params}`, {
+      headers: {
+        Authorization: `Bearer ${cfg.token}`,
+        "User-Agent": cfg.userAgent,
+      },
+    });
+  } else {
+    response = await fetch(`https://www.reddit.com/search.json?${params}`, {
+      headers: { "User-Agent": cfg.userAgent },
+    });
+  }
 
   if (!response.ok) {
     throw new Error(`Reddit search failed: ${response.status} ${response.statusText}`);
@@ -112,6 +182,86 @@ export async function searchReddit(
   }));
 }
 
+// ── Comment search ───────────────────────────────────────────────────────────
+
+export interface RedditCommentSearchResult {
+  id: string;
+  body: string;
+  subreddit: string;
+  score: number;
+  created_utc: number;
+  permalink: string;
+  link_title: string;
+  link_url: string;
+  link_id: string;
+}
+
+export async function searchRedditComments(
+  token: string,
+  keyword: string,
+  options: { sort?: string; time?: string; limit?: number } = {},
+  config?: RedditConfig
+): Promise<RedditCommentSearchResult[]> {
+  const { sort = "new", time = "day", limit = 10 } = options;
+  const cfg = config ?? await getRedditConfig();
+
+  await rateLimitWait(cfg.delayMs);
+
+  const params = new URLSearchParams({
+    q: keyword,
+    sort,
+    t: time,
+    limit: String(limit),
+    type: "comment",
+  });
+
+  let response: Response;
+  if (cfg.mode === "oauth" && cfg.token) {
+    response = await fetch(`https://oauth.reddit.com/search?${params}`, {
+      headers: {
+        Authorization: `Bearer ${cfg.token}`,
+        "User-Agent": cfg.userAgent,
+      },
+    });
+  } else {
+    response = await fetch(`https://www.reddit.com/search.json?${params}`, {
+      headers: { "User-Agent": cfg.userAgent },
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Reddit comment search failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  return (data.data?.children || []).map(
+    (child: {
+      data: {
+        id: string;
+        body: string;
+        subreddit: string;
+        score: number;
+        created_utc: number;
+        permalink: string;
+        link_title: string;
+        link_url: string;
+        link_id: string;
+      };
+    }) => ({
+      id: child.data.id,
+      body: child.data.body,
+      subreddit: child.data.subreddit,
+      score: child.data.score,
+      created_utc: child.data.created_utc,
+      permalink: child.data.permalink,
+      link_title: child.data.link_title,
+      link_url: child.data.link_url,
+      link_id: child.data.link_id,
+    })
+  );
+}
+
 export interface RedditComment {
   author: string;
   body: string;
@@ -121,19 +271,32 @@ export interface RedditComment {
 export async function getThreadComments(
   token: string,
   threadId: string,
-  subreddit: string
+  subreddit: string,
+  config?: RedditConfig
 ): Promise<RedditComment[]> {
-  await rateLimitWait();
+  const cfg = config ?? await getRedditConfig();
 
-  const response = await fetch(
-    `https://oauth.reddit.com/r/${subreddit}/comments/${threadId}?sort=best&limit=5`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "User-Agent": "RedditOutreachPipeline/1.0",
-      },
-    }
-  );
+  await rateLimitWait(cfg.delayMs);
+
+  let response: Response;
+  if (cfg.mode === "oauth" && cfg.token) {
+    response = await fetch(
+      `https://oauth.reddit.com/r/${subreddit}/comments/${threadId}?sort=best&limit=5`,
+      {
+        headers: {
+          Authorization: `Bearer ${cfg.token}`,
+          "User-Agent": cfg.userAgent,
+        },
+      }
+    );
+  } else {
+    response = await fetch(
+      `https://www.reddit.com/r/${subreddit}/comments/${threadId}.json?sort=best&limit=5`,
+      {
+        headers: { "User-Agent": cfg.userAgent },
+      }
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`Reddit comments fetch failed: ${response.status} ${response.statusText}`);

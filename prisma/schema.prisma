@@ -80,6 +80,7 @@ model Opportunity {
   aiDraftReply    String?
   status          String    @default("new")
   permalinkUrl    String?
+  discoveredVia   String?   // "thread_search" | "comment_search"
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -89,6 +90,7 @@ model Opportunity {
 
 model Settings {
   id                   String @id @default("singleton")
+  redditApiMode        String @default("public_json") // "oauth" | "public_json"
   redditClientId       String?
   redditClientSecret   String?
   redditUsername        String?

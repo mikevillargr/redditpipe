@@ -15,6 +15,8 @@ import {
   Alert,
   Divider,
   Tooltip,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material'
 import {
   EyeIcon,
@@ -222,6 +224,7 @@ const inputSx = {
 }
 export function Settings() {
   // Reddit API
+  const [redditApiMode, setRedditApiMode] = useState<'public_json' | 'oauth'>('public_json')
   const [redditClientId, setRedditClientId] = useState('')
   const [redditClientSecret, setRedditClientSecret] = useState('')
   const [redditUsername, setRedditUsername] = useState('')
@@ -244,6 +247,7 @@ export function Settings() {
       const res = await fetch('/api/settings')
       if (res.ok) {
         const data = await res.json()
+        setRedditApiMode(data.redditApiMode === 'oauth' ? 'oauth' : 'public_json')
         setRedditClientId(data.redditClientId || '')
         setRedditClientSecret(data.redditClientSecret || '')
         setRedditUsername(data.redditUsername || '')
@@ -313,6 +317,7 @@ export function Settings() {
   const handleSave = async () => {
     try {
       const payload: Record<string, unknown> = {
+        redditApiMode,
         searchFrequency,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
@@ -370,58 +375,112 @@ export function Settings() {
             gap: 2,
           }}
         >
-          <TextField
-            label="Client ID"
-            value={redditClientId}
-            onChange={(e) => setRedditClientId(e.target.value)}
-            fullWidth
-            size="small"
-            sx={inputSx}
-          />
-          <PasswordField
-            label="Client Secret"
-            value={redditClientSecret}
-            onChange={setRedditClientSecret}
-          />
-          <TextField
-            label="Username"
-            value={redditUsername}
-            onChange={(e) => setRedditUsername(e.target.value)}
-            fullWidth
-            size="small"
-            placeholder="your_reddit_username"
-            sx={inputSx}
-          />
-          <PasswordField
-            label="Password"
-            value={redditPassword}
-            onChange={setRedditPassword}
-          />
-          <ConnectionTestButton
-            onTest={handleTestReddit}
-            status={redditStatus}
-          />
-          <Typography
-            sx={{
-              fontSize: '12px',
-              color: '#64748b',
-            }}
-          >
-            Create a Reddit app at{' '}
-            <Typography
-              component="span"
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
+              API Mode
+            </Typography>
+            <ToggleButtonGroup
+              value={redditApiMode}
+              exclusive
+              onChange={(_, val) => val && setRedditApiMode(val)}
+              size="small"
+              fullWidth
               sx={{
-                color: '#3b82f6',
-                cursor: 'pointer',
-                '&:hover': {
-                  textDecoration: 'underline',
+                '& .MuiToggleButton-root': {
+                  color: '#64748b',
+                  borderColor: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  py: 0.75,
+                  textTransform: 'none',
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(249, 115, 22, 0.1)',
+                    color: '#f97316',
+                    borderColor: '#f97316',
+                    '&:hover': {
+                      bgcolor: 'rgba(249, 115, 22, 0.15)',
+                    },
+                  },
                 },
               }}
             >
-              reddit.com/prefs/apps
-            </Typography>{' '}
-            (script type)
-          </Typography>
+              <ToggleButton value="public_json">Public JSON (no API key)</ToggleButton>
+              <ToggleButton value="oauth">OAuth API</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {redditApiMode === 'public_json' && (
+            <Alert
+              severity="info"
+              sx={{
+                bgcolor: 'rgba(59, 130, 246, 0.06)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                color: '#94a3b8',
+                fontSize: '12px',
+                '& .MuiAlert-icon': { color: '#3b82f6' },
+              }}
+            >
+              Using public Reddit JSON endpoints. Rate limited to ~10 requests/minute.
+              Apply for OAuth access at reddit.com/prefs/apps for higher limits.
+            </Alert>
+          )}
+
+          {redditApiMode === 'oauth' && (
+            <>
+              <TextField
+                label="Client ID"
+                value={redditClientId}
+                onChange={(e) => setRedditClientId(e.target.value)}
+                fullWidth
+                size="small"
+                sx={inputSx}
+              />
+              <PasswordField
+                label="Client Secret"
+                value={redditClientSecret}
+                onChange={setRedditClientSecret}
+              />
+              <TextField
+                label="Username"
+                value={redditUsername}
+                onChange={(e) => setRedditUsername(e.target.value)}
+                fullWidth
+                size="small"
+                placeholder="your_reddit_username"
+                sx={inputSx}
+              />
+              <PasswordField
+                label="Password"
+                value={redditPassword}
+                onChange={setRedditPassword}
+              />
+              <ConnectionTestButton
+                onTest={handleTestReddit}
+                status={redditStatus}
+              />
+              <Typography
+                sx={{
+                  fontSize: '12px',
+                  color: '#64748b',
+                }}
+              >
+                Create a Reddit app at{' '}
+                <Typography
+                  component="span"
+                  sx={{
+                    color: '#3b82f6',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  reddit.com/prefs/apps
+                </Typography>{' '}
+                (script type)
+              </Typography>
+            </>
+          )}
         </Box>
       </SectionCard>
 

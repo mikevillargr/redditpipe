@@ -68,6 +68,7 @@ interface Opportunity {
   status: StatusFilter
   platform: 'reddit'
   permalinkUrl?: string
+  discoveredVia?: string
 }
 function getTimeAgo(date: Date): string {
   const ms = Date.now() - date.getTime()
@@ -216,6 +217,7 @@ export function Dashboard() {
           createdAt: string; relevanceScore: number;
           client: { name: string } | null; account: { username: string; password: string | null; status: string; postsTodayCount: number; maxPostsPerDay: number; organicPostsWeek: number; citationPostsWeek: number } | null;
           aiDraftReply: string | null; status: string; permalinkUrl: string | null;
+          discoveredVia: string | null;
         }) => {
           const acct = o.account
           const totalWeek = (acct?.organicPostsWeek ?? 0) + (acct?.citationPostsWeek ?? 0)
@@ -242,6 +244,7 @@ export function Dashboard() {
             status: o.status as StatusFilter,
             platform: 'reddit' as const,
             permalinkUrl: o.permalinkUrl || undefined,
+            discoveredVia: o.discoveredVia || undefined,
           }
         }))
       }
@@ -1205,6 +1208,34 @@ function OpportunityCard({
                   border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
                 }}
               />
+              {opp.discoveredVia === 'comment_search' && (
+                <Chip
+                  label="Found via comment"
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    bgcolor: 'rgba(59, 130, 246, 0.1)',
+                    color: '#3b82f6',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                  }}
+                />
+              )}
+              {opp.discoveredVia === 'thread_search' && (
+                <Chip
+                  label="Thread match"
+                  size="small"
+                  sx={{
+                    height: 20,
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    bgcolor: isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                    color: 'text.secondary',
+                    border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                  }}
+                />
+              )}
               {isPublished && (
                 <Chip
                   label="✓ Published"
