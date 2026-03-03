@@ -126,6 +126,7 @@ type RewriteAction = "regenerate" | "shorter" | "casual" | "formal";
 interface RewriteContext {
   accountPersonality?: string;
   clientName?: string;
+  userPrompt?: string;
 }
 
 export async function rewriteReply(
@@ -143,6 +144,10 @@ export async function rewriteReply(
     formal: "Make this Reddit reply more authoritative and well-structured. Use complete sentences and a more knowledgeable tone. Keep the client mention natural.",
   };
 
+  const userInstruction = context?.userPrompt
+    ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${context.userPrompt}`
+    : "";
+
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 1024,
@@ -150,7 +155,7 @@ export async function rewriteReply(
     messages: [
       {
         role: "user",
-        content: `${actionPrompts[action]}\n\nCurrent reply:\n${currentDraft}`,
+        content: `${actionPrompts[action]}${userInstruction}\n\nCurrent reply:\n${currentDraft}`,
       },
     ],
   });

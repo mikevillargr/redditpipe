@@ -1396,6 +1396,9 @@ function OpportunityCard({
     setTimeout(() => setCopiedDraft(false), 2000)
   }
   const [aiError, setAiError] = useState<string | null>(null)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [showAiPrompt, setShowAiPrompt] = useState(false)
+  const hasDraft = Boolean(editText?.trim() || opp.draftReply?.trim())
   const handleAiAction = async (action: string) => {
     setAiLoading(action)
     setAiError(null)
@@ -1403,12 +1406,18 @@ function OpportunityCard({
       const res = await fetch(`/api/opportunities/${opp.id}/rewrite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({
+          action,
+          ...(aiPrompt.trim() ? { userPrompt: aiPrompt.trim() } : {}),
+        }),
       })
       const data = await res.json()
       if (res.ok && data.aiDraftReply) {
         setEditText(data.aiDraftReply)
         onUpdateDraft(data.aiDraftReply)
+        setAiPrompt('')
+        setShowAiPrompt(false)
+        if (!isEditing) setIsEditing(true)
       } else {
         setAiError(data.error || data.details || 'Rewrite returned empty result')
         console.error('AI rewrite error:', data)
@@ -1428,28 +1437,6 @@ function OpportunityCard({
     setEditText(opp.draftReply)
     setIsEditing(false)
   }
-  const aiActions = [
-    {
-      key: 'regenerate',
-      label: 'Regenerate',
-      icon: <RefreshCwIcon size={12} />,
-    },
-    {
-      key: 'shorter',
-      label: 'Make shorter',
-      icon: <AlignLeftIcon size={12} />,
-    },
-    {
-      key: 'casual',
-      label: 'More casual',
-      icon: <MessageSquareIcon size={12} />,
-    },
-    {
-      key: 'formal',
-      label: 'More formal',
-      icon: <BriefcaseIcon size={12} />,
-    },
-  ]
   const cardBorder = isPublished
     ? '1px solid rgba(16,185,129,0.35)'
     : isUnverified
@@ -2380,58 +2367,87 @@ function OpportunityCard({
           </Box>
 
           <Collapse in={expanded}>
-            {isEditing ? (
-              <Box
-                sx={{
-                  mb: 2,
-                }}
-              >
-                {/* AI Toolbar */}
-                <Box
+            {/* No draft — generate empty state */}
+            {!hasDraft && !isEditing && (
+              <Box sx={{ textAlign: 'center', py: 3 }}>
+                <SparklesIcon size={28} color={isDark ? '#475569' : '#cbd5e1'} style={{ marginBottom: 8 }} />
+                <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
+                  No AI draft yet
+                </Typography>
+                <Typography sx={{ fontSize: '12px', color: 'text.disabled', mb: 2, maxWidth: 280, mx: 'auto' }}>
+                  Generate a contextual reply draft using AI based on this thread and the assigned client.
+                </Typography>
+
+                {/* AI prompt input for generation */}
+                <Box sx={{ maxWidth: 400, mx: 'auto', mb: 1.5 }}>
+                  <TextField
+                    size="small"
+                    fullWidth
+                    placeholder="Optional: Add instructions for the AI (e.g. focus on pricing, mention specific feature...)"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    multiline
+                    maxRows={3}
+                    sx={{
+                      mb: 1,
+                      '& .MuiOutlinedInput-root': {
+                        fontSize: '12px',
+                        bgcolor: isDark ? '#0f172a' : '#f8fafc',
+                        '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                        '&:hover fieldset': { borderColor: '#f97316' },
+                        '&.Mui-focused fieldset': { borderColor: '#f97316' },
+                      },
+                      '& .MuiOutlinedInput-input': { color: 'text.primary' },
+                    }}
+                  />
+                </Box>
+
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={aiLoading !== null}
+                  startIcon={aiLoading === 'generate' ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <SparklesIcon size={14} />}
+                  onClick={() => handleAiAction('generate')}
                   sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.75,
-                    mb: 1.5,
-                    flexWrap: 'wrap',
+                    bgcolor: '#f97316',
+                    color: '#fff',
+                    fontSize: '13px',
+                    px: 3,
+                    py: 0.75,
+                    '&:hover': { bgcolor: '#ea6c0a' },
+                    '&:disabled': { bgcolor: '#f97316', opacity: 0.7, color: '#fff' },
                   }}
                 >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      mr: 0.5,
-                    }}
-                  >
+                  {aiLoading === 'generate' ? 'Generating...' : 'Generate Draft'}
+                </Button>
+                {aiError && (
+                  <Typography sx={{ fontSize: '11px', color: '#ef4444', mt: 1 }}>
+                    {aiError}
+                  </Typography>
+                )}
+              </Box>
+            )}
+
+            {/* Editing / rewriting state */}
+            {isEditing && (
+              <Box sx={{ mb: 2 }}>
+                {/* AI Toolbar */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
                     <SparklesIcon size={12} color="#f97316" />
-                    <Typography
-                      sx={{
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        color: '#f97316',
-                      }}
-                    >
-                      AI assist:
-                    </Typography>
+                    <Typography sx={{ fontSize: '11px', fontWeight: 600, color: '#f97316' }}>AI:</Typography>
                   </Box>
-                  {aiActions.map((action) => (
+                  {[
+                    { key: 'regenerate', label: 'Regenerate', icon: <RefreshCwIcon size={12} /> },
+                    { key: 'shorter', label: 'Shorter', icon: <AlignLeftIcon size={12} /> },
+                    { key: 'casual', label: 'Casual', icon: <MessageSquareIcon size={12} /> },
+                    { key: 'formal', label: 'Formal', icon: <BriefcaseIcon size={12} /> },
+                  ].map((action) => (
                     <Button
                       key={action.key}
                       size="small"
                       variant="outlined"
-                      startIcon={
-                        aiLoading === action.key ? (
-                          <CircularProgress
-                            size={10}
-                            sx={{
-                              color: '#f97316',
-                            }}
-                          />
-                        ) : (
-                          action.icon
-                        )
-                      }
+                      startIcon={aiLoading === action.key ? <CircularProgress size={10} sx={{ color: '#f97316' }} /> : action.icon}
                       disabled={aiLoading !== null}
                       onClick={() => handleAiAction(action.key)}
                       sx={{
@@ -2440,22 +2456,82 @@ function OpportunityCard({
                         px: 1,
                         borderColor: isDark ? '#334155' : '#e2e8f0',
                         color: 'text.secondary',
-                        '&:hover': {
-                          borderColor: '#f97316',
-                          color: '#f97316',
-                          bgcolor: 'rgba(249,115,22,0.06)',
-                        },
-                        '&:disabled': {
-                          opacity: 0.5,
-                        },
+                        '&:hover': { borderColor: '#f97316', color: '#f97316', bgcolor: 'rgba(249,115,22,0.06)' },
+                        '&:disabled': { opacity: 0.5 },
                       }}
                     >
-                      {aiLoading === action.key ? 'Rewriting...' : action.label}
+                      {aiLoading === action.key ? 'Working...' : action.label}
                     </Button>
                   ))}
+                  <Button
+                    size="small"
+                    variant={showAiPrompt ? 'contained' : 'outlined'}
+                    onClick={() => setShowAiPrompt(!showAiPrompt)}
+                    sx={{
+                      fontSize: '11px',
+                      py: 0.25,
+                      px: 1,
+                      minWidth: 0,
+                      ...(showAiPrompt
+                        ? { bgcolor: '#f97316', color: '#fff', '&:hover': { bgcolor: '#ea6c0a' } }
+                        : { borderColor: isDark ? '#334155' : '#e2e8f0', color: 'text.secondary', '&:hover': { borderColor: '#f97316', color: '#f97316' } }),
+                    }}
+                  >
+                    {showAiPrompt ? 'Hide prompt' : 'Custom prompt'}
+                  </Button>
                 </Box>
+
+                {/* Collapsible AI prompt */}
+                <Collapse in={showAiPrompt}>
+                  <Box sx={{ mb: 1.5, display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="Tell the AI what to change... (e.g. 'Focus on the pricing advantage', 'Mention we have a free trial')"
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      multiline
+                      maxRows={3}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && aiPrompt.trim()) {
+                          e.preventDefault()
+                          handleAiAction('regenerate')
+                        }
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          fontSize: '12px',
+                          bgcolor: isDark ? '#0f172a' : '#f8fafc',
+                          '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                          '&:hover fieldset': { borderColor: '#f97316' },
+                          '&.Mui-focused fieldset': { borderColor: '#f97316' },
+                        },
+                        '& .MuiOutlinedInput-input': { color: 'text.primary' },
+                      }}
+                    />
+                    <Button
+                      size="small"
+                      variant="contained"
+                      disabled={!aiPrompt.trim() || aiLoading !== null}
+                      onClick={() => handleAiAction('regenerate')}
+                      sx={{
+                        bgcolor: '#f97316',
+                        color: '#fff',
+                        fontSize: '11px',
+                        px: 2,
+                        flexShrink: 0,
+                        minWidth: 0,
+                        '&:hover': { bgcolor: '#ea6c0a' },
+                        '&:disabled': { opacity: 0.5 },
+                      }}
+                    >
+                      {aiLoading ? 'Working...' : 'Apply'}
+                    </Button>
+                  </Box>
+                </Collapse>
+
                 {aiError && (
-                  <Typography sx={{ fontSize: '11px', color: '#ef4444', mt: 0.5 }}>
+                  <Typography sx={{ fontSize: '11px', color: '#ef4444', mb: 1 }}>
                     {aiError}
                   </Typography>
                 )}
@@ -2473,41 +2549,20 @@ function OpportunityCard({
                       fontSize: '14px',
                       lineHeight: 1.7,
                       bgcolor: draftBg,
-                      '& fieldset': {
-                        borderColor: isDark ? '#334155' : '#e2e8f0',
-                      },
-                      '&:hover fieldset': {
-                        borderColor: '#f97316',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#f97316',
-                      },
+                      '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                      '&:hover fieldset': { borderColor: '#f97316' },
+                      '&.Mui-focused fieldset': { borderColor: '#f97316' },
                     },
-                    '& .MuiOutlinedInput-input': {
-                      color: 'text.primary',
-                    },
+                    '& .MuiOutlinedInput-input': { color: 'text.primary' },
                   }}
                 />
 
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 1,
-                    alignItems: 'center',
-                  }}
-                >
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Button
                     variant="contained"
                     size="small"
                     onClick={handleSaveDraft}
-                    sx={{
-                      bgcolor: '#f97316',
-                      color: '#fff',
-                      fontSize: '13px',
-                      '&:hover': {
-                        bgcolor: '#ea6c0a',
-                      },
-                    }}
+                    sx={{ bgcolor: '#f97316', color: '#fff', fontSize: '13px', '&:hover': { bgcolor: '#ea6c0a' } }}
                   >
                     Save Draft
                   </Button>
@@ -2515,52 +2570,28 @@ function OpportunityCard({
                     variant="outlined"
                     size="small"
                     onClick={handleCancelEdit}
-                    sx={{
-                      borderColor: 'divider',
-                      color: 'text.secondary',
-                      fontSize: '13px',
-                      '&:hover': {
-                        borderColor: '#475569',
-                        bgcolor: draftBg,
-                      },
-                    }}
+                    sx={{ borderColor: 'divider', color: 'text.secondary', fontSize: '13px', '&:hover': { borderColor: '#475569', bgcolor: draftBg } }}
                   >
                     Cancel
                   </Button>
-                  <Tooltip
-                    title={copiedDraft ? 'Copied!' : 'Copy draft'}
-                    arrow
-                    placement="top"
-                  >
+                  <Tooltip title={copiedDraft ? 'Copied!' : 'Copy draft'} arrow placement="top">
                     <IconButton
                       size="small"
                       onClick={handleCopyDraft}
-                      sx={{
-                        color: copiedDraft ? '#10b981' : 'text.disabled',
-                        '&:hover': {
-                          color: copiedDraft ? '#10b981' : 'text.secondary',
-                        },
-                      }}
+                      sx={{ color: copiedDraft ? '#10b981' : 'text.disabled', '&:hover': { color: copiedDraft ? '#10b981' : 'text.secondary' } }}
                     >
-                      {copiedDraft ? (
-                        <CheckIcon size={14} />
-                      ) : (
-                        <ClipboardIcon size={14} />
-                      )}
+                      {copiedDraft ? <CheckIcon size={14} /> : <ClipboardIcon size={14} />}
                     </IconButton>
                   </Tooltip>
-                  <Typography
-                    sx={{
-                      fontSize: '11px',
-                      color: 'text.disabled',
-                      ml: 0.5,
-                    }}
-                  >
+                  <Typography sx={{ fontSize: '11px', color: 'text.disabled', ml: 0.5 }}>
                     {editText.length} chars
                   </Typography>
                 </Box>
               </Box>
-            ) : (
+            )}
+
+            {/* Read-only draft view */}
+            {hasDraft && !isEditing && (
               <Box>
                 <Box
                   sx={{
@@ -2571,23 +2602,11 @@ function OpportunityCard({
                     mb: 1.5,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: '14px',
-                      color: 'text.secondary',
-                      lineHeight: 1.7,
-                    }}
-                  >
+                  <Typography sx={{ fontSize: '14px', color: 'text.secondary', lineHeight: 1.7 }}>
                     {opp.draftReply}
                   </Typography>
                 </Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    gap: 1,
-                    alignItems: 'center',
-                  }}
-                >
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -2596,23 +2615,11 @@ function OpportunityCard({
                       setEditText(opp.draftReply)
                       setIsEditing(true)
                     }}
-                    sx={{
-                      borderColor: 'divider',
-                      color: 'text.secondary',
-                      fontSize: '13px',
-                      '&:hover': {
-                        borderColor: '#475569',
-                        bgcolor: draftBg,
-                      },
-                    }}
+                    sx={{ borderColor: 'divider', color: 'text.secondary', fontSize: '13px', '&:hover': { borderColor: '#475569', bgcolor: draftBg } }}
                   >
                     Edit Draft
                   </Button>
-                  <Tooltip
-                    title={copiedDraft ? 'Copied!' : 'Copy draft'}
-                    arrow
-                    placement="top"
-                  >
+                  <Tooltip title={copiedDraft ? 'Copied!' : 'Copy draft'} arrow placement="top">
                     <IconButton
                       size="small"
                       onClick={() => {
@@ -2620,18 +2627,9 @@ function OpportunityCard({
                         setCopiedDraft(true)
                         setTimeout(() => setCopiedDraft(false), 2000)
                       }}
-                      sx={{
-                        color: copiedDraft ? '#10b981' : 'text.disabled',
-                        '&:hover': {
-                          color: copiedDraft ? '#10b981' : 'text.secondary',
-                        },
-                      }}
+                      sx={{ color: copiedDraft ? '#10b981' : 'text.disabled', '&:hover': { color: copiedDraft ? '#10b981' : 'text.secondary' } }}
                     >
-                      {copiedDraft ? (
-                        <CheckIcon size={14} />
-                      ) : (
-                        <ClipboardIcon size={14} />
-                      )}
+                      {copiedDraft ? <CheckIcon size={14} /> : <ClipboardIcon size={14} />}
                     </IconButton>
                   </Tooltip>
                 </Box>
