@@ -1204,9 +1204,31 @@ export function Dashboard() {
                 {previewOpp.title}
               </Typography>
               {previewOpp.aiRelevanceNote && (
-                <Typography sx={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', mt: 0.5 }}>
-                  AI Assessment: {previewOpp.aiRelevanceNote}
-                </Typography>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                    mt: 1,
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: '8px',
+                    bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
+                    border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
+                  }}
+                >
+                  <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
+                  <Typography
+                    sx={{
+                      fontSize: '13px',
+                      color: isDark ? '#a5b4fc' : '#4f46e5',
+                      lineHeight: 1.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {previewOpp.aiRelevanceNote}
+                  </Typography>
+                </Box>
               )}
             </DialogTitle>
             <DialogContent dividers sx={{ borderColor: isDark ? '#1e293b' : '#e2e8f0' }}>
@@ -1656,16 +1678,32 @@ function OpportunityCard({
               {opp.title}
             </Typography>
             {opp.aiRelevanceNote && (
-              <Typography
+              <Box
                 sx={{
-                  fontSize: '11px',
-                  color: isDark ? '#64748b' : '#94a3b8',
-                  mb: 0.5,
-                  fontStyle: 'italic',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 1,
+                  mt: 0.75,
+                  mb: 0.75,
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: '8px',
+                  bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
+                  border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
                 }}
               >
-                AI: {opp.aiRelevanceNote}
-              </Typography>
+                <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
+                <Typography
+                  sx={{
+                    fontSize: '12px',
+                    color: isDark ? '#a5b4fc' : '#4f46e5',
+                    lineHeight: 1.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {opp.aiRelevanceNote}
+                </Typography>
+              </Box>
             )}
             <Typography
               sx={{
