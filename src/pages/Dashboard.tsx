@@ -1031,54 +1031,59 @@ export function Dashboard() {
         )}
       </Paper>
 
-      {/* Bulk action bar — sticky (outside flex column so sticky works) */}
+      {/* Bulk action bar — fixed bottom bar (Gmail/Figma-style) */}
       {selectedIds.size > 0 && (
         <Box
           sx={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
             display: 'flex',
             alignItems: 'center',
             gap: 2,
-            p: 1.5,
-            mb: 2,
-            bgcolor: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(241,245,249,0.95)',
-            borderRadius: '8px',
+            px: 3,
+            py: 1.5,
+            bgcolor: isDark ? 'rgba(15,23,42,0.97)' : 'rgba(255,255,255,0.97)',
+            borderRadius: '12px',
             border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-            position: 'sticky',
-            top: 0,
-            zIndex: 50,
-            backdropFilter: 'blur(12px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            zIndex: 1300,
+            backdropFilter: 'blur(16px)',
+            boxShadow: isDark
+              ? '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(51,65,85,0.5)'
+              : '0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(226,232,240,0.8)',
+            maxWidth: { xs: 'calc(100vw - 32px)', md: 600 },
           }}
         >
-            <Checkbox
-              checked={selectedIds.size === filteredOpportunities.length}
-              indeterminate={selectedIds.size > 0 && selectedIds.size < filteredOpportunities.length}
-              onChange={selectAll}
-              size="small"
-              sx={{ color: '#f97316', '&.Mui-checked': { color: '#f97316' }, '&.MuiCheckbox-indeterminate': { color: '#f97316' } }}
-            />
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.primary' }}>
-              {selectedIds.size} selected
-            </Typography>
-            <Box sx={{ flex: 1 }} />
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleBulkPublish}
-              sx={{ fontSize: '12px', borderColor: '#22c55e', color: '#22c55e', '&:hover': { borderColor: '#16a34a', bgcolor: 'rgba(34,197,94,0.08)' } }}
-            >
-              Mark Published
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => setShowDismissDialog(true)}
-              sx={{ fontSize: '12px', borderColor: '#ef4444', color: '#ef4444', '&:hover': { borderColor: '#dc2626', bgcolor: 'rgba(239,68,68,0.08)' } }}
-            >
-              Dismiss Selected
-            </Button>
-          </Box>
-        )}
+          <Checkbox
+            checked={selectedIds.size === filteredOpportunities.length}
+            indeterminate={selectedIds.size > 0 && selectedIds.size < filteredOpportunities.length}
+            onChange={selectAll}
+            size="small"
+            sx={{ color: '#f97316', '&.Mui-checked': { color: '#f97316' }, '&.MuiCheckbox-indeterminate': { color: '#f97316' } }}
+          />
+          <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.primary', whiteSpace: 'nowrap' }}>
+            {selectedIds.size} selected
+          </Typography>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleBulkPublish}
+            sx={{ fontSize: '12px', bgcolor: '#22c55e', color: '#fff', '&:hover': { bgcolor: '#16a34a' }, whiteSpace: 'nowrap' }}
+          >
+            Mark Published
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={() => setShowDismissDialog(true)}
+            sx={{ fontSize: '12px', bgcolor: '#ef4444', color: '#fff', '&:hover': { bgcolor: '#dc2626' }, whiteSpace: 'nowrap' }}
+          >
+            Dismiss Selected
+          </Button>
+        </Box>
+      )}
 
       {/* Opportunity Cards */}
       <Box
@@ -2102,249 +2107,6 @@ function OpportunityCard({
           </Box>
         </Box>
 
-        {/* ── Persistent Action Bar (always visible) ── */}
-        <Box
-          sx={{
-            borderTop: `1px solid ${draftBorder}`,
-            px: {
-              xs: 1.5,
-              sm: 2.5,
-            },
-            py: 1,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
-            bgcolor: isPublished
-              ? 'rgba(16,185,129,0.03)'
-              : isUnverified
-                ? 'rgba(245,158,11,0.03)'
-                : 'transparent',
-          }}
-        >
-          {/* New: Mark as Published */}
-          {isNew && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={
-                verifying ? (
-                  <CircularProgress
-                    size={12}
-                    sx={{
-                      color: '#fff',
-                    }}
-                  />
-                ) : (
-                  <CheckIcon size={13} />
-                )
-              }
-              onClick={onMarkPublished}
-              disabled={verifying}
-              sx={{
-                bgcolor: '#10b981',
-                color: '#fff',
-                fontSize: '13px',
-                '&:hover': {
-                  bgcolor: '#059669',
-                },
-                '&:disabled': {
-                  bgcolor: '#6ee7b7',
-                  color: '#fff',
-                },
-              }}
-            >
-              {verifying ? 'Verifying...' : 'Mark as Published'}
-            </Button>
-          )}
-
-          {/* Published: verified badge + view link */}
-          {isPublished && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 1.5,
-                py: 0.5,
-                borderRadius: '6px',
-                bgcolor: 'rgba(16,185,129,0.08)',
-                border: '1px solid rgba(16,185,129,0.2)',
-              }}
-            >
-              <CheckCircleIcon size={13} color="#10b981" />
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#10b981',
-                }}
-              >
-                Published & Verified
-              </Typography>
-              {opp.permalinkUrl && (
-                <Box
-                  component="a"
-                  href={opp.permalinkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    ml: 0.5,
-                    color: '#10b981',
-                    '&:hover': {
-                      color: '#059669',
-                    },
-                  }}
-                >
-                  <ExternalLinkIcon size={12} />
-                </Box>
-              )}
-            </Box>
-          )}
-
-          {/* Unverified: retry + manual permalink input */}
-          {isUnverified && (
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexWrap: 'wrap',
-                flex: 1,
-              }}
-            >
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={
-                  verifying ? (
-                    <CircularProgress
-                      size={11}
-                      sx={{
-                        color: '#f59e0b',
-                      }}
-                    />
-                  ) : (
-                    <RefreshCwIcon size={13} />
-                  )
-                }
-                onClick={onMarkPublished}
-                disabled={verifying}
-                sx={{
-                  borderColor: 'rgba(245,158,11,0.4)',
-                  color: '#f59e0b',
-                  fontSize: '13px',
-                  '&:hover': {
-                    borderColor: '#f59e0b',
-                    bgcolor: 'rgba(245,158,11,0.06)',
-                  },
-                }}
-              >
-                {verifying ? 'Checking...' : 'Retry Auto-Verify'}
-              </Button>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  flex: 1,
-                  minWidth: 0,
-                }}
-              >
-                <TextField
-                  size="small"
-                  placeholder="Paste Reddit comment permalink…"
-                  value={permalinkInput}
-                  onChange={(e) => setPermalinkInput(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LinkIcon size={13} color="#64748b" />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    flex: 1,
-                    minWidth: {
-                      xs: 160,
-                      sm: 280,
-                    },
-                    '& .MuiOutlinedInput-root': {
-                      fontSize: '13px',
-                      '& fieldset': {
-                        borderColor: isDark ? '#334155' : '#e2e8f0',
-                      },
-                      '&:hover fieldset': {
-                        borderColor: '#f59e0b',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#f59e0b',
-                      },
-                    },
-                    '& input': {
-                      color: 'text.primary',
-                      py: 0.65,
-                    },
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={() => {
-                    onManualVerify(permalinkInput)
-                    setPermalinkInput('')
-                  }}
-                  disabled={!permalinkInput.trim() || verifying}
-                  sx={{
-                    bgcolor: '#f59e0b',
-                    color: '#fff',
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    '&:hover': {
-                      bgcolor: '#d97706',
-                    },
-                    '&:disabled': {
-                      bgcolor: isDark ? '#334155' : '#e2e8f0',
-                    },
-                  }}
-                >
-                  Submit Permalink
-                </Button>
-              </Box>
-            </Box>
-          )}
-
-          {/* Spacer */}
-          <Box
-            sx={{
-              flex: 1,
-            }}
-          />
-
-          {/* Dismiss — always available for non-dismissed */}
-          {!isDismissed && !isPublished && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<XIcon size={13} />}
-              onClick={onDismiss}
-              sx={{
-                borderColor: 'rgba(239,68,68,0.3)',
-                color: '#ef4444',
-                fontSize: '13px',
-                '&:hover': {
-                  borderColor: '#ef4444',
-                  bgcolor: 'rgba(239,68,68,0.08)',
-                },
-              }}
-            >
-              Dismiss
-            </Button>
-          )}
-        </Box>
-
         {/* ── AI Draft Reply (collapsible) ── */}
         <Box
           sx={{
@@ -2654,6 +2416,160 @@ function OpportunityCard({
               </Box>
             )}
           </Collapse>
+        </Box>
+
+        {/* ── Action Bar (below AI draft) ── */}
+        <Box
+          sx={{
+            borderTop: `1px solid ${draftBorder}`,
+            px: { xs: 1.5, sm: 2.5 },
+            py: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+            bgcolor: isPublished
+              ? 'rgba(16,185,129,0.03)'
+              : isUnverified
+                ? 'rgba(245,158,11,0.03)'
+                : 'transparent',
+          }}
+        >
+          {/* New: Mark as Published */}
+          {isNew && (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={verifying ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <CheckIcon size={13} />}
+              onClick={onMarkPublished}
+              disabled={verifying}
+              sx={{
+                bgcolor: '#10b981',
+                color: '#fff',
+                fontSize: '13px',
+                '&:hover': { bgcolor: '#059669' },
+                '&:disabled': { bgcolor: '#6ee7b7', color: '#fff' },
+              }}
+            >
+              {verifying ? 'Verifying...' : 'Mark as Published'}
+            </Button>
+          )}
+
+          {/* Published: verified badge + view link */}
+          {isPublished && (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.75,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: '6px',
+                bgcolor: 'rgba(16,185,129,0.08)',
+                border: '1px solid rgba(16,185,129,0.2)',
+              }}
+            >
+              <CheckCircleIcon size={13} color="#10b981" />
+              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+                Published & Verified
+              </Typography>
+              {opp.permalinkUrl && (
+                <Box
+                  component="a"
+                  href={opp.permalinkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ display: 'flex', alignItems: 'center', ml: 0.5, color: '#10b981', '&:hover': { color: '#059669' } }}
+                >
+                  <ExternalLinkIcon size={12} />
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Unverified: retry + manual permalink input */}
+          {isUnverified && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', flex: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={verifying ? <CircularProgress size={11} sx={{ color: '#f59e0b' }} /> : <RefreshCwIcon size={13} />}
+                onClick={onMarkPublished}
+                disabled={verifying}
+                sx={{
+                  borderColor: 'rgba(245,158,11,0.4)',
+                  color: '#f59e0b',
+                  fontSize: '13px',
+                  '&:hover': { borderColor: '#f59e0b', bgcolor: 'rgba(245,158,11,0.06)' },
+                }}
+              >
+                {verifying ? 'Checking...' : 'Retry Auto-Verify'}
+              </Button>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 0 }}>
+                <TextField
+                  size="small"
+                  placeholder="Paste Reddit comment permalink…"
+                  value={permalinkInput}
+                  onChange={(e) => setPermalinkInput(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LinkIcon size={13} color="#64748b" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    flex: 1,
+                    minWidth: { xs: 160, sm: 280 },
+                    '& .MuiOutlinedInput-root': {
+                      fontSize: '13px',
+                      '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                      '&:hover fieldset': { borderColor: '#f59e0b' },
+                      '&.Mui-focused fieldset': { borderColor: '#f59e0b' },
+                    },
+                    '& input': { color: 'text.primary', py: 0.65 },
+                  }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={() => { onManualVerify(permalinkInput); setPermalinkInput('') }}
+                  disabled={!permalinkInput.trim() || verifying}
+                  sx={{
+                    bgcolor: '#f59e0b',
+                    color: '#fff',
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap',
+                    '&:hover': { bgcolor: '#d97706' },
+                    '&:disabled': { bgcolor: isDark ? '#334155' : '#e2e8f0' },
+                  }}
+                >
+                  Submit Permalink
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          {/* Spacer */}
+          <Box sx={{ flex: 1 }} />
+
+          {/* Dismiss — always available for non-dismissed */}
+          {!isDismissed && !isPublished && (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<XIcon size={13} />}
+              onClick={onDismiss}
+              sx={{
+                borderColor: 'rgba(239,68,68,0.3)',
+                color: '#ef4444',
+                fontSize: '13px',
+                '&:hover': { borderColor: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' },
+              }}
+            >
+              Dismiss
+            </Button>
+          )}
         </Box>
       </CardContent>
     </Card>
