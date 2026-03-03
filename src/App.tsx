@@ -1,4 +1,4 @@
-import React, { useMemo, useState, createContext } from 'react'
+import React, { useMemo, useState, useEffect, useCallback, createContext } from 'react'
 import {
   ThemeProvider,
   createTheme,
@@ -13,11 +13,13 @@ import { Clients } from './pages/Clients'
 import { Accounts } from './pages/Accounts'
 import { AccountDetail } from './pages/AccountDetail'
 import { Settings } from './pages/Settings'
+import { LoginScreen } from './components/LoginScreen'
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
 type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings'
 export function App() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [activePage, setActivePage] = useState<Page>('dashboard')
   const [collapsed, setCollapsed] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -25,6 +27,31 @@ export function App() {
     null,
   )
   const [mode, setMode] = useState<'light' | 'dark'>('light')
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/check')
+      setAuthenticated(res.ok)
+    } catch {
+      setAuthenticated(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setAuthenticated(false)
+  }
+
+  if (authenticated === null) {
+    return null // Loading
+  }
+  if (!authenticated) {
+    return <LoginScreen onLogin={() => setAuthenticated(true)} />
+  }
   const colorMode = useMemo(
     () => ({
       toggleColorMode: () =>
@@ -151,6 +178,7 @@ export function App() {
             onToggleMode={colorMode.toggleColorMode}
             mobileOpen={mobileOpen}
             onMobileClose={() => setMobileOpen(false)}
+            onLogout={handleLogout}
           />
 
           <Box

@@ -22,6 +22,7 @@ import {
   ChevronLeftIcon,
   SunIcon,
   MoonIcon,
+  LogOutIcon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
 type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings'
@@ -34,6 +35,7 @@ interface SidebarProps {
   onToggleMode: () => void
   mobileOpen: boolean
   onMobileClose: () => void
+  onLogout?: () => void
 }
 const COLLAPSED_WIDTH = 64
 const EXPANDED_WIDTH = 240
@@ -64,6 +66,7 @@ export function Sidebar({
   onToggleMode,
   mobileOpen,
   onMobileClose,
+  onLogout,
 }: SidebarProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -362,7 +365,7 @@ export function Sidebar({
           }}
         />
 
-        {/* User Avatar */}
+        {/* Logout + User Avatar */}
         <Box
           sx={{
             display: 'flex',
@@ -385,10 +388,10 @@ export function Sidebar({
               flexShrink: 0,
             }}
           >
-            GR
+            RP
           </Avatar>
           {!effectiveCollapsed && (
-            <Box>
+            <Box sx={{ flex: 1 }}>
               <Typography
                 sx={{
                   fontSize: '13px',
@@ -397,17 +400,32 @@ export function Sidebar({
                   lineHeight: 1.2,
                 }}
               >
-                Growth Rocket
-              </Typography>
-              <Typography
-                sx={{
-                  fontSize: '11px',
-                  color: '#64748b',
-                }}
-              >
                 Admin
               </Typography>
             </Box>
+          )}
+          {onLogout && (
+            <Tooltip
+              title="Sign out"
+              placement={effectiveCollapsed ? 'right' : 'top'}
+              arrow
+            >
+              <IconButton
+                onClick={onLogout}
+                size="small"
+                sx={{
+                  color: inactiveIconColor,
+                  '&:hover': {
+                    color: '#ef4444',
+                    bgcolor: 'rgba(239,68,68,0.08)',
+                  },
+                  width: 28,
+                  height: 28,
+                }}
+              >
+                <LogOutIcon size={15} />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
       </Box>
