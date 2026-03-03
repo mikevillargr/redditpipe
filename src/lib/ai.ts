@@ -71,6 +71,14 @@ RULES:
 - Keep it 2-4 short paragraphs max
 - Sound like a real person sharing genuine experience
 
+REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
+- Use Reddit markdown syntax: **bold**, *italic*, ~~strikethrough~~
+- When mentioning any product, tool, or service, ALWAYS include a clickable link: [Product Name](https://example.com)
+- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})
+- Use line breaks between paragraphs (double newline)
+- Use bullet points with "- " when listing multiple options
+- Do NOT use HTML tags — Reddit uses its own markdown
+
 ANTI-DETECTION RULES (critical):
 - No exclamation marks unless the persona uses them
 - No perfect grammar if the persona doesn't write that way
@@ -89,7 +97,15 @@ RULES:
 - Keep it 2-4 short paragraphs max
 - Sound like a real person sharing genuine experience
 - Keep replies SHORT (2-4 sentences typical for Reddit)
-- Use casual Reddit tone (imo, tbh, fwiw)`;
+- Use casual Reddit tone (imo, tbh, fwiw)
+
+REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
+- Use Reddit markdown syntax: **bold**, *italic*, ~~strikethrough~~
+- When mentioning any product, tool, or service, ALWAYS include a clickable link: [Product Name](https://example.com)
+- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})
+- Use line breaks between paragraphs (double newline)
+- Use bullet points with "- " when listing multiple options
+- Do NOT use HTML tags — Reddit uses its own markdown`;
   }
 
   const userPrompt = `THREAD CONTEXT:
@@ -151,7 +167,7 @@ export async function rewriteReply(
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 1024,
-    system: "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else.",
+    system: "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.",
     messages: [
       {
         role: "user",

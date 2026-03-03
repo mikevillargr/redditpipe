@@ -9,7 +9,7 @@ import {
 } from "@/lib/reddit";
 import { computeRelevanceScore } from "@/lib/scoring";
 import { findBestAccount } from "@/lib/matching";
-import { generateReplyDraft } from "@/lib/ai";
+
 import { aiScoreRelevance } from "@/lib/ai-scoring";
 
 export async function POST() {
@@ -149,31 +149,6 @@ export async function POST() {
         accounts,
       });
 
-      // Generate AI draft
-      let aiDraftReply: string | null = null;
-      try {
-        const account = bestAccount
-          ? await prisma.redditAccount.findUnique({ where: { id: bestAccount.id } })
-          : null;
-
-        aiDraftReply = await generateReplyDraft({
-          threadTitle: title,
-          threadBody: selftext.slice(0, 1000),
-          topComments,
-          subreddit,
-          clientName: clientObj.name,
-          clientUrl: clientObj.websiteUrl,
-          clientDescription: clientObj.description,
-          clientMentionTerms: clientObj.mentionTerms || clientObj.name,
-          accountUsername: account?.username,
-          accountPersonality: account?.personalitySummary || undefined,
-          accountStyleNotes: account?.writingStyleNotes || undefined,
-          accountSampleComments: account?.sampleComments || undefined,
-        });
-      } catch (err) {
-        console.error(`Failed to generate AI draft for ${threadId}:`, err);
-      }
-
       // Calculate thread age string
       const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
       const threadAge =
@@ -199,7 +174,6 @@ export async function POST() {
           threadCreatedAt: threadDate,
           relevanceScore,
           aiRelevanceNote,
-          aiDraftReply,
           status: "new",
           discoveredVia,
         },
