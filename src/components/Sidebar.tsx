@@ -474,6 +474,7 @@ export function Sidebar({
           },
           width,
           flexShrink: 0,
+          transition: 'width 0.2s ease',
           '& .MuiDrawer-paper': {
             width,
             boxSizing: 'border-box',

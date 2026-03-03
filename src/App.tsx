@@ -188,14 +188,9 @@ export function App() {
             component="main"
             sx={{
               flexGrow: 1,
-              ml: {
-                xs: 0,
-                md: collapsed ? '64px' : '240px',
-              },
-              transition: 'margin-left 0.2s ease',
+              minWidth: 0,
               minHeight: '100vh',
               bgcolor: 'background.default',
-              overflow: 'auto',
             }}
           >
             {/* Mobile top bar */}
