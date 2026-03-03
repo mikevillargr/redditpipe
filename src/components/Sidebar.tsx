@@ -7,7 +7,6 @@ import {
   ListItemIcon,
   ListItemText,
   IconButton,
-  Avatar,
   Divider,
   Tooltip,
   Typography,
@@ -371,46 +370,18 @@ export function Sidebar({
           }}
         />
 
-        {/* Logout + User Avatar */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            px: effectiveCollapsed ? 1.5 : 2,
-            py: 1.5,
-            justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-          }}
-        >
-          <Avatar
+        {/* Logout */}
+        {onLogout && (
+          <Box
             sx={{
-              width: 32,
-              height: 32,
-              bgcolor: '#1e293b',
-              border: `1px solid ${borderColor}`,
-              fontSize: '12px',
-              fontWeight: 700,
-              color: '#94a3b8',
-              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              px: effectiveCollapsed ? 1.5 : 2,
+              py: 1.5,
+              justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
             }}
           >
-            RP
-          </Avatar>
-          {!effectiveCollapsed && (
-            <Box sx={{ flex: 1 }}>
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#f1f5f9',
-                  lineHeight: 1.2,
-                }}
-              >
-                Admin
-              </Typography>
-            </Box>
-          )}
-          {onLogout && (
             <Tooltip
               title="Sign out"
               placement={effectiveCollapsed ? 'right' : 'top'}
@@ -432,8 +403,19 @@ export function Sidebar({
                 <LogOutIcon size={15} />
               </IconButton>
             </Tooltip>
-          )}
-        </Box>
+            {!effectiveCollapsed && (
+              <Typography
+                sx={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#64748b',
+                }}
+              >
+                Sign out
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   )
