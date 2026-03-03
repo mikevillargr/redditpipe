@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -227,12 +227,6 @@ export function Settings() {
   const [redditUsername, setRedditUsername] = useState('')
   const [redditPassword, setRedditPassword] = useState('')
   const [redditStatus, setRedditStatus] = useState<ConnectionStatus>('idle')
-  // Planka
-  const [plankaUrl, setPlankaUrl] = useState('')
-  const [plankaToken, setPlankaToken] = useState('')
-  const [plankaBoardId, setPlankaBoardId] = useState('')
-  const [plankaListId, setPlankaListId] = useState('')
-  const [plankaStatus, setPlankaStatus] = useState<ConnectionStatus>('idle')
   // AI
   const [anthropicKey, setAnthropicKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
@@ -242,15 +236,107 @@ export function Settings() {
   const [maxAge, setMaxAge] = useState(2)
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
-  const simulateTest = (setter: (s: ConnectionStatus) => void) => {
-    setter('testing')
-    setTimeout(() => {
-      setter(Math.random() > 0.3 ? 'success' : 'error')
-    }, 1500)
+  const [searchRunning, setSearchRunning] = useState(false)
+  const [searchResult, setSearchResult] = useState<string | null>(null)
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        setRedditClientId(data.redditClientId || '')
+        setRedditClientSecret(data.redditClientSecret || '')
+        setRedditUsername(data.redditUsername || '')
+        setRedditPassword(data.redditPassword || '')
+        setAnthropicKey(data.anthropicApiKey || '')
+        setSearchFrequency(data.searchFrequency || 'daily')
+        setMaxResults(data.maxResultsPerKeyword ?? 10)
+        setMaxAge(data.threadMaxAgeDays ?? 2)
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
+
+  const handleTestReddit = async () => {
+    setRedditStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-reddit', { method: 'POST' })
+      const data = await res.json()
+      setRedditStatus(data.success ? 'success' : 'error')
+    } catch {
+      setRedditStatus('error')
+    }
   }
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+
+  const handleTestAi = async () => {
+    setAiStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-ai', { method: 'POST' })
+      const data = await res.json()
+      setAiStatus(data.success ? 'success' : 'error')
+    } catch {
+      setAiStatus('error')
+    }
+  }
+
+  const handleRunSearch = async () => {
+    if (!showRunConfirm) {
+      setShowRunConfirm(true)
+      setTimeout(() => setShowRunConfirm(false), 3000)
+      return
+    }
+    setShowRunConfirm(false)
+    setSearchRunning(true)
+    setSearchResult(null)
+    try {
+      const res = await fetch('/api/search/run', { method: 'POST' })
+      const data = await res.json()
+      if (data.error) {
+        setSearchResult(`Error: ${data.error}`)
+      } else {
+        setSearchResult(
+          `Search complete: ${data.summary.opportunitiesCreated} new opportunities from ${data.summary.clientsSearched} clients`
+        )
+      }
+    } catch (err) {
+      setSearchResult(`Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+    } finally {
+      setSearchRunning(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      const payload: Record<string, unknown> = {
+        searchFrequency,
+        maxResultsPerKeyword: maxResults,
+        threadMaxAgeDays: maxAge,
+      }
+      // Only include non-masked values
+      if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
+      if (!redditClientSecret.startsWith('****')) payload.redditClientSecret = redditClientSecret
+      if (!redditPassword.startsWith('****')) payload.redditPassword = redditPassword
+      if (!anthropicKey.startsWith('****')) payload.anthropicApiKey = anthropicKey
+      payload.redditUsername = redditUsername
+
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2500)
+        loadSettings()
+      }
+    } catch (err) {
+      console.error('Failed to save settings:', err)
+    }
   }
   return (
     <Box
@@ -312,7 +398,7 @@ export function Settings() {
             onChange={setRedditPassword}
           />
           <ConnectionTestButton
-            onTest={() => simulateTest(setRedditStatus)}
+            onTest={handleTestReddit}
             status={redditStatus}
           />
           <Typography
@@ -339,59 +425,6 @@ export function Settings() {
         </Box>
       </SectionCard>
 
-      {/* Planka Integration */}
-      <SectionCard title="Planka Integration">
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <TextField
-            label="Planka URL"
-            value={plankaUrl}
-            onChange={(e) => setPlankaUrl(e.target.value)}
-            fullWidth
-            size="small"
-            placeholder="https://planka.example.com"
-            sx={inputSx}
-          />
-          <PasswordField
-            label="API Token"
-            value={plankaToken}
-            onChange={setPlankaToken}
-          />
-          <TextField
-            label="Board ID"
-            value={plankaBoardId}
-            onChange={(e) => setPlankaBoardId(e.target.value)}
-            fullWidth
-            size="small"
-            sx={inputSx}
-          />
-          <TextField
-            label="Target List ID"
-            value={plankaListId}
-            onChange={(e) => setPlankaListId(e.target.value)}
-            fullWidth
-            size="small"
-            helperText="Cards will be created in this list"
-            sx={{
-              ...inputSx,
-              '& .MuiFormHelperText-root': {
-                color: '#64748b',
-                fontSize: '11px',
-              },
-            }}
-          />
-          <ConnectionTestButton
-            onTest={() => simulateTest(setPlankaStatus)}
-            status={plankaStatus}
-          />
-        </Box>
-      </SectionCard>
-
       {/* AI Configuration */}
       <SectionCard title="AI Configuration">
         <Box
@@ -408,7 +441,7 @@ export function Settings() {
             placeholder="sk-ant-..."
           />
           <ConnectionTestButton
-            onTest={() => simulateTest(setAiStatus)}
+            onTest={handleTestAi}
             status={aiStatus}
           />
         </Box>
@@ -475,14 +508,8 @@ export function Settings() {
               variant="contained"
               fullWidth
               startIcon={<PlayIcon size={16} />}
-              onClick={() => {
-                if (!showRunConfirm) {
-                  setShowRunConfirm(true)
-                  setTimeout(() => setShowRunConfirm(false), 3000)
-                } else {
-                  setShowRunConfirm(false)
-                }
-              }}
+              disabled={searchRunning}
+              onClick={handleRunSearch}
               sx={{
                 bgcolor: showRunConfirm ? '#f59e0b' : '#f97316',
                 '&:hover': {
@@ -492,7 +519,7 @@ export function Settings() {
                 fontSize: '14px',
               }}
             >
-              {showRunConfirm ? 'Click again to confirm' : 'Run Search Now'}
+              {searchRunning ? 'Searching...' : showRunConfirm ? 'Click again to confirm' : 'Run Search Now'}
             </Button>
           </Tooltip>
           {showRunConfirm && (
@@ -507,6 +534,21 @@ export function Settings() {
             >
               This will search for all active clients now. Click the button
               again to confirm.
+            </Alert>
+          )}
+          {searchResult && (
+            <Alert
+              severity={searchResult.startsWith('Error') || searchResult.startsWith('Search failed') ? 'error' : 'success'}
+              sx={{
+                bgcolor: searchResult.startsWith('Error') || searchResult.startsWith('Search failed')
+                  ? 'rgba(239, 68, 68, 0.08)'
+                  : 'rgba(16, 185, 129, 0.08)',
+                border: `1px solid ${searchResult.startsWith('Error') || searchResult.startsWith('Search failed') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`,
+                color: searchResult.startsWith('Error') || searchResult.startsWith('Search failed') ? '#ef4444' : '#10b981',
+                fontSize: '12px',
+              }}
+            >
+              {searchResult}
             </Alert>
           )}
         </Box>

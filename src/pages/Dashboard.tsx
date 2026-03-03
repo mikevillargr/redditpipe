@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Card,
@@ -69,135 +69,15 @@ interface Opportunity {
   platform: 'reddit'
   permalinkUrl?: string
 }
-const initialOpportunities: Opportunity[] = [
-  {
-    id: '1',
-    subreddit: 'r/legaladvice',
-    title:
-      'Got into a car accident last week, other driver ran red light — what are my options?',
-    snippet:
-      'I was driving through an intersection when another car ran the red light and T-boned me. Police report filed, other driver admitted fault at scene but now insurance is disputing...',
-    upvotes: 247,
-    comments: 89,
-    age: '2h ago',
-    relevanceScore: 0.92,
-    client: 'Harmon Law',
-    account: 'u/legal_helper_99',
-    accountPassword: 'L3gal#Helper99',
-    accountActive: true,
-    accountStats: {
-      postsToday: 3,
-      maxPostsPerDay: 3,
-      citationPct: 50,
-    },
-    draftReply:
-      "That's a tough situation, but you're actually in a strong position here. Since there's a police report and the driver admitted fault at the scene, your attorney can use that as leverage. I'd recommend consulting with a personal injury lawyer before accepting any settlement — insurance companies often lowball initial offers significantly. Harmon Law Group offers free consultations for exactly this type of case, and most PI attorneys work on contingency so there's no upfront cost.",
-    status: 'unverified',
-    platform: 'reddit',
-  },
-  {
-    id: '2',
-    subreddit: 'r/fitness',
-    title:
-      'Looking for a gym program that actually works for busy professionals — 3x/week max',
-    snippet:
-      "I work 60+ hour weeks and can only realistically get to the gym 3 times. I've tried a bunch of programs but always fall off. What actually works for people with limited time?",
-    upvotes: 47,
-    comments: 23,
-    age: '4h ago',
-    relevanceScore: 0.85,
-    client: 'Gymijet',
-    account: 'u/fitness_mike',
-    accountPassword: 'p@ssw0rd_mike',
-    accountActive: true,
-    accountStats: {
-      postsToday: 1,
-      maxPostsPerDay: 3,
-      citationPct: 25,
-    },
-    draftReply:
-      "Honestly, 3x/week is plenty if you're doing it right. I'd look into a push/pull/legs split or a full-body routine — both work great for limited schedules. The key is progressive overload and consistency over intensity. tbh I've seen better results from people training 3x with focus than 5x going through the motions. If your gym uses Gymijet for scheduling, you can also set recurring time blocks so it's locked in like a meeting. What's your current fitness level and main goal?",
-    status: 'new',
-    platform: 'reddit',
-  },
-  {
-    id: '3',
-    subreddit: 'r/restaurants',
-    title:
-      'Our reservation system is a nightmare — any recommendations for small restaurant owners?',
-    snippet:
-      "Running a 40-seat Italian place and our current system (paper + phone) is causing double bookings and we're losing customers. What do other small restaurant owners use?",
-    upvotes: 31,
-    comments: 44,
-    age: '6h ago',
-    relevanceScore: 0.78,
-    client: 'TableFlow',
-    account: 'u/resto_advisor',
-    accountPassword: 'R3st0!Adv1sor',
-    accountActive: false,
-    accountStats: {
-      postsToday: 1,
-      maxPostsPerDay: 2,
-      citationPct: 14,
-    },
-    draftReply:
-      "fwiw I've helped a few small restaurants navigate this exact problem. For a 40-seat place, you don't need anything overly complex. OpenTable and Resy are popular but pricey — there are leaner options that work just as well for independent spots. TableFlow is one worth looking at; it's built specifically for independent restaurants and has a free trial. The main thing is getting something with a waitlist feature and two-way SMS confirmations, which cuts no-shows dramatically.",
-    status: 'published',
-    platform: 'reddit',
-    permalinkUrl:
-      'https://reddit.com/r/restaurants/comments/abc123/our_reservation_system/xyz456',
-  },
-  {
-    id: '4',
-    subreddit: 'r/startups',
-    title:
-      "We're burning $40k/month on AWS — is this normal for a 50k DAU SaaS?",
-    snippet:
-      "Our infrastructure costs have ballooned and our CTO says it's normal but it feels high. We're running on EC2 with RDS, no real optimization done yet. Anyone been through this?",
-    upvotes: 312,
-    comments: 156,
-    age: '1h ago',
-    relevanceScore: 0.88,
-    client: 'CloudOptimize',
-    account: 'u/tech_insights_dev',
-    accountPassword: 'T3ch$Dev2024',
-    accountActive: true,
-    accountStats: {
-      postsToday: 2,
-      maxPostsPerDay: 4,
-      citationPct: 25,
-    },
-    draftReply:
-      "That does sound high for 50k DAU, but it depends heavily on your architecture. A few quick wins: Reserved Instances vs on-demand can cut EC2 costs 30-40% immediately. RDS is often over-provisioned — check if you're actually using the instance size you're paying for. Also look at data transfer costs, which are often the hidden killer. CloudOptimize does free infrastructure audits if you want an outside set of eyes — have you done a Cost Explorer breakdown to see where the spend is concentrated?",
-    status: 'new',
-    platform: 'reddit',
-  },
-  {
-    id: '5',
-    subreddit: 'r/ecommerce',
-    title:
-      'Shopify vs WooCommerce for a 500 SKU store — making the switch, need advice',
-    snippet:
-      'Currently on WooCommerce, constantly dealing with plugin conflicts and slow load times. Considering Shopify but worried about the migration and ongoing costs at scale.',
-    upvotes: 89,
-    comments: 67,
-    age: '3h ago',
-    relevanceScore: 0.71,
-    client: 'MigrateCart',
-    account: 'u/ecom_strategist',
-    accountPassword: 'Ec0m#Strat99',
-    accountActive: true,
-    accountStats: {
-      postsToday: 0,
-      maxPostsPerDay: 3,
-      citationPct: 60,
-    },
-    draftReply:
-      "Been through this migration a few times. For 500 SKUs, Shopify is generally the right call if your WooCommerce pain is plugin-related — you're trading flexibility for reliability. The cost difference at scale is real but so is the dev time you'll save. MigrateCart specializes in exactly this — WooCommerce to Shopify — and handles URL structure, metafield mapping, and app equivalents so you don't lose SEO equity. What's your current monthly WooCommerce hosting + maintenance cost?",
-    status: 'new',
-    platform: 'reddit',
-  },
-]
+function getTimeAgo(date: Date): string {
+  const ms = Date.now() - date.getTime()
+  const mins = Math.floor(ms / 60000)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
+}
 type ScoreFilter = 'any' | '0.7' | '0.85' | '0.9'
 const scoreFilterOptions: {
   value: ScoreFilter
@@ -261,8 +141,8 @@ function CountBadge({
   )
 }
 export function Dashboard() {
-  const [opportunities, setOpportunities] =
-    useState<Opportunity[]>(initialOpportunities)
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [clientList, setClientList] = useState<{ id: string; name: string }[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
@@ -319,10 +199,79 @@ export function Dashboard() {
       label: '1y',
     },
   ]
+  const fetchOpportunities = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      if (clientFilter !== 'all') params.set('clientId', clientFilter)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (scoreFilter !== 'any') params.set('minScore', scoreFilter)
+      if (dateStart) params.set('startDate', dateStart)
+      if (dateEnd) params.set('endDate', dateEnd)
+      const res = await fetch(`/api/opportunities?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setOpportunities(data.map((o: {
+          id: string; subreddit: string; title: string; body: string | null;
+          threadUpvotes: number | null; threadCommentCount: number | null;
+          createdAt: string; relevanceScore: number;
+          client: { name: string } | null; account: { username: string; password: string | null; status: string; postsTodayCount: number; maxPostsPerDay: number; organicPostsWeek: number; citationPostsWeek: number } | null;
+          aiDraftReply: string | null; status: string; permalinkUrl: string | null;
+        }) => {
+          const acct = o.account
+          const totalWeek = (acct?.organicPostsWeek ?? 0) + (acct?.citationPostsWeek ?? 0)
+          const citPct = totalWeek > 0 ? Math.round(((acct?.citationPostsWeek ?? 0) / totalWeek) * 100) : 0
+          return {
+            id: o.id,
+            subreddit: `r/${o.subreddit}`,
+            title: o.title,
+            snippet: o.body || '',
+            upvotes: o.threadUpvotes || 0,
+            comments: o.threadCommentCount || 0,
+            age: getTimeAgo(new Date(o.createdAt)),
+            relevanceScore: o.relevanceScore,
+            client: o.client?.name || 'Unknown',
+            account: acct ? `u/${acct.username}` : 'Unassigned',
+            accountPassword: acct?.password || '',
+            accountActive: acct?.status === 'active',
+            accountStats: {
+              postsToday: acct?.postsTodayCount ?? 0,
+              maxPostsPerDay: acct?.maxPostsPerDay ?? 3,
+              citationPct: citPct,
+            },
+            draftReply: o.aiDraftReply || '',
+            status: o.status as StatusFilter,
+            platform: 'reddit' as const,
+            permalinkUrl: o.permalinkUrl || undefined,
+          }
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch opportunities:', err)
+    }
+  }, [clientFilter, statusFilter, scoreFilter, dateStart, dateEnd])
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clients')
+      if (res.ok) {
+        const data = await res.json()
+        setClientList(data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })))
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchClients()
+  }, [fetchClients])
+
+  useEffect(() => {
+    fetchOpportunities()
+  }, [fetchOpportunities])
+
   const [verifyingCards, setVerifyingCards] = useState<Set<string>>(new Set())
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(
-    new Set(['1', '2', '3']),
-  )
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [snackbar, setSnackbar] = useState<{
     open: boolean
     message: string
@@ -373,90 +322,64 @@ export function Dashboard() {
       return n
     })
   }
-  const handleMarkPublished = (id: string) => {
+  const handleMarkPublished = async (id: string) => {
     setVerifyingCards((prev) => new Set(prev).add(id))
-    setTimeout(() => {
-      const verified = Math.random() < 0.7
-      const newStatus: StatusFilter = verified ? 'published' : 'unverified'
-      setOpportunities((prev) =>
-        prev.map((o) =>
-          o.id === id
-            ? {
-                ...o,
-                status: newStatus,
-              }
-            : o,
-        ),
-      )
-      setVerifyingCards((prev) => {
-        const n = new Set(prev)
-        n.delete(id)
-        return n
-      })
-      setSnackbar({
-        open: true,
-        message: verified
-          ? 'Published ✓ Comment verified on Reddit'
-          : 'Unverified — comment not found on Reddit',
-        severity: verified ? 'success' : 'warning',
-      })
-    }, 1500)
+    try {
+      const res = await fetch(`/api/opportunities/${id}/verify`, { method: 'POST' })
+      const data = await res.json()
+      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
+      if (data.status === 'published') {
+        setSnackbar({ open: true, message: 'Published ✓ Comment verified on Reddit', severity: 'success' })
+      } else {
+        setSnackbar({ open: true, message: 'Unverified — comment not found on Reddit', severity: 'warning' })
+      }
+      fetchOpportunities()
+    } catch {
+      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
+      setSnackbar({ open: true, message: 'Verification failed', severity: 'warning' })
+    }
   }
-  const handleManualVerify = (id: string, permalink: string) => {
+  const handleManualVerify = async (id: string, permalink: string) => {
     if (!permalink.trim()) return
     setVerifyingCards((prev) => new Set(prev).add(id))
-    setTimeout(() => {
-      setOpportunities((prev) =>
-        prev.map((o) =>
-          o.id === id
-            ? {
-                ...o,
-                status: 'published',
-                permalinkUrl: permalink.trim(),
-              }
-            : o,
-        ),
-      )
-      setVerifyingCards((prev) => {
-        const n = new Set(prev)
-        n.delete(id)
-        return n
+    try {
+      await fetch(`/api/opportunities/${id}/manual-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permalinkUrl: permalink.trim() }),
       })
-      setSnackbar({
-        open: true,
-        message: 'Permalink saved — marked as Published ✓',
-        severity: 'success',
+      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
+      setSnackbar({ open: true, message: 'Permalink saved — marked as Published ✓', severity: 'success' })
+      fetchOpportunities()
+    } catch {
+      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
+      setSnackbar({ open: true, message: 'Manual verification failed', severity: 'warning' })
+    }
+  }
+  const handleDismiss = async (id: string) => {
+    try {
+      await fetch(`/api/opportunities/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'dismissed' }),
       })
-    }, 800)
+      setSnackbar({ open: true, message: 'Opportunity dismissed', severity: 'info' })
+      fetchOpportunities()
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to dismiss', severity: 'warning' })
+    }
   }
-  const handleDismiss = (id: string) => {
-    setOpportunities((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              status: 'dismissed',
-            }
-          : o,
-      ),
-    )
-    setSnackbar({
-      open: true,
-      message: 'Opportunity dismissed',
-      severity: 'info',
-    })
-  }
-  const handleUpdateDraft = (id: string, newDraft: string) => {
-    setOpportunities((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              draftReply: newDraft,
-            }
-          : o,
-      ),
-    )
+  const handleUpdateDraft = async (id: string, newDraft: string) => {
+    try {
+      await fetch(`/api/opportunities/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiDraftReply: newDraft }),
+      })
+      fetchOpportunities()
+    } catch (err) {
+      console.error('Failed to update draft:', err)
+    }
   }
   const clientFilteredOpps =
     clientFilter === 'all'
@@ -475,7 +398,7 @@ export function Dashboard() {
   const unverifiedCount = countByStatus('unverified')
   const dismissedCount = countByStatus('dismissed')
   const allCount = clientFilteredOpps.length
-  const clients = Array.from(new Set(initialOpportunities.map((o) => o.client)))
+  // clients are fetched from API
   return (
     <Box
       sx={{
@@ -541,9 +464,9 @@ export function Dashboard() {
             }}
           >
             <MenuItem value="all">All Clients</MenuItem>
-            {clients.map((c) => (
-              <MenuItem key={c} value={c}>
-                {c}
+            {clientList.map((c) => (
+              <MenuItem key={c.id} value={c.id}>
+                {c.name}
               </MenuItem>
             ))}
           </Select>
@@ -1082,41 +1005,7 @@ export function Dashboard() {
   )
 }
 // ── AI rewrite helpers ────────────────────────────────────────────────────────
-function simulateAiRewrite(original: string, action: string): string {
-  if (action === 'shorter') {
-    const sentences = original.split('. ')
-    return (
-      sentences
-        .slice(0, Math.max(2, Math.ceil(sentences.length * 0.6)))
-        .join('. ') + (original.endsWith('.') ? '.' : '')
-    )
-  }
-  if (action === 'casual') {
-    return (
-      original
-        .replace(/I would recommend/g, "I'd recommend")
-        .replace(/you are/g, "you're")
-        .replace(/it is/g, "it's")
-        .replace(/That does sound/g, 'Yeah, that sounds') + ' Hope that helps!'
-    )
-  }
-  if (action === 'formal') {
-    return (
-      original
-        .replace(/tbh/g, 'To be honest,')
-        .replace(/fwiw/g, 'For what it is worth,')
-        .replace(/Yeah,/g, '')
-        .replace(/Hope that helps!/g, '')
-        .trim() +
-      ' Please do not hesitate to reach out if you have further questions.'
-    )
-  }
-  return (
-    "Based on the context you've shared, " +
-    original.charAt(0).toLowerCase() +
-    original.slice(1)
-  )
-}
+// AI rewrite is now handled via API
 // ── Opportunity Card ──────────────────────────────────────────────────────────
 interface OpportunityCardProps {
   opportunity: Opportunity
@@ -1175,12 +1064,23 @@ function OpportunityCard({
     setCopiedDraft(true)
     setTimeout(() => setCopiedDraft(false), 2000)
   }
-  const handleAiAction = (action: string) => {
+  const handleAiAction = async (action: string) => {
     setAiLoading(action)
-    setTimeout(() => {
-      setEditText(simulateAiRewrite(editText, action))
+    try {
+      const res = await fetch(`/api/opportunities/${opp.id}/rewrite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setEditText(data.aiDraftReply || editText)
+      }
+    } catch (err) {
+      console.error('AI rewrite failed:', err)
+    } finally {
       setAiLoading(null)
-    }, 1200)
+    }
   }
   const handleSaveDraft = () => {
     onUpdateDraft(editText)

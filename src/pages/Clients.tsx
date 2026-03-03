@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -588,9 +588,35 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
 export function Clients() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
-  const [clients, setClients] = useState<Client[]>(initialClients)
+  const [clients, setClients] = useState<Client[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clients')
+      if (res.ok) {
+        const data = await res.json()
+        setClients(data.map((c: { id: string; name: string; websiteUrl: string; keywords: string; mentionTerms: string | null; status: string; _count: { opportunities: number }; description: string }) => ({
+          id: c.id,
+          name: c.name,
+          website: c.websiteUrl,
+          keywords: c.keywords.split(',').map((k: string) => k.trim()).filter(Boolean),
+          mentionTerms: c.mentionTerms ? c.mentionTerms.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+          active: c.status === 'active',
+          opportunities: c._count.opportunities,
+          description: c.description,
+        })))
+      }
+    } catch (err) {
+      console.error('Failed to fetch clients:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchClients()
+  }, [fetchClients])
+
   const handleAdd = () => {
     setEditingClient(null)
     setModalOpen(true)
@@ -599,40 +625,59 @@ export function Clients() {
     setEditingClient(client)
     setModalOpen(true)
   }
-  const handleDelete = (id: string) =>
-    setClients((prev) => prev.filter((c) => c.id !== id))
-  const handleToggleActive = (id: string) =>
-    setClients((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? {
-              ...c,
-              active: !c.active,
-            }
-          : c,
-      ),
-    )
-  const handleSave = (data: Omit<Client, 'id' | 'opportunities'>) => {
-    if (editingClient) {
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === editingClient.id
-            ? {
-                ...c,
-                ...data,
-              }
-            : c,
-        ),
-      )
-    } else {
-      setClients((prev) => [
-        ...prev,
-        {
-          ...data,
-          id: String(Date.now()),
-          opportunities: 0,
-        },
-      ])
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+      fetchClients()
+    } catch (err) {
+      console.error('Failed to delete client:', err)
+    }
+  }
+  const handleToggleActive = async (id: string) => {
+    const client = clients.find((c) => c.id === id)
+    if (!client) return
+    try {
+      await fetch(`/api/clients/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: client.active ? 'paused' : 'active' }),
+      })
+      fetchClients()
+    } catch (err) {
+      console.error('Failed to toggle client:', err)
+    }
+  }
+  const handleSave = async (data: Omit<Client, 'id' | 'opportunities'>) => {
+    try {
+      if (editingClient) {
+        await fetch(`/api/clients/${editingClient.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name,
+            websiteUrl: data.website,
+            description: data.description,
+            keywords: data.keywords,
+            mentionTerms: data.mentionTerms,
+            status: data.active ? 'active' : 'paused',
+          }),
+        })
+      } else {
+        await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name,
+            websiteUrl: data.website,
+            description: data.description,
+            keywords: data.keywords,
+            mentionTerms: data.mentionTerms,
+          }),
+        })
+      }
+      fetchClients()
+    } catch (err) {
+      console.error('Failed to save client:', err)
     }
   }
   const borderColor = isDark ? '#334155' : '#e2e8f0'

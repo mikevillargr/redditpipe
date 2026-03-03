@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -37,105 +37,109 @@ interface AccountDetailProps {
   accountId: string | null
   onBack: () => void
 }
-const sampleComments = [
-  {
-    id: '1',
-    subreddit: 'r/fitness',
-    text: 'tbh the best thing I did was stop trying to optimize everything and just show up consistently. 3x/week full body, progressive overload, done. Took me 2 years to figure that out.',
-    score: 234,
-    date: '2 weeks ago',
-  },
-  {
-    id: '2',
-    subreddit: 'r/loseit',
-    text: 'fwiw tracking calories is the single highest leverage thing you can do. Everything else is noise until you have that dialed in. I use a food scale and it changed everything.',
-    score: 89,
-    date: '3 weeks ago',
-  },
-  {
-    id: '3',
-    subreddit: 'r/gym',
-    text: "imo the barbell is still king for building strength. Machines have their place (especially for isolation) but if you're not squatting and deadlifting you're leaving gains on the table.",
-    score: 156,
-    date: '1 month ago',
-  },
-  {
-    id: '4',
-    subreddit: 'r/nutrition',
-    text: "protein timing matters way less than total daily protein. Get your 0.8-1g per lb bodyweight and you're good. The rest is just marketing.",
-    score: 67,
-    date: '1 month ago',
-  },
-  {
-    id: '5',
-    subreddit: 'r/running',
-    text: 'zone 2 cardio is underrated for recovery. I added 2x 45min easy runs per week and my strength training actually improved (less fatigue, better sleep).',
-    score: 43,
-    date: '6 weeks ago',
-  },
-  {
-    id: '6',
-    subreddit: 'r/bodyweightfitness',
-    text: "rings are the best investment I've made for home training. Rings rows, dips, and push-ups cover 80% of what you need. Plus they're portable.",
-    score: 112,
-    date: '2 months ago',
-  },
-]
-const activityLog = [
-  {
-    date: '2025-02-28',
-    thread:
-      'Looking for a gym program that actually works for busy professionals',
-    subreddit: 'r/fitness',
-    client: 'Gymijet',
-    status: 'pushed',
-  },
-  {
-    date: '2025-02-26',
-    thread: "Best protein powder that doesn't taste like chalk?",
-    subreddit: 'r/nutrition',
-    client: 'Gymijet',
-    status: 'pushed',
-  },
-  {
-    date: '2025-02-24',
-    thread: 'How do I stop skipping leg day?',
-    subreddit: 'r/gym',
-    client: 'FitnessCo',
-    status: 'dismissed',
-  },
-  {
-    date: '2025-02-22',
-    thread: 'Running 3x/week vs 5x/week — which is better for weight loss?',
-    subreddit: 'r/running',
-    client: 'Gymijet',
-    status: 'pushed',
-  },
-  {
-    date: '2025-02-20',
-    thread: 'Anyone tried intermittent fasting with strength training?',
-    subreddit: 'r/loseit',
-    client: 'FitnessCo',
-    status: 'pushed',
-  },
-]
+interface SampleComment {
+  id: string
+  subreddit: string
+  text: string
+  score: number
+  date: string
+}
+interface ActivityRow {
+  date: string
+  thread: string
+  subreddit: string
+  client: string
+  status: string
+}
+interface AccountData {
+  id: string
+  username: string
+  status: string
+  accountAgeDays: number | null
+  postKarma: number | null
+  commentKarma: number | null
+  personalitySummary: string | null
+  writingStyleNotes: string | null
+  sampleComments: string | null
+  activeSubreddits: string | null
+  maxPostsPerDay: number
+  minHoursBetweenPosts: number
+  postsTodayCount: number
+  organicPostsWeek: number
+  citationPostsWeek: number
+}
 export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
+  const [account, setAccount] = useState<AccountData | null>(null)
   const [status, setStatus] = useState('active')
-  const [personalitySummary, setPersonalitySummary] = useState(
-    "Casual and helpful tone. Prefers short, punchy responses. Frequently posts in fitness and nutrition subreddits. Uses abbreviations like 'tbh' and 'imo'. Rarely uses emojis. Tends to share personal experience before giving advice.",
-  )
-  const [writingStyle, setWritingStyle] = useState(
-    "Average comment length: 3-4 sentences. Never uses exclamation marks. Lowercase preference. Often starts replies with 'honestly' or 'fwiw'. Uses parenthetical asides frequently.",
-  )
+  const [personalitySummary, setPersonalitySummary] = useState('')
+  const [writingStyle, setWritingStyle] = useState('')
   const [maxPostsPerDay, setMaxPostsPerDay] = useState(3)
   const [minHoursBetween, setMinHoursBetween] = useState(4)
   const [page, setPage] = useState(0)
   const [savedPersonality, setSavedPersonality] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
   const [savedSafety, setSavedSafety] = useState(false)
-  const [organicPostsWeek] = useState(9)
-  const [citationPostsWeek] = useState(3)
-  const postRatio = 1 / 3
+  const [sampleComments, setSampleComments] = useState<SampleComment[]>([])
+  const [activeSubreddits, setActiveSubreddits] = useState<string[]>([])
+  const [activityLog, setActivityLog] = useState<ActivityRow[]>([])
+  const [analyzing, setAnalyzing] = useState(false)
+
+  const fetchAccount = useCallback(async () => {
+    if (!accountId) return
+    try {
+      const res = await fetch(`/api/accounts/${accountId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setAccount(data)
+        setStatus(data.status)
+        setPersonalitySummary(data.personalitySummary || '')
+        setWritingStyle(data.writingStyleNotes || '')
+        setMaxPostsPerDay(data.maxPostsPerDay)
+        setMinHoursBetween(data.minHoursBetweenPosts)
+        // Parse sample comments
+        if (data.sampleComments) {
+          try {
+            const parsed = JSON.parse(data.sampleComments)
+            setSampleComments(parsed.map((c: string, i: number) => {
+              const match = c.match(/^\[r\/([^,]+), score: (\d+)\] (.*)$/)
+              return match
+                ? { id: String(i), subreddit: `r/${match[1]}`, score: Number(match[2]), text: match[3], date: '' }
+                : { id: String(i), subreddit: '', score: 0, text: c, date: '' }
+            }))
+          } catch { setSampleComments([]) }
+        }
+        // Parse active subreddits
+        if (data.activeSubreddits) {
+          try {
+            setActiveSubreddits(JSON.parse(data.activeSubreddits).map((s: string) => `r/${s}`))
+          } catch { setActiveSubreddits([]) }
+        }
+        // Fetch activity log
+        const actRes = await fetch(`/api/accounts/${accountId}/activity`)
+        if (actRes.ok) {
+          const actData = await actRes.json()
+          setActivityLog(actData.map((o: { createdAt: string; title: string; subreddit: string; client?: { name: string }; status: string }) => ({
+            date: new Date(o.createdAt).toISOString().split('T')[0],
+            thread: o.title,
+            subreddit: `r/${o.subreddit}`,
+            client: o.client?.name || '',
+            status: o.status === 'published' ? 'pushed' : o.status,
+          })))
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch account:', err)
+    }
+  }, [accountId])
+
+  useEffect(() => {
+    fetchAccount()
+  }, [fetchAccount])
+
+  const organicPostsWeek = account?.organicPostsWeek ?? 0
+  const citationPostsWeek = account?.citationPostsWeek ?? 0
+  const postsToday = account?.postsTodayCount ?? 0
+  const postRatio = maxPostsPerDay > 0 ? postsToday / maxPostsPerDay : 0
   const progressColor =
     postRatio >= 1 ? '#ef4444' : postRatio >= 0.5 ? '#f59e0b' : '#10b981'
   const inputSx = {
@@ -169,18 +173,59 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
       : citationPct <= 40
         ? 'Borderline'
         : 'Too many citations'
-  const handleSave = (type: 'personality' | 'style' | 'safety') => {
-    if (type === 'personality') {
-      setSavedPersonality(true)
-      setTimeout(() => setSavedPersonality(false), 2000)
+  const handleSave = async (type: 'personality' | 'style' | 'safety') => {
+    if (!accountId) return
+    try {
+      const payload: Record<string, unknown> = {}
+      if (type === 'personality') payload.personalitySummary = personalitySummary
+      if (type === 'style') payload.writingStyleNotes = writingStyle
+      if (type === 'safety') {
+        payload.maxPostsPerDay = maxPostsPerDay
+        payload.minHoursBetweenPosts = minHoursBetween
+        payload.status = status
+      }
+      await fetch(`/api/accounts/${accountId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (type === 'personality') {
+        setSavedPersonality(true)
+        setTimeout(() => setSavedPersonality(false), 2000)
+      }
+      if (type === 'style') {
+        setSavedStyle(true)
+        setTimeout(() => setSavedStyle(false), 2000)
+      }
+      if (type === 'safety') {
+        setSavedSafety(true)
+        setTimeout(() => setSavedSafety(false), 2000)
+      }
+    } catch (err) {
+      console.error('Failed to save:', err)
     }
-    if (type === 'style') {
-      setSavedStyle(true)
-      setTimeout(() => setSavedStyle(false), 2000)
+  }
+
+  const handleAnalyze = async () => {
+    if (!accountId) return
+    setAnalyzing(true)
+    try {
+      await fetch(`/api/accounts/${accountId}/analyze`, { method: 'POST' })
+      await fetchAccount()
+    } catch (err) {
+      console.error('Failed to analyze:', err)
+    } finally {
+      setAnalyzing(false)
     }
-    if (type === 'safety') {
-      setSavedSafety(true)
-      setTimeout(() => setSavedSafety(false), 2000)
+  }
+
+  const handleDelete = async () => {
+    if (!accountId) return
+    try {
+      await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' })
+      onBack()
+    } catch (err) {
+      console.error('Failed to delete:', err)
     }
   }
   return (
@@ -269,7 +314,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                       color: 'text.primary',
                     }}
                   >
-                    u/fitness_mike
+                    u/{account?.username || '...'}
                   </Typography>
                 </Box>
                 <Chip
@@ -313,7 +358,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                     color: 'text.primary',
                   }}
                 >
-                  2y 4m
+                  {account ? `${Math.floor((account.accountAgeDays || 0) / 365)}y ${Math.floor(((account.accountAgeDays || 0) % 365) / 30)}m` : '...'}
                 </Typography>
               </Box>
               <Box
@@ -338,7 +383,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                     color: 'text.primary',
                   }}
                 >
-                  1,234
+                  {(account?.postKarma || 0).toLocaleString()}
                 </Typography>
               </Box>
               <Box
@@ -363,7 +408,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                     color: 'text.primary',
                   }}
                 >
-                  5,678
+                  {(account?.commentKarma || 0).toLocaleString()}
                 </Typography>
               </Box>
             </Box>
@@ -399,6 +444,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 variant="outlined"
                 size="small"
                 startIcon={<RefreshCwIcon size={14} />}
+                onClick={handleAnalyze}
                 sx={{
                   borderColor: '#334155',
                   color: '#94a3b8',
@@ -407,8 +453,9 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                     bgcolor: '#0f172a',
                   },
                 }}
+                disabled={analyzing}
               >
-                Re-Analyze
+                {analyzing ? 'Analyzing...' : 'Re-Analyze'}
               </Button>
               <Button
                 variant="outlined"
@@ -422,6 +469,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                     bgcolor: 'rgba(239,68,68,0.08)',
                   },
                 }}
+                onClick={handleDelete}
               >
                 Delete
               </Button>
@@ -439,7 +487,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
         }}
       >
         {/* Left Column */}
-        <Grid item xs={12} lg={7}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           {/* AI Personality Summary */}
           <Card
             sx={{
@@ -659,7 +707,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
         </Grid>
 
         {/* Right Column */}
-        <Grid item xs={12} lg={5}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           {/* Safety Settings */}
           <Card
             sx={{
@@ -742,12 +790,12 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                         color: progressColor,
                       }}
                     >
-                      1/{maxPostsPerDay}
+                      {postsToday}/{maxPostsPerDay}
                     </Typography>
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={(1 / maxPostsPerDay) * 100}
+                    value={(postsToday / maxPostsPerDay) * 100}
                     sx={{
                       height: 6,
                       borderRadius: 3,
@@ -1014,14 +1062,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                   gap: 0.75,
                 }}
               >
-                {[
-                  'r/fitness',
-                  'r/gym',
-                  'r/loseit',
-                  'r/nutrition',
-                  'r/running',
-                  'r/bodyweightfitness',
-                ].map((sub) => (
+                {activeSubreddits.map((sub) => (
                   <Chip
                     key={sub}
                     label={sub}

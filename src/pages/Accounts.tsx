@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -41,6 +41,16 @@ import {
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
 import { CircularProgress } from '@mui/material'
+
+function getTimeAgo(date: Date): string {
+  const ms = Date.now() - date.getTime()
+  const mins = Math.floor(ms / 60000)
+  if (mins < 60) return `${mins} minutes ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours} hours ago`
+  const days = Math.floor(hours / 24)
+  return `${days} days ago`
+}
 interface Account {
   id: string
   username: string
@@ -287,6 +297,8 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
       postsToday: 0,
       maxPostsPerDay,
       location: '',
+      organicPostsWeek: 0,
+      citationPostsWeek: 0,
     })
     setUsername('')
     setPassword('')
@@ -1245,15 +1257,65 @@ interface AccountsProps {
   onViewAccount: (id: string) => void
 }
 export function Accounts({ onViewAccount }: AccountsProps) {
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts)
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [modalOpen, setModalOpen] = useState(false)
+
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/accounts')
+      if (res.ok) {
+        const data = await res.json()
+        setAccounts(data.map((a: {
+          id: string; username: string; password: string | null; status: string;
+          accountAgeDays: number | null; postKarma: number | null; commentKarma: number | null;
+          activeSubreddits: string | null; lastPostAt: string | null;
+          postsTodayCount: number; maxPostsPerDay: number; location: string | null;
+          organicPostsWeek: number; citationPostsWeek: number;
+          accountAssignments: { client: { id: string; name: string } }[];
+        }) => {
+          let subs: string[] = []
+          if (a.activeSubreddits) {
+            try { subs = JSON.parse(a.activeSubreddits).map((s: string) => `r/${s}`) } catch { subs = [] }
+          }
+          const ageDays = a.accountAgeDays || 0
+          const years = Math.floor(ageDays / 365)
+          const months = Math.floor((ageDays % 365) / 30)
+          return {
+            id: a.id,
+            username: a.username,
+            password: a.password || '',
+            status: a.status as Account['status'],
+            age: `${years}y ${months}m`,
+            postKarma: a.postKarma || 0,
+            commentKarma: a.commentKarma || 0,
+            subreddits: subs,
+            clients: a.accountAssignments.map((aa: { client: { name: string } }) => aa.client.name),
+            postsToday: a.postsTodayCount,
+            maxPostsPerDay: a.maxPostsPerDay,
+            lastActivity: a.lastPostAt ? getTimeAgo(new Date(a.lastPostAt)) : 'Never',
+            noOrganicActivity: a.organicPostsWeek === 0,
+            location: a.location || '',
+            organicPostsWeek: a.organicPostsWeek,
+            citationPostsWeek: a.citationPostsWeek,
+          }
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch accounts:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAccounts()
+  }, [fetchAccounts])
+
   const totalAccounts = accounts.length
   const activeAccounts = accounts.filter((a) => a.status === 'active').length
   const warmingAccounts = accounts.filter((a) => a.status === 'warming').length
   const cooldownAccounts = accounts.filter(
     (a) => a.status === 'cooldown',
   ).length
-  const handleAddAccount = (
+  const handleAddAccount = async (
     data: Omit<
       Account,
       | 'id'
@@ -1265,17 +1327,22 @@ export function Accounts({ onViewAccount }: AccountsProps) {
       | 'noOrganicActivity'
     >,
   ) => {
-    const newAccount: Account = {
-      ...data,
-      id: String(Date.now()),
-      age: '0y 0m',
-      postKarma: 0,
-      commentKarma: 0,
-      subreddits: [],
-      lastActivity: 'Never',
-      noOrganicActivity: true,
+    try {
+      await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: data.username,
+          password: data.password,
+          status: data.status,
+          maxPostsPerDay: data.maxPostsPerDay,
+          location: data.location || null,
+        }),
+      })
+      fetchAccounts()
+    } catch (err) {
+      console.error('Failed to add account:', err)
     }
-    setAccounts((prev) => [newAccount, ...prev])
   }
   return (
     <Box
@@ -1379,7 +1446,7 @@ export function Accounts({ onViewAccount }: AccountsProps) {
       {/* Card Grid */}
       <Grid container spacing={2}>
         {accounts.map((account) => (
-          <Grid item xs={12} sm={6} md={4} key={account.id}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={account.id}>
             <AccountCard account={account} onView={onViewAccount} />
           </Grid>
         ))}
