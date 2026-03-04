@@ -249,7 +249,7 @@ export function Settings() {
   // AI tuning
   const [relevanceThreshold, setRelevanceThreshold] = useState(0.4)
   const [aiSearchContext, setAiSearchContext] = useState('')
-  const [aiModelScoring, setAiModelScoring] = useState('claude-3-5-haiku-20241022')
+  const [aiModelScoring, setAiModelScoring] = useState('claude-haiku-4-5-20251001')
   const [aiModelReplies, setAiModelReplies] = useState('claude-sonnet-4-20250514')
   const [aiModelDetection, setAiModelDetection] = useState('claude-sonnet-4-20250514')
   const [showRunConfirm, setShowRunConfirm] = useState(false)
@@ -279,7 +279,7 @@ export function Settings() {
         setMaxAge(data.threadMaxAgeDays ?? 2)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
         setAiSearchContext(data.aiSearchContext || '')
-        setAiModelScoring(data.aiModelScoring || 'claude-3-5-haiku-20241022')
+        setAiModelScoring(data.aiModelScoring || 'claude-haiku-4-5-20251001')
         setAiModelReplies(data.aiModelReplies || 'claude-sonnet-4-20250514')
         setAiModelDetection(data.aiModelDetection || 'claude-sonnet-4-20250514')
         setSearchBreadth(data.searchBreadth || 'balanced')
@@ -851,9 +851,9 @@ export function Settings() {
               onChange={(e) => setAiModelScoring(e.target.value)}
               label="Scoring Model (high volume)"
             >
-              <MenuItem value="claude-3-5-haiku-20241022">
+              <MenuItem value="claude-haiku-4-5-20251001">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude 3.5 Haiku</span>
+                  <span>Claude Haiku 4.5</span>
                   <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Recommended</Typography>
                 </Box>
               </MenuItem>
@@ -869,10 +869,22 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
                 </Box>
               </MenuItem>
-              <MenuItem value="claude-opus-4-20250115">
+              <MenuItem value="claude-sonnet-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250514">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>Claude Opus 4</span>
                   <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
             </Select>
@@ -888,46 +900,9 @@ export function Settings() {
               onChange={(e) => setAiModelReplies(e.target.value)}
               label="Reply Generation Model"
             >
-              <MenuItem value="claude-3-5-haiku-20241022">
+              <MenuItem value="claude-haiku-4-5-20251001">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude 3.5 Haiku</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="claude-sonnet-4-20250514">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Sonnet 4</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15 · Recommended</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="claude-sonnet-4-5-20250929">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Sonnet 4.5</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15 · Latest</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="claude-opus-4-20250115">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Opus 4</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75 · Most capable</Typography>
-                </Box>
-              </MenuItem>
-            </Select>
-            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
-              Used for drafting and rewriting Reddit replies. Better models produce more natural-sounding text.
-            </Typography>
-          </FormControl>
-
-          <FormControl size="small" fullWidth sx={inputSx}>
-            <InputLabel>Client Detection Model</InputLabel>
-            <Select
-              value={aiModelDetection}
-              onChange={(e) => setAiModelDetection(e.target.value)}
-              label="Client Detection Model"
-            >
-              <MenuItem value="claude-3-5-haiku-20241022">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude 3.5 Haiku</span>
+                  <span>Claude Haiku 4.5</span>
                   <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
                 </Box>
               </MenuItem>
@@ -943,10 +918,71 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
                 </Box>
               </MenuItem>
-              <MenuItem value="claude-opus-4-20250115">
+              <MenuItem value="claude-sonnet-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250514">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>Claude Opus 4</span>
                   <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Used for drafting and rewriting Reddit replies. Better models produce more natural-sounding text.
+            </Typography>
+          </FormControl>
+
+          <FormControl size="small" fullWidth sx={inputSx}>
+            <InputLabel>Client Detection Model</InputLabel>
+            <Select
+              value={aiModelDetection}
+              onChange={(e) => setAiModelDetection(e.target.value)}
+              label="Client Detection Model"
+            >
+              <MenuItem value="claude-haiku-4-5-20251001">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Haiku 4.5</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-20250514">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15 · Recommended</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-5-20250929">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.5</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250514">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4.6</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
             </Select>

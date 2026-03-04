@@ -117,7 +117,7 @@ model Settings {
   threadMaxAgeDays      Int    @default(2)
   relevanceThreshold    Float  @default(0.4)
   aiSearchContext       String?
-  aiModelScoring        String @default("claude-3-5-haiku-20241022")
+  aiModelScoring        String @default("claude-haiku-4-5-20251001")
   aiModelReplies        String @default("claude-sonnet-4-20250514")
   aiModelDetection      String @default("claude-sonnet-4-20250514")
   searchBreadth         String @default("balanced")
