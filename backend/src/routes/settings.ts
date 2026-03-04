@@ -69,8 +69,9 @@ app.put("/", async (c) => {
       anthropicApiKey: maskSecret(settings.anthropicApiKey),
     });
   } catch (error) {
-    console.error("PUT /api/settings error:", error);
-    return c.json({ error: "Failed to update settings" }, 500);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("PUT /api/settings error:", msg, error);
+    return c.json({ error: `Failed to update settings: ${msg}` }, 500);
   }
 });
 

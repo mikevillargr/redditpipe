@@ -162,7 +162,11 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     let skippedLowScore = 0;
     let skippedHeuristic = 0;
     let aiCalls = 0;
-    const HEURISTIC_PRE_FILTER = 0.15; // threads below this are clearly irrelevant, skip AI
+    const HEURISTIC_PRE_FILTER = 0.10; // threads below this are clearly irrelevant, skip AI
+
+    // Pre-load all existing opportunity keys for O(1) dedup
+    const existingOpps = await db.opportunity.findMany({ select: { threadId: true, clientId: true } });
+    const existingSet = new Set(existingOpps.map((o) => `${o.threadId}::${o.clientId}`));
 
     // ── Phase 1: Collect unique threads from all clients' keyword searches ──
     pipelineStatus.phase = "searching";
@@ -179,7 +183,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         // Thread search
         try {
           const threads = await searchReddit(token, keyword, {
-            sort: "new", time: "day", limit: maxResults,
+            sort: "new", time: "week", limit: maxResults,
           }, redditConfig);
 
           for (const thread of threads) {
@@ -207,7 +211,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         // Comment search
         try {
           const commentResults = await searchRedditComments(token, keyword, {
-            sort: "new", time: "day", limit: maxResults,
+            sort: "new", time: "week", limit: maxResults,
           }, redditConfig);
 
           for (const comment of commentResults) {
@@ -259,11 +263,11 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       for (const client of clients) {
         pipelineStatus.progress = `Pre-filtering thread ${thread.threadId} for ${client.name}...`;
 
-        // Check for existing opportunity in DB
-        const existing = await db.opportunity.findFirst({
-          where: { threadId: thread.threadId, clientId: client.id },
-        });
-        if (existing) { skippedDuplicate++; continue; }
+        // Check for existing opportunity (O(1) set lookup)
+        if (existingSet.has(`${thread.threadId}::${client.id}`)) {
+          skippedDuplicate++;
+          continue;
+        }
 
         const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
 
