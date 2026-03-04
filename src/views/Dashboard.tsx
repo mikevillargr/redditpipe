@@ -1914,128 +1914,7 @@ function OpportunityCard({
               }}
             />
 
-            {/* Account Stats */}
-            <Box
-              sx={{
-                width: {
-                  xs: '100%',
-                  sm: 132,
-                },
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 0.75,
-              }}
-            >
-              <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 0.3,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: '11px',
-                      color: 'text.secondary',
-                    }}
-                  >
-                    Posts today
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: postBarColor,
-                    }}
-                  >
-                    {postsToday}/{maxPostsPerDay}
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(postRatio * 100, 100)}
-                  sx={{
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: isDark ? '#1e293b' : '#e2e8f0',
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: postBarColor,
-                      borderRadius: 2,
-                    },
-                  }}
-                />
-              </Box>
-              <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 0.3,
-                  }}
-                >
-                  <Tooltip
-                    title="Target: keep citation posts below 25% of total. Above 40% risks account standing."
-                    arrow
-                    placement="left"
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: '11px',
-                        color: 'text.secondary',
-                        cursor: 'help',
-                        borderBottom: '1px dashed',
-                        borderColor: 'text.disabled',
-                      }}
-                    >
-                      Citation ratio
-                    </Typography>
-                  </Tooltip>
-                  <Typography
-                    sx={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: citationBarColor,
-                    }}
-                  >
-                    {citationPct}%
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    position: 'relative',
-                    height: 3,
-                    borderRadius: 2,
-                    bgcolor: isDark ? '#1e293b' : '#e2e8f0',
-                    overflow: 'visible',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      left: '25%',
-                      top: -1,
-                      bottom: -1,
-                      width: '1.5px',
-                      bgcolor: isDark ? '#475569' : '#94a3b8',
-                      zIndex: 1,
-                      borderRadius: 1,
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      height: '100%',
-                      width: `${Math.min(citationPct, 100)}%`,
-                      bgcolor: citationBarColor,
-                      borderRadius: 2,
-                      transition: 'width 0.3s ease',
-                    }}
-                  />
-                </Box>
-              </Box>
-            </Box>
+            {/* Account Stats moved to action bar */}
           </Box>
         </Box>
 
@@ -2431,6 +2310,58 @@ function OpportunityCard({
                 </IconButton>
               </Tooltip>
             </Box>
+
+            {/* Posts today */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                px: 1,
+                py: 0.5,
+                borderRadius: '6px',
+                bgcolor: isDark ? 'rgba(148,163,184,0.06)' : 'rgba(100,116,139,0.06)',
+                border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+              }}
+            >
+              <Typography sx={{ fontSize: '11px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                Posts
+              </Typography>
+              <Typography sx={{ fontSize: '11px', fontWeight: 700, color: postBarColor, whiteSpace: 'nowrap' }}>
+                {postsToday}/{maxPostsPerDay}
+              </Typography>
+              <Box sx={{ width: 32, height: 3, borderRadius: 2, bgcolor: isDark ? '#1e293b' : '#e2e8f0', overflow: 'hidden' }}>
+                <Box sx={{ height: '100%', width: `${Math.min(postRatio * 100, 100)}%`, bgcolor: postBarColor, borderRadius: 2 }} />
+              </Box>
+            </Box>
+
+            {/* Citation ratio */}
+            <Tooltip title="Target: keep citation posts below 25% of total. Above 40% risks account standing." arrow placement="top">
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: '6px',
+                  bgcolor: isDark ? 'rgba(148,163,184,0.06)' : 'rgba(100,116,139,0.06)',
+                  border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                  cursor: 'help',
+                }}
+              >
+                <Typography sx={{ fontSize: '11px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                  Cite
+                </Typography>
+                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: citationBarColor, whiteSpace: 'nowrap' }}>
+                  {citationPct}%
+                </Typography>
+                <Box sx={{ width: 32, height: 3, borderRadius: 2, bgcolor: isDark ? '#1e293b' : '#e2e8f0', overflow: 'hidden', position: 'relative' }}>
+                  <Box sx={{ position: 'absolute', left: '25%', top: -1, bottom: -1, width: '1px', bgcolor: isDark ? '#475569' : '#94a3b8', zIndex: 1 }} />
+                  <Box sx={{ height: '100%', width: `${Math.min(citationPct, 100)}%`, bgcolor: citationBarColor, borderRadius: 2 }} />
+                </Box>
+              </Box>
+            </Tooltip>
 
             {/* Spacer */}
             <Box sx={{ flex: 1 }} />
