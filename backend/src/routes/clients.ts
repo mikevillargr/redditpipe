@@ -204,32 +204,51 @@ app.post("/detect", async (c) => {
       ai.messages.create({
         model: getValidModel((settings as Record<string, unknown>)?.aiModelDetection as string | undefined),
         max_tokens: 1024,
-        system: `You are an expert at understanding businesses and how people discuss them on Reddit.
+        system: `You are an expert at understanding businesses and finding relevant Reddit discussions where those businesses could be mentioned.
 
-Given website content, you must deeply understand what the company does, who their customers are, and what problems they solve. Then generate search terms that REAL REDDIT USERS would type when they need this kind of product/service.
+Given website content, deeply understand what the company does, who their customers are, and what problems they solve. Then generate search queries that would FIND REDDIT THREADS where this company's product/service would be relevant as a recommendation.
+
+CRITICAL DISTINCTION: You are NOT generating SEO keywords or marketing terms. You are generating REDDIT SEARCH QUERIES — the exact phrases someone would type into Reddit's search bar when they have a problem this company can solve.
 
 Return ONLY a valid JSON object:
 {
   "name": "<company or product name — clean brand name only>",
   "description": "<2-3 sentences explaining what the company does, their core offering, and who it's for. Write this as context that would help an AI understand the business when drafting Reddit replies>",
-  "keywords": [<array of 8-12 Reddit search phrases>],
+  "keywords": [<array of 8-12 Reddit search queries>],
   "mentionTerms": [<array: brand name, domain, product names people would recognise>],
   "nuance": "<special context for filtering: geographic focus, target market, industries, exclusions, or anything that would help filter irrelevant Reddit threads. null if broadly applicable>"
 }
 
-KEYWORD GUIDELINES — this is the most important part:
-- Think like a Reddit user who has a PROBLEM this company can solve
-- Keywords are used as REDDIT SEARCH QUERIES, not SEO terms. Reddit search is basic — shorter phrases find more results.
-- Generate a MIX of keyword lengths:
-  * 4-6 SHORT keywords (2-3 words): core topic terms that cast a wide net. E.g. "LLC formation", "registered agent", "business filing"
-  * 4-6 MEDIUM keywords (3-4 words): natural Reddit phrases. E.g. "best LLC service", "need registered agent", "form an LLC"
-  * 2-4 LONG keywords (4-6 words): specific intent queries. E.g. "best LLC formation service", "looking for registered agent"
-- Examples of BAD keywords: "LLC" (too generic), "best LLC formation service for small business owners in Nevada" (too long, won't match)
-- Include terms people actually type on Reddit:
-  * Problem phrases: "help with X", "struggling with X"
-  * Recommendation requests: "best X", "recommend X", "looking for X"
-  * Comparison/alternative phrases: "X vs Y", "X alternative"
-- The system will automatically expand longer keywords into shorter sub-queries, so err toward natural language over exact match phrases`,
+KEYWORD GUIDELINES — this is the most critical part:
+
+STEP 1: Identify the PROBLEMS and SITUATIONS where someone would need this product/service.
+STEP 2: Think about what a frustrated/curious Reddit user would actually SEARCH FOR when experiencing those problems.
+STEP 3: Write those searches as keywords.
+
+The mental model: A person sits down at Reddit, has a problem, and types a search. What do they type?
+
+GOOD keyword examples (for an LLC formation service):
+- "how to start an LLC" (someone figuring out the process)
+- "best LLC service" (someone looking for a provider)
+- "recommend LLC formation" (asking for recommendations)
+- "LLC vs sole proprietorship" (comparing options)
+- "need registered agent" (specific need)
+- "starting a business" (broad discovery)
+- "small business legal structure" (researching)
+
+BAD keyword examples — DO NOT generate these:
+- "LLC formation services" (SEO keyword, not how people search Reddit)
+- "professional registered agent solutions" (marketing speak)
+- "business entity compliance management" (jargon, nobody searches this)
+- "affordable LLC formation for entrepreneurs" (too long and too SEO)
+- "LLC" (too generic, matches everything)
+
+Generate a MIX:
+* 4-5 SHORT (2-3 words): broad problem/topic terms. E.g. "starting business", "need accountant"
+* 4-5 MEDIUM (3-4 words): natural question fragments. E.g. "best LLC service", "how to incorporate"
+* 2-3 LONG (4-6 words): specific intent queries. E.g. "how to start an LLC", "looking for registered agent"
+
+Focus on DISCOVERY — these queries should find threads where the company could naturally be recommended, not threads already about the company.`,
         messages: [{
           role: "user",
           content: `Analyze this website and generate Reddit-optimized search terms.\n\nURL: ${url}\nTitle: ${title}\nMeta description: ${metaDesc || ogDesc}\n\n--- WEBSITE CONTENT ---\n${combinedContent}`,

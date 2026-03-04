@@ -434,7 +434,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                   label="Status"
                 >
                   <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="warming">Warming</MenuItem>
+                  <MenuItem value="warming">Farming</MenuItem>
                   <MenuItem value="cooldown">Cooldown</MenuItem>
                   <MenuItem value="flagged">Flagged</MenuItem>
                   <MenuItem value="retired">Retired</MenuItem>

@@ -77,7 +77,7 @@ const statusConfig = {
     border: 'rgba(16, 185, 129, 0.3)',
   },
   warming: {
-    label: 'Warming',
+    label: 'Farming',
     color: '#3b82f6',
     bg: 'rgba(59, 130, 246, 0.12)',
     border: 'rgba(59, 130, 246, 0.3)',
@@ -476,7 +476,7 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
               label="Initial Status"
             >
               <MenuItem value="warming">
-                Warming — new account, building karma
+                Farming — new account, building karma
               </MenuItem>
               <MenuItem value="active">Active — ready for outreach</MenuItem>
               <MenuItem value="cooldown">
@@ -489,7 +489,7 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
                 fontSize: '11px',
               }}
             >
-              New accounts should typically start on Warming
+              New accounts should typically start on Farming
             </FormHelperText>
           </FormControl>
           <TextField
@@ -1314,7 +1314,7 @@ export function Accounts({ onViewAccount }: AccountsProps) {
           }}
         />
         <Chip
-          label={`${warmingAccounts} Warming`}
+          label={`${warmingAccounts} Farming`}
           sx={{
             bgcolor: 'rgba(59, 130, 246, 0.1)',
             color: '#3b82f6',

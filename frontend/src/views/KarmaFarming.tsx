@@ -11,6 +11,8 @@ import {
   useTheme,
   Collapse,
   Alert,
+  Tab,
+  Tabs,
 } from '@mui/material'
 import {
   RefreshCwIcon,
@@ -263,10 +265,11 @@ function TopicCard({
   )
 }
 
-export function Warming() {
+export function KarmaFarming() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
 
+  const [activeTab, setActiveTab] = useState(0)
   const [topics, setTopics] = useState<TrendingTopic[]>([])
   const [loading, setLoading] = useState(false)
   const [lastFetched, setLastFetched] = useState<string | null>(null)
@@ -292,7 +295,6 @@ export function Warming() {
     setIdeasLoading(true)
     setIdeasError(null)
     try {
-      // Pass news titles as context for more relevant ideas
       const newsTopics = topics.filter((t) => t.source === 'news').map((t) => t.title).slice(0, 5)
       const newsContext = newsTopics.length > 0 ? newsTopics.join('\n') : undefined
       const res = await fetch('/api/warming/generate', {
@@ -318,106 +320,145 @@ export function Warming() {
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, maxWidth: 1200, mx: 'auto' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '20px' }}>
-            Account Warming
-          </Typography>
-          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 0.5 }}>
-            Build karma with genuine engagement — trending news, Reddit threads, and AI-generated content ideas
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={loading ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <RefreshCwIcon size={14} />}
-          disabled={loading}
-          onClick={fetchTrending}
-          sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '13px', fontWeight: 600, px: 2.5, borderRadius: '8px' }}
-        >
-          {topics.length === 0 ? 'Load Trending' : 'Refresh'}
-        </Button>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary', fontSize: '20px' }}>
+          Karma Farming
+        </Typography>
+        <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 0.5 }}>
+          Build karma with genuine engagement — AI-generated thread ideas and trending Reddit topics
+        </Typography>
       </Box>
 
-      {/* Thread Ideas Generator */}
-      <Paper sx={{ p: 2.5, mb: 3, bgcolor: isDark ? '#1e293b' : '#fff', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, borderRadius: '12px' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: threadIdeas.length > 0 || ideasError ? 2 : 0, flexWrap: 'wrap', gap: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PenLineIcon size={16} color="#f97316" />
-            <Typography sx={{ fontSize: '14px', fontWeight: 600, color: 'text.primary' }}>
-              AI Thread Ideas
+      <Tabs
+        value={activeTab}
+        onChange={(_, v) => setActiveTab(v)}
+        sx={{
+          mb: 2.5,
+          minHeight: 36,
+          '& .MuiTab-root': {
+            minHeight: 36, fontSize: '13px', fontWeight: 600, textTransform: 'none',
+            color: 'text.secondary', px: 2,
+            '&.Mui-selected': { color: '#f97316' },
+          },
+          '& .MuiTabs-indicator': { bgcolor: '#f97316', height: 2 },
+          borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+        }}
+      >
+        <Tab icon={<PenLineIcon size={14} />} iconPosition="start" label="AI Thread Ideas" />
+        <Tab icon={<TrendingUpIcon size={14} />} iconPosition="start" label="Trending Topics" />
+      </Tabs>
+
+      {/* ── Tab 0: AI Thread Ideas ── */}
+      {activeTab === 0 && (
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
+              Generate original thread ideas inspired by trending news and topics. Post these to build karma.
             </Typography>
-            <Typography sx={{ fontSize: '12px', color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
-              — Inspired by trending news and topics
-            </Typography>
+            <Button size="small" variant="contained"
+              startIcon={ideasLoading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <SparklesIcon size={12} />}
+              disabled={ideasLoading} onClick={generateIdeas}
+              sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
+            >
+              {ideasLoading ? 'Generating...' : 'Generate Ideas'}
+            </Button>
           </Box>
-          <Button size="small" variant="outlined"
-            startIcon={ideasLoading ? <CircularProgress size={12} /> : <SparklesIcon size={12} />}
-            disabled={ideasLoading} onClick={generateIdeas}
-            sx={{ fontSize: '12px', textTransform: 'none', borderColor: '#f97316', color: '#f97316', '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' } }}
-          >
-            {ideasLoading ? 'Generating...' : 'Generate Ideas'}
-          </Button>
-        </Box>
 
-        {ideasError && <Alert severity="error" sx={{ mb: 1.5, fontSize: '12px' }} onClose={() => setIdeasError(null)}>{ideasError}</Alert>}
+          {ideasError && <Alert severity="error" sx={{ mb: 1.5, fontSize: '12px' }} onClose={() => setIdeasError(null)}>{ideasError}</Alert>}
 
-        {threadIdeas.length > 0 && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {threadIdeas.map((idea, i) => (
-              <IdeaCard key={i} idea={idea} isDark={isDark} />
-            ))}
-          </Box>
-        )}
-      </Paper>
+          {threadIdeas.length === 0 && !ideasLoading && (
+            <Paper sx={{ textAlign: 'center', py: 6, px: 3, bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '12px' }}>
+              <Box sx={{ fontSize: 40, mb: 1.5 }}>✍️</Box>
+              <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>AI Thread Ideas</Typography>
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
+                Click "Generate Ideas" to get AI-crafted thread ideas for popular subreddits. Each idea comes with a title, hook, and suggested subreddit.
+              </Typography>
+            </Paper>
+          )}
 
-      {/* Filter bar */}
-      {topics.length > 0 && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-          {(['all', 'news', 'question', 'discussion', 'trending'] as const).map((f) => (
-            <Chip
-              key={f}
-              label={`${f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} (${filterCounts[f] || 0})`}
-              onClick={() => setFilter(f)}
-              sx={{
-                height: 28, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-                bgcolor: filter === f ? '#f97316' : 'transparent',
-                color: filter === f ? '#fff' : 'text.secondary',
-                border: `1px solid ${filter === f ? '#f97316' : (isDark ? '#334155' : '#e2e8f0')}`,
-                '&:hover': { bgcolor: filter === f ? '#ea6c0a' : (isDark ? '#1e293b' : '#f1f5f9') },
-              }}
-            />
-          ))}
-          {lastFetched && (
-            <Typography sx={{ fontSize: '11px', color: 'text.disabled', ml: 'auto' }}>
-              Fetched {new Date(lastFetched).toLocaleTimeString()}
-            </Typography>
+          {ideasLoading && threadIdeas.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <CircularProgress size={32} sx={{ color: '#f97316' }} />
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 2 }}>Generating thread ideas...</Typography>
+            </Box>
+          )}
+
+          {threadIdeas.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {threadIdeas.map((idea, i) => (
+                <IdeaCard key={i} idea={idea} isDark={isDark} />
+              ))}
+            </Box>
           )}
         </Box>
       )}
 
-      {/* Empty state */}
-      {topics.length === 0 && !loading && (
-        <Paper sx={{ textAlign: 'center', py: 6, px: 3, bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '12px' }}>
-          <Box sx={{ fontSize: 40, mb: 1.5 }}>🔥</Box>
-          <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>Warm up your accounts</Typography>
-          <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
-            Click "Load Trending" to discover trending news and popular Reddit threads. Build karma and maintain a healthy citation ratio by posting genuine, helpful content unrelated to your clients.
-          </Typography>
-        </Paper>
-      )}
+      {/* ── Tab 1: Trending Topics ── */}
+      {activeTab === 1 && (
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
+              Discover trending news and popular Reddit threads to engage with.
+            </Typography>
+            <Button size="small" variant="contained"
+              startIcon={loading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <RefreshCwIcon size={12} />}
+              disabled={loading} onClick={fetchTrending}
+              sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
+            >
+              {topics.length === 0 ? 'Load Trending' : 'Refresh'}
+            </Button>
+          </Box>
 
-      {loading && topics.length === 0 && (
-        <Box sx={{ textAlign: 'center', py: 6 }}>
-          <CircularProgress size={32} sx={{ color: '#f97316' }} />
-          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 2 }}>Fetching trending news and Reddit topics...</Typography>
+          {/* Filter bar */}
+          {topics.length > 0 && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+              {(['all', 'news', 'question', 'discussion', 'trending'] as const).map((f) => (
+                <Chip
+                  key={f}
+                  label={`${f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} (${filterCounts[f] || 0})`}
+                  onClick={() => setFilter(f)}
+                  sx={{
+                    height: 28, fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                    bgcolor: filter === f ? '#f97316' : 'transparent',
+                    color: filter === f ? '#fff' : 'text.secondary',
+                    border: `1px solid ${filter === f ? '#f97316' : (isDark ? '#334155' : '#e2e8f0')}`,
+                    '&:hover': { bgcolor: filter === f ? '#ea6c0a' : (isDark ? '#1e293b' : '#f1f5f9') },
+                  }}
+                />
+              ))}
+              {lastFetched && (
+                <Typography sx={{ fontSize: '11px', color: 'text.disabled', ml: 'auto' }}>
+                  Fetched {new Date(lastFetched).toLocaleTimeString()}
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* Empty state */}
+          {topics.length === 0 && !loading && (
+            <Paper sx={{ textAlign: 'center', py: 6, px: 3, bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '12px' }}>
+              <Box sx={{ fontSize: 40, mb: 1.5 }}>🔥</Box>
+              <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>Trending Topics</Typography>
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
+                Click "Load Trending" to discover trending news and popular Reddit threads. Build karma and maintain a healthy posting ratio.
+              </Typography>
+            </Paper>
+          )}
+
+          {loading && topics.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <CircularProgress size={32} sx={{ color: '#f97316' }} />
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 2 }}>Fetching trending news and Reddit topics...</Typography>
+            </Box>
+          )}
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {filteredTopics.map((topic, i) => (
+              <TopicCard key={`${topic.url}-${i}`} topic={topic} isDark={isDark} />
+            ))}
+          </Box>
         </Box>
       )}
-
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {filteredTopics.map((topic, i) => (
-          <TopicCard key={`${topic.url}-${i}`} topic={topic} isDark={isDark} />
-        ))}
-      </Box>
     </Box>
   )
 }

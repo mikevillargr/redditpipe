@@ -26,7 +26,7 @@ import {
   FlameIcon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'warming'
+type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming'
 interface SidebarProps {
   activePage: Page
   onNavigate: (page: Page) => void
@@ -58,8 +58,8 @@ const navItems = [
     isReddit: true,
   },
   {
-    id: 'warming' as Page,
-    label: 'Account Warming',
+    id: 'karma-farming' as Page,
+    label: 'Karma Farming',
     icon: FlameIcon,
   },
   {

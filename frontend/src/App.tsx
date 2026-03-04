@@ -14,14 +14,14 @@ import { Accounts } from './views/Accounts'
 import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
 import { Insights } from './views/Insights'
-import { Warming } from './views/Warming'
+import { KarmaFarming } from './views/KarmaFarming'
 import { LoginScreen } from './components/LoginScreen'
 
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
 
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'warming'
+type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming'
 
 function useAppTheme(mode: 'light' | 'dark') {
   return useMemo(() => createTheme({
@@ -92,7 +92,7 @@ export default function App() {
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
       case 'settings': return <Settings />
       case 'insights': return <Insights />
-      case 'warming': return <Warming />
+      case 'karma-farming': return <KarmaFarming />
       default: return <Dashboard />
     }
   }
