@@ -38,7 +38,7 @@ jobs:
             echo "${{ secrets.PRODUCTION_ENV }}" > .env.production
 
             # Build and deploy
-            docker compose -f docker-compose.production.yml build --no-cache
+            docker compose -f docker-compose.production.yml build
             docker compose -f docker-compose.production.yml up -d
 
             # Cleanup old images
