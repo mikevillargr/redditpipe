@@ -42,7 +42,7 @@ export interface SearchResult {
     clientsSearched: number;
     opportunitiesCreated: number;
     threadsDiscovered: number;
-    skipped: { duplicate: number; tooOld: number; lowScore: number };
+    skipped: { duplicate: number; tooOld: number; lowScore: number; heuristic: number };
     aiCalls: number;
     mode: string;
     errors: number;
@@ -141,7 +141,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         message: "No active clients",
         summary: {
           clientsSearched: 0, opportunitiesCreated: 0, threadsDiscovered: 0,
-          skipped: { duplicate: 0, tooOld: 0, lowScore: 0 },
+          skipped: { duplicate: 0, tooOld: 0, lowScore: 0, heuristic: 0 },
           aiCalls: 0, mode: redditConfig.mode, errors: 0, durationMs: Date.now() - startTime,
         },
       };
@@ -160,7 +160,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     let skippedDuplicate = 0;
     let skippedTooOld = 0;
     let skippedLowScore = 0;
+    let skippedHeuristic = 0;
     let aiCalls = 0;
+    const HEURISTIC_PRE_FILTER = 0.15; // threads below this are clearly irrelevant, skip AI
 
     // ── Phase 1: Collect unique threads from all clients' keyword searches ──
     pipelineStatus.phase = "searching";
@@ -236,7 +238,10 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
     console.log(`[Search] Phase 1: Discovered ${discoveredThreads.size} unique threads from keyword searches`);
 
-    // ── Phase 2: Evaluate each thread against ALL active clients (inline AI scoring) ──
+    // ── Phase 2: Heuristic pre-filter + AI scoring ──────────────────────────
+    // Step 1: Heuristic pre-filter (cheap, no API calls) removes clearly irrelevant threads.
+    // Step 2: Fetch comments only for threads that survived heuristic.
+    // Step 3: AI scoring (expensive) is the final quality filter.
     pipelineStatus.phase = "scoring";
     const threadCommentsCache = new Map<string, string>();
 
@@ -246,27 +251,13 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
       if (ageDays > threadMaxAgeDays) { skippedTooOld++; continue; }
 
-      // Fetch comments once per thread
-      let topComments = threadCommentsCache.get(thread.threadId) ?? "";
-      if (!threadCommentsCache.has(thread.threadId)) {
-        try {
-          const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
-          topComments = comments
-            .map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`)
-            .join("\n\n");
-        } catch (err) {
-          console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
-        }
-        threadCommentsCache.set(thread.threadId, topComments);
-      }
-
       const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
       const threadAge =
         ageHours < 1 ? "just now" : ageHours < 24 ? `${ageHours}h ago` : `${Math.floor(ageDays)}d ago`;
 
       // Score against each client
       for (const client of clients) {
-        pipelineStatus.progress = `Scoring thread ${thread.threadId} for ${client.name}...`;
+        pipelineStatus.progress = `Pre-filtering thread ${thread.threadId} for ${client.name}...`;
 
         // Check for existing opportunity in DB
         const existing = await db.opportunity.findFirst({
@@ -276,7 +267,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
         const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
 
-        // Heuristic score as fallback
+        // ── Step 1: Heuristic pre-filter (free, instant) ──
         const heuristicScore = computeRelevanceScore({
           threadTitle: thread.title,
           threadBody: thread.selftext,
@@ -287,11 +278,32 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           threadMaxAgeDays,
         });
 
-        // AI score — use directly, no blending with heuristic
+        // Skip clearly irrelevant threads before wasting API calls
+        if (heuristicScore < HEURISTIC_PRE_FILTER) {
+          skippedHeuristic++;
+          continue;
+        }
+
+        // ── Step 2: Fetch comments (only for heuristic survivors) ──
+        let topComments = threadCommentsCache.get(thread.threadId) ?? "";
+        if (!threadCommentsCache.has(thread.threadId)) {
+          try {
+            const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
+            topComments = comments
+              .map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`)
+              .join("\n\n");
+          } catch (err) {
+            console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
+          }
+          threadCommentsCache.set(thread.threadId, topComments);
+        }
+
+        // ── Step 3: AI scoring (expensive, final filter) ──
         let relevanceScore = heuristicScore;
         let aiRelevanceNote: string | null = null;
         if (hasAiKey) {
           try {
+            pipelineStatus.progress = `AI scoring thread ${thread.threadId} for ${client.name}...`;
             aiCalls++;
             const aiResult = await aiScoreRelevance({
               threadTitle: thread.title,
@@ -355,7 +367,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     }
 
     const durationMs = Date.now() - startTime;
-    console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${totalOpportunities} created, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} low score, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
+    console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${totalOpportunities} created, ${skippedHeuristic} heuristic-filtered, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} AI-filtered, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
 
     const result: SearchResult = {
       message: "Search complete",
@@ -363,7 +375,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         clientsSearched: clients.length,
         opportunitiesCreated: totalOpportunities,
         threadsDiscovered: discoveredThreads.size,
-        skipped: { duplicate: skippedDuplicate, tooOld: skippedTooOld, lowScore: skippedLowScore },
+        skipped: { duplicate: skippedDuplicate, tooOld: skippedTooOld, lowScore: skippedLowScore, heuristic: skippedHeuristic },
         aiCalls,
         mode: redditConfig.mode,
         errors: errors.length,

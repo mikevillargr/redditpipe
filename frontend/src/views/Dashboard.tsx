@@ -301,6 +301,7 @@ export function Dashboard() {
       summary: {
         opportunitiesCreated: number
         threadsDiscovered: number
+        skipped: { duplicate: number; tooOld: number; lowScore: number; heuristic: number }
         aiCalls: number
         durationMs: number
         errors: number
@@ -338,7 +339,7 @@ export function Dashboard() {
   useEffect(() => {
     fetchPipelineStatus()
     // Poll every 3s while running, 30s otherwise
-    const interval = setInterval(fetchPipelineStatus, pipelineStatus?.running ? 3000 : 30000)
+    const interval = setInterval(fetchPipelineStatus, pipelineStatus?.running ? 2000 : 30000)
     return () => clearInterval(interval)
   }, [fetchPipelineStatus, pipelineStatus?.running])
 
@@ -642,7 +643,9 @@ export function Dashboard() {
             <Box sx={{ flex: 1, minWidth: 200 }}>
               <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
                 {pipelineStatus?.lastCompletedAt
-                  ? `Last search: ${getTimeAgo(new Date(pipelineStatus.lastCompletedAt))}${pipelineStatus.lastResult ? ` — ${pipelineStatus.lastResult.summary.opportunitiesCreated} new, ${pipelineStatus.lastResult.summary.threadsDiscovered} threads, ${(pipelineStatus.lastResult.summary.durationMs / 1000).toFixed(0)}s` : ''}`
+                  ? `Last search: ${getTimeAgo(new Date(pipelineStatus.lastCompletedAt))}${pipelineStatus.lastResult
+                      ? ` — ${pipelineStatus.lastResult.summary.opportunitiesCreated} new, ${pipelineStatus.lastResult.summary.threadsDiscovered} threads, ${pipelineStatus.lastResult.summary.aiCalls} AI calls, ${pipelineStatus.lastResult.summary.skipped?.heuristic || 0} pre-filtered, ${(pipelineStatus.lastResult.summary.durationMs / 1000).toFixed(0)}s`
+                      : ''}`
                   : 'No search run yet'}
               </Typography>
             </Box>
