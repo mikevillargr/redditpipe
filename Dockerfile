@@ -4,20 +4,25 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --ignore-scripts
 
-# ── Stage 2: Build ──
-FROM node:20-alpine AS builder
+# ── Stage 2: Generate Prisma client (cached until schema changes) ──
+FROM node:20-alpine AS prisma
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Generate Prisma client
+COPY package.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npx prisma generate
 
-# Build Next.js
+# ── Stage 3: Build ──
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=prisma /app/node_modules ./node_modules
+COPY . .
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ── Stage 3: Production image ──
+# ── Stage 4: Production image ──
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -38,7 +43,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
 
-# Copy full node_modules for prisma CLI + Prisma client runtime
+# Copy full node_modules for prisma CLI + all transitive deps
 COPY --from=builder /app/node_modules ./node_modules
 
 # Create data directory for SQLite DB (mounted as volume)

@@ -157,10 +157,7 @@ export function Dashboard() {
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
   const today = new Date().toISOString().split('T')[0]
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0]
-  const [dateStart, setDateStart] = useState(sevenDaysAgo)
+  const [dateStart, setDateStart] = useState(today)
   const [dateEnd, setDateEnd] = useState(today)
   const applyPreset = (preset: string) => {
     const end = new Date().toISOString().split('T')[0]
@@ -1917,108 +1914,6 @@ function OpportunityCard({
               }}
             />
 
-            {/* Account + Password */}
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: {
-                  xs: 'flex-start',
-                  sm: 'flex-end',
-                },
-                gap: 0.3,
-              }}
-            >
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    bgcolor: opp.accountActive ? '#10b981' : '#64748b',
-                  }}
-                />
-                <Typography
-                  sx={{
-                    fontSize: '12px',
-                    color: 'text.secondary',
-                  }}
-                >
-                  {opp.account}
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.25,
-                }}
-              >
-                <Typography
-                  sx={{
-                    fontSize: '11px',
-                    color: 'text.disabled',
-                    fontFamily: 'monospace',
-                    letterSpacing: showPassword ? 'normal' : '0.06em',
-                  }}
-                >
-                  {showPassword ? opp.accountPassword : '••••••••••'}
-                </Typography>
-                <Tooltip
-                  title={showPassword ? 'Hide' : 'Reveal'}
-                  arrow
-                  placement="top"
-                >
-                  <IconButton
-                    size="small"
-                    onClick={() => setShowPassword((v) => !v)}
-                    sx={{
-                      p: 0.25,
-                      color: 'text.disabled',
-                      '&:hover': {
-                        color: 'text.secondary',
-                      },
-                    }}
-                  >
-                    {showPassword ? (
-                      <EyeOffIcon size={11} />
-                    ) : (
-                      <EyeIcon size={11} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                <Tooltip
-                  title={copied ? 'Copied!' : 'Copy password'}
-                  arrow
-                  placement="top"
-                >
-                  <IconButton
-                    size="small"
-                    onClick={handleCopy}
-                    sx={{
-                      p: 0.25,
-                      color: copied ? '#10b981' : 'text.disabled',
-                      '&:hover': {
-                        color: copied ? '#10b981' : 'text.secondary',
-                      },
-                    }}
-                  >
-                    {copied ? (
-                      <CheckIcon size={11} />
-                    ) : (
-                      <ClipboardIcon size={11} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </Box>
-
             {/* Account Stats */}
             <Box
               sx={{
@@ -2462,9 +2357,8 @@ function OpportunityCard({
             px: { xs: 1.5, sm: 2.5 },
             py: 1,
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             gap: 1,
-            flexWrap: 'wrap',
             bgcolor: isPublished
               ? 'rgba(16,185,129,0.03)'
               : isUnverified
@@ -2472,61 +2366,147 @@ function OpportunityCard({
                 : 'transparent',
           }}
         >
-          {/* New: Mark as Published */}
-          {isNew && (
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={verifying ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <CheckIcon size={13} />}
-              onClick={onMarkPublished}
-              disabled={verifying}
-              sx={{
-                bgcolor: '#10b981',
-                color: '#fff',
-                fontSize: '13px',
-                '&:hover': { bgcolor: '#059669' },
-                '&:disabled': { bgcolor: '#6ee7b7', color: '#fff' },
-              }}
-            >
-              {verifying ? 'Verifying...' : 'Mark as Published'}
-            </Button>
-          )}
-
-          {/* Published: verified badge + view link */}
-          {isPublished && (
+          {/* Row 1: Account info + Actions */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {/* Account badge with password */}
             <Box
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.75,
-                px: 1.5,
+                px: 1.25,
                 py: 0.5,
                 borderRadius: '6px',
-                bgcolor: 'rgba(16,185,129,0.08)',
-                border: '1px solid rgba(16,185,129,0.2)',
+                bgcolor: isDark ? 'rgba(148,163,184,0.06)' : 'rgba(100,116,139,0.06)',
+                border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
               }}
             >
-              <CheckCircleIcon size={13} color="#10b981" />
-              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
-                Published & Verified
+              <Box
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: opp.accountActive ? '#10b981' : '#64748b',
+                  flexShrink: 0,
+                }}
+              />
+              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                {opp.account}
               </Typography>
-              {opp.permalinkUrl && (
-                <Box
-                  component="a"
-                  href={opp.permalinkUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ display: 'flex', alignItems: 'center', ml: 0.5, color: '#10b981', '&:hover': { color: '#059669' } }}
+              <Box
+                sx={{
+                  width: '1px',
+                  height: 14,
+                  bgcolor: isDark ? '#334155' : '#e2e8f0',
+                  mx: 0.25,
+                }}
+              />
+              <Typography
+                sx={{
+                  fontSize: '11px',
+                  color: 'text.disabled',
+                  fontFamily: 'monospace',
+                  letterSpacing: showPassword ? 'normal' : '0.06em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {showPassword ? opp.accountPassword : '••••••••'}
+              </Typography>
+              <Tooltip title={showPassword ? 'Hide password' : 'Reveal password'} arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={() => setShowPassword((v) => !v)}
+                  sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}
                 >
-                  <ExternalLinkIcon size={12} />
-                </Box>
-              )}
+                  {showPassword ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={copied ? 'Copied!' : 'Copy password'} arrow placement="top">
+                <IconButton
+                  size="small"
+                  onClick={handleCopy}
+                  sx={{ p: 0.25, color: copied ? '#10b981' : 'text.disabled', '&:hover': { color: copied ? '#10b981' : 'text.secondary' } }}
+                >
+                  {copied ? <CheckIcon size={12} /> : <ClipboardIcon size={12} />}
+                </IconButton>
+              </Tooltip>
             </Box>
-          )}
 
-          {/* Unverified: retry + manual permalink input */}
+            {/* Spacer */}
+            <Box sx={{ flex: 1 }} />
+
+            {/* Action buttons */}
+            {isNew && (
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={verifying ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <CheckIcon size={13} />}
+                onClick={onMarkPublished}
+                disabled={verifying}
+                sx={{
+                  bgcolor: '#10b981',
+                  color: '#fff',
+                  fontSize: '13px',
+                  '&:hover': { bgcolor: '#059669' },
+                  '&:disabled': { bgcolor: '#6ee7b7', color: '#fff' },
+                }}
+              >
+                {verifying ? 'Verifying...' : 'Mark as Published'}
+              </Button>
+            )}
+
+            {isPublished && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: '6px',
+                  bgcolor: 'rgba(16,185,129,0.08)',
+                  border: '1px solid rgba(16,185,129,0.2)',
+                }}
+              >
+                <CheckCircleIcon size={13} color="#10b981" />
+                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+                  Published & Verified
+                </Typography>
+                {opp.permalinkUrl && (
+                  <Box
+                    component="a"
+                    href={opp.permalinkUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ display: 'flex', alignItems: 'center', ml: 0.5, color: '#10b981', '&:hover': { color: '#059669' } }}
+                  >
+                    <ExternalLinkIcon size={12} />
+                  </Box>
+                )}
+              </Box>
+            )}
+
+            {!isDismissed && !isPublished && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<XIcon size={13} />}
+                onClick={onDismiss}
+                sx={{
+                  borderColor: 'rgba(239,68,68,0.3)',
+                  color: '#ef4444',
+                  fontSize: '13px',
+                  '&:hover': { borderColor: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' },
+                }}
+              >
+                Dismiss
+              </Button>
+            )}
+          </Box>
+
+          {/* Row 2: Unverified — retry + manual permalink (full width when present) */}
           {isUnverified && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
                 size="small"
@@ -2585,27 +2565,6 @@ function OpportunityCard({
                 </Button>
               </Box>
             </Box>
-          )}
-
-          {/* Spacer */}
-          <Box sx={{ flex: 1 }} />
-
-          {/* Dismiss — always available for non-dismissed */}
-          {!isDismissed && !isPublished && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<XIcon size={13} />}
-              onClick={onDismiss}
-              sx={{
-                borderColor: 'rgba(239,68,68,0.3)',
-                color: '#ef4444',
-                fontSize: '13px',
-                '&:hover': { borderColor: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' },
-              }}
-            >
-              Dismiss
-            </Button>
           )}
         </Box>
       </CardContent>

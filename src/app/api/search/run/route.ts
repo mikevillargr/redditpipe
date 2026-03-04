@@ -64,6 +64,12 @@ export async function POST() {
     const errors: string[] = [];
     // Track thread IDs per client we've already processed this run to deduplicate
     const processedThreadClientPairs = new Set<string>();
+    // Logging counters
+    let totalThreadsSeen = 0;
+    let skippedDuplicate = 0;
+    let skippedTooOld = 0;
+    let skippedLowScore = 0;
+    let skippedAlreadyInRun = 0;
 
     // Helper: create an opportunity from a thread
     async function createOpportunity(
@@ -84,13 +90,13 @@ export async function POST() {
       const existing = await prisma.opportunity.findFirst({
         where: { threadId, clientId: clientObj.id },
       });
-      if (existing) return false;
+      if (existing) { skippedDuplicate++; return false; }
 
       // Check thread age
       const threadDate = new Date(createdUtc * 1000);
       const ageMs = Date.now() - threadDate.getTime();
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
-      if (ageDays > threadMaxAgeDays) return false;
+      if (ageDays > threadMaxAgeDays) { skippedTooOld++; return false; }
 
       // Fetch top comments
       let topComments = "";
@@ -133,13 +139,15 @@ export async function POST() {
           relevanceScore = Math.round((aiResult.score * 0.6 + heuristicScore * 0.4) * 100) / 100;
           aiRelevanceNote = aiResult.note;
           if (!aiResult.shouldKeep && relevanceScore < relevanceThreshold) {
-            return false; // Skip low-relevance threads
+            skippedLowScore++;
+            return false;
           }
         } catch (err) {
           console.error(`AI scoring failed for ${threadId}, using heuristic:`, err);
         }
       } else if (heuristicScore < relevanceThreshold) {
-        return false; // Skip below threshold even without AI
+        skippedLowScore++;
+        return false;
       }
 
       // Match account
@@ -195,8 +203,9 @@ export async function POST() {
           }, redditConfig);
 
           for (const thread of threads) {
+            totalThreadsSeen++;
             const pairKey = `${thread.id}:${client.id}`;
-            if (processedThreadClientPairs.has(pairKey)) continue;
+            if (processedThreadClientPairs.has(pairKey)) { skippedAlreadyInRun++; continue; }
             processedThreadClientPairs.add(pairKey);
 
             const created = await createOpportunity(
@@ -231,10 +240,10 @@ export async function POST() {
 
           for (const comment of commentResults) {
             if (!comment.link_id) continue;
-            // Extract parent thread ID from link_id (format: t3_xxx)
+            totalThreadsSeen++;
             const parentThreadId = comment.link_id.replace(/^t3_/, "");
             const pairKey = `${parentThreadId}:${client.id}`;
-            if (processedThreadClientPairs.has(pairKey)) continue;
+            if (processedThreadClientPairs.has(pairKey)) { skippedAlreadyInRun++; continue; }
             processedThreadClientPairs.add(pairKey);
 
             const created = await createOpportunity(
@@ -261,11 +270,15 @@ export async function POST() {
       }
     }
 
+    console.log(`[Search] Complete: ${totalThreadsSeen} threads seen, ${totalOpportunities} created, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} low score, ${skippedAlreadyInRun} run-dedup`);
+
     return NextResponse.json({
       message: "Search complete",
       summary: {
         clientsSearched: clients.length,
         opportunitiesCreated: totalOpportunities,
+        threadsSeen: totalThreadsSeen,
+        skipped: { duplicate: skippedDuplicate, tooOld: skippedTooOld, lowScore: skippedLowScore, runDedup: skippedAlreadyInRun },
         mode: redditConfig.mode,
         errors: errors.length,
       },

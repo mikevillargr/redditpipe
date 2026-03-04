@@ -17,8 +17,6 @@ import {
   Tooltip,
   ToggleButtonGroup,
   ToggleButton,
-  Autocomplete,
-  Chip,
 } from '@mui/material'
 import {
   EyeIcon,
@@ -236,10 +234,9 @@ export function Settings() {
   const [anthropicKey, setAnthropicKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   // Search
-  const [searchFrequency, setSearchFrequency] = useState('daily')
-  const [searchTimezone, setSearchTimezone] = useState('UTC')
-  const [searchTime1, setSearchTime1] = useState('09:00')
-  const [searchTime2, setSearchTime2] = useState('18:00')
+  const [searchFrequency, setSearchFrequency] = useState('continuous')
+  const [pollingInterval, setPollingInterval] = useState(60)
+  const [dailyBudget, setDailyBudget] = useState(80)
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
   // AI tuning
@@ -262,15 +259,9 @@ export function Settings() {
         setRedditUsername(data.redditUsername || '')
         setRedditPassword(data.redditPassword || '')
         setAnthropicKey(data.anthropicApiKey || '')
-        setSearchFrequency(data.searchFrequency || 'daily')
-        setSearchTimezone(data.searchTimezone || 'UTC')
-        {
-          const times = data.searchTimes
-            ? data.searchTimes.split(',').map((t: string) => t.trim()).filter(Boolean)
-            : ['09:00']
-          setSearchTime1(times[0] || '09:00')
-          setSearchTime2(times[1] || '18:00')
-        }
+        setSearchFrequency(data.searchFrequency || 'continuous')
+        setPollingInterval(data.pollingIntervalMins ?? 60)
+        setDailyBudget(data.dailyRequestBudget ?? 80)
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
@@ -343,8 +334,8 @@ export function Settings() {
       const payload: Record<string, unknown> = {
         redditApiMode,
         searchFrequency,
-        searchTimezone,
-        searchTimes: searchFrequency === 'twice-daily' ? `${searchTime1},${searchTime2}` : searchTime1,
+        pollingIntervalMins: pollingInterval,
+        dailyRequestBudget: dailyBudget,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
         relevanceThreshold,
@@ -544,69 +535,71 @@ export function Settings() {
             gap: 2,
           }}
         >
-          <FormControl size="small" fullWidth sx={inputSx}>
-            <InputLabel>Search Frequency</InputLabel>
-            <Select
-              value={searchFrequency}
-              onChange={(e) => setSearchFrequency(e.target.value)}
-              label="Search Frequency"
-            >
-              <MenuItem value="daily">Daily</MenuItem>
-              <MenuItem value="twice-daily">Twice Daily</MenuItem>
-            </Select>
-          </FormControl>
-
-          <Autocomplete
-            value={searchTimezone}
-            onChange={(_, val) => val && setSearchTimezone(val)}
-            options={Intl.supportedValuesOf('timeZone')}
-            size="small"
-            fullWidth
-            disableClearable
-            renderInput={(params) => (
-              <TextField {...params} label="Timezone" sx={inputSx} />
-            )}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': { borderColor: '#334155' },
-                '&:hover fieldset': { borderColor: '#475569' },
-                '&.Mui-focused fieldset': { borderColor: '#f97316' },
-              },
-            }}
-          />
-
           <Box>
             <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
-              Search Time{searchFrequency === 'twice-daily' ? 's' : ''} ({searchTimezone.replace(/_/g, ' ')})
+              Search Mode
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <TextField
-                label={searchFrequency === 'twice-daily' ? 'Morning Run' : 'Run Time'}
-                type="time"
-                size="small"
-                value={searchTime1}
-                onChange={(e) => setSearchTime1(e.target.value)}
-                sx={{ ...inputSx, width: 180, '& input': { color: 'text.primary' } }}
-                InputLabelProps={{ shrink: true }}
-              />
-              {searchFrequency === 'twice-daily' && (
-                <TextField
-                  label="Evening Run"
-                  type="time"
-                  size="small"
-                  value={searchTime2}
-                  onChange={(e) => setSearchTime2(e.target.value)}
-                  sx={{ ...inputSx, width: 180, '& input': { color: 'text.primary' } }}
-                  InputLabelProps={{ shrink: true }}
-                />
-              )}
-            </Box>
+            <ToggleButtonGroup
+              value={searchFrequency}
+              exclusive
+              onChange={(_, val) => val && setSearchFrequency(val)}
+              size="small"
+              fullWidth
+              sx={{
+                '& .MuiToggleButton-root': {
+                  color: '#64748b',
+                  borderColor: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  py: 0.75,
+                  textTransform: 'none',
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(249, 115, 22, 0.1)',
+                    color: '#f97316',
+                    borderColor: '#f97316',
+                    '&:hover': {
+                      bgcolor: 'rgba(249, 115, 22, 0.15)',
+                    },
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="continuous">Continuous (Rate-Limit Aware)</ToggleButton>
+              <ToggleButton value="manual">Manual Only</ToggleButton>
+            </ToggleButtonGroup>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
-              {searchFrequency === 'daily'
-                ? 'The automated search will run once per day at this time.'
-                : 'The automated search will run twice per day at these times.'}
+              {searchFrequency === 'continuous'
+                ? 'Searches run automatically throughout the day, spacing requests to stay within rate limits. All active clients are serviced each cycle.'
+                : 'Searches only run when you click "Run Search Now" below.'}
             </Typography>
           </Box>
+
+          {searchFrequency === 'continuous' && (
+            <>
+              <TextField
+                label="Polling Interval (minutes)"
+                type="number"
+                value={pollingInterval}
+                onChange={(e) => setPollingInterval(Math.max(15, Number(e.target.value)))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 15, max: 1440 }}
+                helperText="Minutes between search cycles. Min 15 min. Each cycle searches all active clients."
+                sx={inputSx}
+              />
+              <TextField
+                label="Daily API Request Budget"
+                type="number"
+                value={dailyBudget}
+                onChange={(e) => setDailyBudget(Math.max(10, Number(e.target.value)))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 10, max: 1000 }}
+                helperText={`Max Reddit API requests per day. ${redditApiMode === 'public_json' ? 'Public JSON: ~10 req/min, ~600/hr safe limit.' : 'OAuth: ~60 req/min, ~1000/day recommended.'} Requests are spread evenly across polling intervals.`}
+                sx={inputSx}
+              />
+            </>
+          )}
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
 

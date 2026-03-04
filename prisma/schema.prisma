@@ -100,9 +100,11 @@ model Settings {
   redditUsername        String?
   redditPassword       String?
   anthropicApiKey      String?
-  searchFrequency      String @default("daily")
+  searchFrequency      String @default("continuous")   // "continuous" | "manual"
+  pollingIntervalMins  Int    @default(60)              // minutes between search runs
+  dailyRequestBudget   Int    @default(80)              // max Reddit API requests per day
   searchTimezone       String @default("UTC")
-  searchTimes          String @default("09:00")        // comma-separated HH:MM times
+  searchTimes          String @default("09:00")        // legacy, kept for migration compat
   maxResultsPerKeyword  Int    @default(10)
   threadMaxAgeDays      Int    @default(2)
   relevanceThreshold    Float  @default(0.4)    // min score to keep (0-1)
