@@ -7,7 +7,7 @@ import {
 } from "@/lib/reddit";
 import { computeRelevanceScore } from "@/lib/scoring";
 import { findBestAccount } from "@/lib/matching";
-import { aiScoreRelevance } from "@/lib/ai-scoring";
+import { aiScoreRelevance, warmAiConfig } from "@/lib/ai-scoring";
 
 export interface SearchResult {
   message: string;
@@ -136,18 +136,21 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   console.log(`[Search] Phase 1 complete: ${discoveredThreads.size} unique threads from ${uniqueKeywords.size} keywords`);
 
   // ── Phase 2: Evaluate each thread against ALL active clients ──
+  // NOTE: Phase 2 is entirely synchronous (no await) to avoid Prisma libsql
+  // connection going stale after the long Phase 1 Reddit API calls.
+  // Opportunities are collected in memory and batch-written after the loop.
+
   // Pre-compute client keywords for heuristic scoring
   const clientKeywordMap = new Map<string, string[]>();
   for (const client of clients) {
     clientKeywordMap.set(client.id, client.keywords.split(",").map((k) => k.trim()).filter(Boolean));
   }
 
-  // Heuristic pre-filter threshold: threads must score at least this to proceed to AI
   const heuristicPreFilter = Math.max(relevanceThreshold * 0.5, 0.1);
-  let aiScoringCalls = 0;
   let threadIdx = 0;
 
-  // Batch-load existing opportunities to avoid per-thread DB queries (SQLite locking issue)
+  // Batch-load existing opportunities BEFORE Phase 1 connection goes stale
+  // (already loaded above in pre-Phase-1 section, so use existingSet from there)
   console.log(`[Search] Phase 2: Loading existing opportunities...`);
   const existingOpps = await prisma.opportunity.findMany({
     select: { threadId: true, clientId: true },
@@ -155,23 +158,40 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   const existingSet = new Set(existingOpps.map((o) => `${o.threadId}::${o.clientId}`));
   console.log(`[Search] Phase 2: ${existingSet.size} existing opportunities loaded`);
 
-  console.log(`[Search] Phase 2: Scoring ${discoveredThreads.size} threads × ${clients.length} clients (heuristic pre-filter: ${heuristicPreFilter.toFixed(2)}, AI: ${hasAiKey ? 'yes' : 'no'})`);
+  console.log(`[Search] Phase 2: Scoring ${discoveredThreads.size} threads × ${clients.length} clients (heuristic threshold: ${relevanceThreshold}, pre-filter: ${heuristicPreFilter.toFixed(2)})`);
+
+  // Collect opportunities in memory (no DB writes in loop)
+  interface PendingOpportunity {
+    clientId: string;
+    accountId: string | null;
+    threadId: string;
+    threadUrl: string;
+    subreddit: string;
+    title: string;
+    bodySnippet: string | null;
+    score: number;
+    commentCount: number;
+    threadAge: string;
+    threadCreatedAt: Date;
+    relevanceScore: number;
+    discoveredVia: string;
+  }
+  const pendingOpps: PendingOpportunity[] = [];
 
   for (const [, thread] of discoveredThreads) {
     threadIdx++;
 
-    // Progress log every 50 threads (BEFORE any skips)
-    if (threadIdx % 50 === 0 || threadIdx === 1) {
-      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opps, ${aiScoringCalls} AI, ${skippedTooOld} old, ${skippedLowScore} low, ${skippedDuplicate} dup`);
+    // Progress log every 100 threads (BEFORE any skips)
+    if (threadIdx % 100 === 0 || threadIdx === 1) {
+      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${pendingOpps.length} pending, ${skippedTooOld} old, ${skippedLowScore} low, ${skippedDuplicate} dup`);
     }
 
-    // Check thread age once
+    // Check thread age
     const threadDate = new Date(thread.createdUtc * 1000);
     const ageMs = Date.now() - threadDate.getTime();
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
     if (ageDays > threadMaxAgeDays) { skippedTooOld++; continue; }
 
-    // Calculate thread age string
     const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
     const threadAge =
       ageHours < 1
@@ -180,11 +200,8 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           ? `${ageHours}h ago`
           : `${Math.floor(ageDays)}d ago`;
 
-    // Pre-filter: check if any client has a minimum heuristic match
-    const candidateClients: Array<{ client: typeof clients[0]; keywords: string[]; heuristicScore: number }> = [];
-
     for (const client of clients) {
-      // Check for existing opportunity using in-memory Set (avoids SQLite locking)
+      // In-memory duplicate check
       if (existingSet.has(`${thread.threadId}::${client.id}`)) { skippedDuplicate++; continue; }
 
       const keywords = clientKeywordMap.get(client.id) || [];
@@ -198,43 +215,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         threadMaxAgeDays,
       });
 
-      if (heuristicScore >= heuristicPreFilter) {
-        candidateClients.push({ client, keywords, heuristicScore });
-      } else {
-        skippedLowScore++;
-      }
-    }
-
-    if (candidateClients.length === 0) continue;
-
-    // Score each candidate client (no comment fetching — avoids Reddit rate limit exhaustion)
-    for (const { client, keywords, heuristicScore } of candidateClients) {
-      let relevanceScore = heuristicScore;
-      let aiRelevanceNote: string | null = null;
-
-      if (hasAiKey) {
-        try {
-          aiScoringCalls++;
-          const aiResult = await aiScoreRelevance({
-            threadTitle: thread.title,
-            threadBody: thread.selftext,
-            topComments: "",
-            subreddit: thread.subreddit,
-            clientName: client.name,
-            clientDescription: client.description,
-            clientKeywords: keywords,
-            threshold: relevanceThreshold,
-          });
-          relevanceScore = aiResult.score;
-          aiRelevanceNote = aiResult.note;
-          if (!aiResult.shouldKeep) {
-            skippedLowScore++;
-            continue;
-          }
-        } catch (err) {
-          console.error(`AI scoring failed for ${thread.threadId}/${client.name}, using heuristic:`, err);
-        }
-      } else if (heuristicScore < relevanceThreshold) {
+      if (heuristicScore < relevanceThreshold) {
         skippedLowScore++;
         continue;
       }
@@ -246,33 +227,69 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         accounts,
       });
 
-      await prisma.opportunity.create({
-        data: {
-          clientId: client.id,
-          accountId: bestAccount?.id || null,
-          threadId: thread.threadId,
-          threadUrl: thread.threadUrl || `https://www.reddit.com${thread.permalink}`,
-          subreddit: thread.subreddit,
-          title: thread.title,
-          bodySnippet: thread.selftext.slice(0, 500) || null,
-          topComments: null,
-          score: thread.threadScore,
-          commentCount: thread.numComments,
-          threadAge,
-          threadCreatedAt: threadDate,
-          relevanceScore,
-          aiRelevanceNote,
-          status: "new",
-          discoveredVia: thread.discoveredVia,
-        },
+      pendingOpps.push({
+        clientId: client.id,
+        accountId: bestAccount?.id || null,
+        threadId: thread.threadId,
+        threadUrl: thread.threadUrl || `https://www.reddit.com${thread.permalink}`,
+        subreddit: thread.subreddit,
+        title: thread.title,
+        bodySnippet: thread.selftext.slice(0, 500) || null,
+        score: thread.threadScore,
+        commentCount: thread.numComments,
+        threadAge,
+        threadCreatedAt: threadDate,
+        relevanceScore: heuristicScore,
+        discoveredVia: thread.discoveredVia,
       });
 
-      totalOpportunities++;
+      // Also add to existingSet to prevent duplicates within this run
+      existingSet.add(`${thread.threadId}::${client.id}`);
     }
-
   }
 
-  console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${totalOpportunities} created, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} low score`);
+  console.log(`[Search] Phase 2 scoring done: ${pendingOpps.length} opportunities to create`);
+
+  // ── Phase 3: Batch-write opportunities to DB ──
+  // Create opportunities one at a time (Prisma doesn't support createMany with SQLite adapter well)
+  let created = 0;
+  for (const opp of pendingOpps) {
+    try {
+      await prisma.opportunity.create({
+        data: {
+          clientId: opp.clientId,
+          accountId: opp.accountId,
+          threadId: opp.threadId,
+          threadUrl: opp.threadUrl,
+          subreddit: opp.subreddit,
+          title: opp.title,
+          bodySnippet: opp.bodySnippet,
+          topComments: null,
+          score: opp.score,
+          commentCount: opp.commentCount,
+          threadAge: opp.threadAge,
+          threadCreatedAt: opp.threadCreatedAt,
+          relevanceScore: opp.relevanceScore,
+          aiRelevanceNote: null,
+          status: "new",
+          discoveredVia: opp.discoveredVia,
+        },
+      });
+      created++;
+      if (created % 50 === 0) {
+        console.log(`[Search] Phase 3: ${created}/${pendingOpps.length} opportunities written`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Skip duplicate constraint errors silently
+      if (!msg.includes("Unique constraint")) {
+        console.error(`[Search] Failed to create opportunity ${opp.threadId}/${opp.clientId}: ${msg}`);
+      }
+    }
+  }
+
+  totalOpportunities = created;
+  console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${created} created, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} low score`);
 
   return {
     message: "Search complete",

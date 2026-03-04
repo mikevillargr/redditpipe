@@ -1,10 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma";
 
-let cachedApiKey: string | null = null;
-let cachedModel: string = "claude-sonnet-4-20250514";
+let cachedConfig: { apiKey: string; model: string; context: string } | null = null;
 
 async function getConfig(): Promise<{ apiKey: string; model: string; context: string }> {
+  // Return cached config if available (avoids Prisma query inside loops)
+  if (cachedConfig) return cachedConfig;
+
   const settings = await prisma.settings.findUnique({
     where: { id: "singleton" },
   });
@@ -12,18 +14,27 @@ async function getConfig(): Promise<{ apiKey: string; model: string; context: st
   const key = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("Anthropic API key not configured");
 
-  cachedApiKey = key;
-  cachedModel = settings?.aiModel || "claude-sonnet-4-20250514";
-
-  return {
+  cachedConfig = {
     apiKey: key,
-    model: cachedModel,
+    model: settings?.aiModel || "claude-sonnet-4-20250514",
     context: settings?.aiSearchContext || "",
   };
+
+  return cachedConfig;
+}
+
+// Pre-fetch AI config before entering loops (avoids Prisma queries during Phase 2)
+export async function warmAiConfig(): Promise<void> {
+  try {
+    await getConfig();
+    console.log("[AI Scoring] Config pre-fetched successfully");
+  } catch (err) {
+    console.warn("[AI Scoring] Config pre-fetch failed:", err instanceof Error ? err.message : err);
+  }
 }
 
 export function clearScoringCache(): void {
-  cachedApiKey = null;
+  cachedConfig = null;
 }
 
 interface AiScoreResult {
