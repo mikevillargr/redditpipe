@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   getRedditConfig,
   clearConfigCache,
+  resetRateLimiter,
   searchReddit,
   searchRedditComments,
   getThreadComments,
@@ -50,6 +51,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   // Get Reddit config (handles both OAuth and public_json modes)
   clearConfigCache();
   const redditConfig = await getRedditConfig();
+
+  // Reset rate limiter to clear stale state from previous runs
+  resetRateLimiter(redditConfig.mode);
 
   // In OAuth mode, verify we have a token
   if (redditConfig.mode === "oauth" && !redditConfig.token) {

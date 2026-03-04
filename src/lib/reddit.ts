@@ -28,7 +28,7 @@ const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
 const rateLimiter = {
   lastRequestTime: 0,
   // Minimum delay between requests (ms). Adapts based on Reddit headers.
-  minDelay: 1000,      // default for OAuth; public_json will use 2000
+  minDelay: 2000,      // 2s for public_json (~30 req/min); OAuth can use 1000
   // Remaining requests reported by Reddit's X-Ratelimit-Remaining header.
   remaining: 100,
   // When the rate limit window resets (epoch ms) per X-Ratelimit-Reset.
@@ -38,6 +38,16 @@ const rateLimiter = {
   // Serial queue lock
   _queue: Promise.resolve() as Promise<unknown>,
 };
+
+// Reset rate limiter state — call before each search run to clear stale state
+export function resetRateLimiter(mode: "oauth" | "public_json" = "public_json"): void {
+  rateLimiter.lastRequestTime = 0;
+  rateLimiter.minDelay = mode === "oauth" ? 1000 : 2000;
+  rateLimiter.remaining = 100;
+  rateLimiter.resetAt = 0;
+  rateLimiter.consecutive429s = 0;
+  // Don't reset _queue — let pending requests finish
+}
 
 function updateFromHeaders(headers: Headers): void {
   const remaining = headers.get("x-ratelimit-remaining");
@@ -71,7 +81,7 @@ async function rateLimitWait(): Promise<void> {
 
   // If we've been told we have 0 remaining, wait until reset
   if (rateLimiter.remaining <= 0 && rateLimiter.resetAt > now) {
-    const waitMs = rateLimiter.resetAt - now + 1000; // +1s buffer
+    const waitMs = Math.min(rateLimiter.resetAt - now + 1000, 60_000); // cap at 60s
     console.log(`[Reddit RL] Budget exhausted, waiting ${(waitMs / 1000).toFixed(1)}s until reset`);
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   } else if (elapsed < baseDelay) {
