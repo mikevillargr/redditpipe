@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    container_name: redditpipe-backend-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - PORT=8000
+      - DATABASE_URL=file:/app/data/local.db
+      - ENABLE_CRON=false
+
+  frontend:
+    build: ./frontend
+    container_name: redditpipe-frontend-local
+    ports:
+      - "3200:80"
+    depends_on:
+      - backend

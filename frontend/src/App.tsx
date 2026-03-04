@@ -15,42 +15,15 @@ import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
 import { Insights } from './views/Insights'
 import { LoginScreen } from './components/LoginScreen'
+
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
+
 type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights'
-export default function App() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [activePage, setActivePage] = useState<Page>('dashboard')
-  const [collapsed, setCollapsed] = useState(true)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
-  const [mode, setMode] = useState<'light' | 'dark'>('dark')
 
-  const checkAuth = useCallback(async () => {
-    try {
-      const res = await fetch('/api/auth/check')
-      setAuthenticated(res.ok)
-    } catch {
-      setAuthenticated(false)
-    }
-  }, [])
-
-  useEffect(() => { checkAuth() }, [checkAuth])
-
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' })
-    setAuthenticated(false)
-  }
-
-  if (authenticated === null) return null
-  if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />
-
-  const colorMode = useMemo(() => ({
-    toggleColorMode: () => setMode((prev) => (prev === 'dark' ? 'light' : 'dark')),
-  }), [])
-
-  const theme = useMemo(() => createTheme({
+function useAppTheme(mode: 'light' | 'dark') {
+  return useMemo(() => createTheme({
     palette: {
       mode,
       background: {
@@ -76,6 +49,36 @@ export default function App() {
       MuiChip: { styleOverrides: { root: { fontWeight: 500 } } },
     },
   }), [mode])
+}
+
+export default function App() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+  const [activePage, setActivePage] = useState<Page>('dashboard')
+  const [collapsed, setCollapsed] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [mode, setMode] = useState<'light' | 'dark'>('dark')
+
+  const theme = useAppTheme(mode)
+  const colorMode = useMemo(() => ({
+    toggleColorMode: () => setMode((prev) => (prev === 'dark' ? 'light' : 'dark')),
+  }), [])
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/check')
+      setAuthenticated(res.ok)
+    } catch {
+      setAuthenticated(false)
+    }
+  }, [])
+
+  useEffect(() => { checkAuth() }, [checkAuth])
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    setAuthenticated(false)
+  }
 
   const handleNavigate = (page: Page) => { setActivePage(page); setMobileOpen(false) }
   const handleViewAccount = (id: string) => { setSelectedAccountId(id); setActivePage('account-detail'); setMobileOpen(false) }
@@ -92,39 +95,48 @@ export default function App() {
     }
   }
 
+  const renderContent = () => {
+    if (authenticated === null) return null
+    if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />
+
+    return (
+      <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+        <Sidebar
+          activePage={activePage}
+          onNavigate={handleNavigate}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed(!collapsed)}
+          mode={mode}
+          onToggleMode={colorMode.toggleColorMode}
+          mobileOpen={mobileOpen}
+          onMobileClose={() => setMobileOpen(false)}
+          onLogout={handleLogout}
+        />
+        <Box component="main" sx={{ flexGrow: 1, minWidth: 0, minHeight: '100vh', bgcolor: 'background.default' }}>
+          <Box sx={{
+            display: { xs: 'flex', md: 'none' },
+            alignItems: 'center', px: 1.5, py: 1,
+            borderBottom: `1px solid ${mode === 'dark' ? '#334155' : '#e2e8f0'}`,
+            bgcolor: 'background.paper', position: 'sticky', top: 0, zIndex: 100, gap: 1.5,
+          }}>
+            <IconButton size="small" onClick={() => setMobileOpen(true)} sx={{ color: 'text.secondary' }}>
+              <MenuIcon size={20} />
+            </IconButton>
+            <Box sx={{ width: 28, height: 28, borderRadius: '6px', bgcolor: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box component="span" sx={{ color: '#fff', fontWeight: 800, fontSize: '11px' }}>RP</Box>
+            </Box>
+          </Box>
+          {renderPage()}
+        </Box>
+      </Box>
+    )
+  }
+
   return (
     <ColorModeContext.Provider value={colorMode}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-          <Sidebar
-            activePage={activePage}
-            onNavigate={handleNavigate}
-            collapsed={collapsed}
-            onToggleCollapse={() => setCollapsed(!collapsed)}
-            mode={mode}
-            onToggleMode={colorMode.toggleColorMode}
-            mobileOpen={mobileOpen}
-            onMobileClose={() => setMobileOpen(false)}
-            onLogout={handleLogout}
-          />
-          <Box component="main" sx={{ flexGrow: 1, minWidth: 0, minHeight: '100vh', bgcolor: 'background.default' }}>
-            <Box sx={{
-              display: { xs: 'flex', md: 'none' },
-              alignItems: 'center', px: 1.5, py: 1,
-              borderBottom: `1px solid ${mode === 'dark' ? '#334155' : '#e2e8f0'}`,
-              bgcolor: 'background.paper', position: 'sticky', top: 0, zIndex: 100, gap: 1.5,
-            }}>
-              <IconButton size="small" onClick={() => setMobileOpen(true)} sx={{ color: 'text.secondary' }}>
-                <MenuIcon size={20} />
-              </IconButton>
-              <Box sx={{ width: 28, height: 28, borderRadius: '6px', bgcolor: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Box component="span" sx={{ color: '#fff', fontWeight: 800, fontSize: '11px' }}>RP</Box>
-              </Box>
-            </Box>
-            {renderPage()}
-          </Box>
-        </Box>
+        {renderContent()}
       </ThemeProvider>
     </ColorModeContext.Provider>
   )

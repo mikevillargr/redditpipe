@@ -1,12 +1,7 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 node_modules/
 
 # build output
-/.next/
-/out/
-/build
 backend/dist/
 frontend/dist/
 
@@ -16,20 +11,14 @@ frontend/dist/
 
 # debug
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
 
 # env files
 .env
-.env.local
-.env.staging
 .env.production
 !.env.example
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # database
 data/
