@@ -39,9 +39,6 @@ jobs:
             docker compose -f docker-compose.staging.yml build --no-cache
             docker compose -f docker-compose.staging.yml up -d
 
-            # Run Prisma migrations inside the container
-            docker exec redditpipe-staging npx prisma db push --skip-generate 2>/dev/null || true
-
             # Cleanup old images
             docker image prune -f
 
