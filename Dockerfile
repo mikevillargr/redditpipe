@@ -43,11 +43,8 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
 
-# Copy only prisma CLI + its deps for runtime db push (not the full ~300MB node_modules)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/@libsql ./node_modules/@libsql
-COPY --from=builder /app/node_modules/libsql ./node_modules/libsql
+# Install only prisma CLI + @prisma/client for runtime db push (much smaller than full node_modules)
+RUN npm install --no-save prisma @prisma/client @prisma/adapter-libsql @libsql/client 2>/dev/null
 
 # Create data directory for SQLite DB (mounted as volume)
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
