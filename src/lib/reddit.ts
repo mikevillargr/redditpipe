@@ -21,166 +21,106 @@ let cachedConfig: RedditConfig | null = null;
 let configCachedAt = 0;
 const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
 
-// ── Robust Rate Limiter ──────────────────────────────────────────────────────
-// Uses a token-bucket approach with adaptive delays based on Reddit headers,
-// exponential backoff on 429s, and a serial request queue.
+// ── Rate Limiter ────────────────────────────────────────────────────────────
+// Simple mutex + delay pattern. One request at a time with minimum delay.
 
-const rateLimiter = {
-  lastRequestTime: 0,
-  // Minimum delay between requests (ms). Adapts based on Reddit headers.
-  minDelay: 2000,      // 2s for public_json (~30 req/min); OAuth can use 1000
-  // Remaining requests reported by Reddit's X-Ratelimit-Remaining header.
-  remaining: 100,
-  // When the rate limit window resets (epoch ms) per X-Ratelimit-Reset.
-  resetAt: 0,
-  // Consecutive 429 count — drives exponential backoff
-  consecutive429s: 0,
-  // Serial queue lock
-  _queue: Promise.resolve() as Promise<unknown>,
-};
+// Simple rate limiter state
+let lastRequestTime = 0;
+let baseDelay = 2000; // 2s for public_json; 1s for OAuth
+let locked = false;
 
 // Reset rate limiter state — call before each search run to clear stale state
 export function resetRateLimiter(mode: "oauth" | "public_json" = "public_json"): void {
-  rateLimiter.lastRequestTime = 0;
-  rateLimiter.minDelay = mode === "oauth" ? 1000 : 2000;
-  rateLimiter.remaining = 100;
-  rateLimiter.resetAt = 0;
-  rateLimiter.consecutive429s = 0;
-  // Don't reset _queue — let pending requests finish
-}
-
-function updateFromHeaders(headers: Headers): void {
-  const remaining = headers.get("x-ratelimit-remaining");
-  const reset = headers.get("x-ratelimit-reset");
-
-  if (remaining !== null) {
-    rateLimiter.remaining = parseFloat(remaining);
-  }
-  if (reset !== null) {
-    // Reddit sends seconds until reset
-    rateLimiter.resetAt = Date.now() + parseFloat(reset) * 1000;
-  }
-
-  // Adaptive delay: if remaining is low, slow down proportionally
-  if (rateLimiter.remaining < 5) {
-    const secsUntilReset = Math.max(0, (rateLimiter.resetAt - Date.now()) / 1000);
-    // Spread remaining requests evenly across the reset window + buffer
-    rateLimiter.minDelay = Math.max(
-      rateLimiter.minDelay,
-      rateLimiter.remaining > 0
-        ? (secsUntilReset / rateLimiter.remaining) * 1000 + 500
-        : secsUntilReset * 1000 + 2000
-    );
-  }
-}
-
-async function rateLimitWait(): Promise<void> {
-  const baseDelay = rateLimiter.minDelay;
-  const now = Date.now();
-  const elapsed = now - rateLimiter.lastRequestTime;
-
-  // If we've been told we have 0 remaining, wait until reset
-  if (rateLimiter.remaining <= 0 && rateLimiter.resetAt > now) {
-    const waitMs = Math.min(rateLimiter.resetAt - now + 1000, 60_000); // cap at 60s
-    console.log(`[Reddit RL] Budget exhausted, waiting ${(waitMs / 1000).toFixed(1)}s until reset`);
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  } else if (elapsed < baseDelay) {
-    await new Promise((resolve) => setTimeout(resolve, baseDelay - elapsed));
-  }
-
-  rateLimiter.lastRequestTime = Date.now();
-}
-
-function getBackoffMs(attempt: number): number {
-  // Exponential backoff: 2s, 4s, 8s, 16s, 32s, capped at 60s, with jitter
-  const base = Math.min(2000 * Math.pow(2, attempt), 60_000);
-  const jitter = Math.random() * base * 0.3; // up to 30% jitter
-  return base + jitter;
+  lastRequestTime = 0;
+  baseDelay = mode === "oauth" ? 1000 : 2000;
+  locked = false;
 }
 
 const MAX_RETRIES = 2;
 
-// Central fetch wrapper: serial queue + retry + backoff + header parsing
+// Simple delay helper
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Wait for the lock to be released, then acquire it
+async function acquireLock(): Promise<void> {
+  while (locked) {
+    await delay(100);
+  }
+  locked = true;
+}
+
+function releaseLock(): void {
+  locked = false;
+}
+
+// Central fetch wrapper: mutex lock + simple delay + retry
 async function redditFetch(url: string, init: RequestInit): Promise<Response> {
-  // Serialize all Reddit requests through a single queue
-  const result = new Promise<Response>((resolve, reject) => {
-    rateLimiter._queue = rateLimiter._queue.then(async () => {
-      let lastError: Error | null = null;
+  let lastError: Error | null = null;
 
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        await rateLimitWait();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // Acquire the lock so only one request at a time
+    await acquireLock();
 
-        try {
-          const response = await fetch(url, {
-            ...init,
-            signal: AbortSignal.timeout(15_000), // 15s timeout per request
-          });
+    try {
+      // Enforce minimum delay between requests
+      const now = Date.now();
+      const elapsed = now - lastRequestTime;
+      if (elapsed < baseDelay) {
+        await delay(baseDelay - elapsed);
+      }
 
-          // Always parse rate limit headers
-          updateFromHeaders(response.headers);
+      lastRequestTime = Date.now();
 
-          if (response.ok) {
-            rateLimiter.consecutive429s = 0;
-            resolve(response);
-            return;
-          }
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(15_000), // 15s timeout per request
+      });
 
-          if (response.status === 429) {
-            rateLimiter.consecutive429s++;
-            const retryAfter = response.headers.get("retry-after");
-            const backoff = retryAfter
-              ? parseFloat(retryAfter) * 1000 + 500
-              : getBackoffMs(rateLimiter.consecutive429s);
+      // Release lock before processing response
+      releaseLock();
 
-            console.warn(
-              `[Reddit RL] 429 Too Many Requests (attempt ${attempt + 1}/${MAX_RETRIES + 1}). ` +
-              `Backing off ${(backoff / 1000).toFixed(1)}s`
-            );
+      if (response.ok) {
+        return response;
+      }
 
-            if (attempt < MAX_RETRIES) {
-              await new Promise((r) => setTimeout(r, backoff));
-              // After a 429, increase the minimum delay for future requests
-              rateLimiter.minDelay = Math.min(rateLimiter.minDelay * 1.5, 5_000);
-              continue;
-            }
-          }
+      if (response.status === 429) {
+        const retryAfter = response.headers.get("retry-after");
+        const backoff = retryAfter
+          ? Math.min(parseFloat(retryAfter) * 1000 + 500, 30_000)
+          : Math.min(2000 * Math.pow(2, attempt) + Math.random() * 1000, 30_000);
 
-          if (response.status === 503 || response.status === 502) {
-            // Reddit temporary errors — retry with backoff
-            if (attempt < MAX_RETRIES) {
-              const backoff = getBackoffMs(attempt);
-              console.warn(
-                `[Reddit RL] ${response.status} Server Error (attempt ${attempt + 1}). ` +
-                `Retrying in ${(backoff / 1000).toFixed(1)}s`
-              );
-              await new Promise((r) => setTimeout(r, backoff));
-              continue;
-            }
-          }
+        console.warn(
+          `[Reddit RL] 429 (attempt ${attempt + 1}/${MAX_RETRIES + 1}). Backing off ${(backoff / 1000).toFixed(1)}s`
+        );
 
-          // Non-retryable error — resolve with the error response so caller can handle
-          rateLimiter.consecutive429s = 0;
-          resolve(response);
-          return;
-        } catch (err) {
-          lastError = err instanceof Error ? err : new Error(String(err));
-          if (attempt < MAX_RETRIES) {
-            const backoff = getBackoffMs(attempt);
-            console.warn(
-              `[Reddit RL] Network error (attempt ${attempt + 1}): ${lastError.message}. ` +
-              `Retrying in ${(backoff / 1000).toFixed(1)}s`
-            );
-            await new Promise((r) => setTimeout(r, backoff));
-            continue;
-          }
+        if (attempt < MAX_RETRIES) {
+          await delay(backoff);
+          continue;
         }
       }
 
-      reject(lastError ?? new Error("Reddit request failed after max retries"));
-    });
-  });
+      if ((response.status === 503 || response.status === 502) && attempt < MAX_RETRIES) {
+        const backoff = 2000 * Math.pow(2, attempt) + Math.random() * 1000;
+        console.warn(`[Reddit RL] ${response.status} (attempt ${attempt + 1}). Retrying in ${(backoff / 1000).toFixed(1)}s`);
+        await delay(backoff);
+        continue;
+      }
 
-  return result;
+      // Non-retryable error — return response so caller can handle
+      return response;
+    } catch (err) {
+      releaseLock();
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < MAX_RETRIES) {
+        const backoff = 2000 * Math.pow(2, attempt) + Math.random() * 1000;
+        console.warn(`[Reddit RL] Error (attempt ${attempt + 1}): ${lastError.message}. Retrying in ${(backoff / 1000).toFixed(1)}s`);
+        await delay(backoff);
+        continue;
+      }
+    }
+  }
+
+  throw lastError ?? new Error("Reddit request failed after max retries");
 }
 
 // ── Config helper ────────────────────────────────────────────────────────────
@@ -219,7 +159,7 @@ export async function getRedditConfig(): Promise<RedditConfig> {
   configCachedAt = Date.now();
 
   // Set the rate limiter's base delay based on mode
-  rateLimiter.minDelay = cachedConfig.delayMs;
+  baseDelay = cachedConfig.delayMs;
 
   return cachedConfig;
 }
