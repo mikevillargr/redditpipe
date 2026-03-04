@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { runSearchPipeline } from "@/lib/search-pipeline";
+import { getPipelineStatus } from "@/lib/search-pipeline";
+import { runSearch } from "@/lib/cron";
 
 export async function POST() {
-  try {
-    const result = await runSearchPipeline();
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("POST /api/search/run error:", error);
+  const status = getPipelineStatus();
+  if (status.running) {
     return NextResponse.json(
-      {
-        error: "Search pipeline failed",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
+      { error: "Search already running", phase: status.phase, progress: status.progress },
+      { status: 409 }
     );
   }
+
+  // Fire and forget — frontend polls /api/search/status
+  runSearch().catch((err) => console.error("[API] Search failed:", err));
+
+  return NextResponse.json({ message: "Search started", status: "running" });
 }

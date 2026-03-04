@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const opportunities = await prisma.opportunity.findMany({
       where,
-      orderBy: { relevanceScore: "desc" },
+      orderBy: { createdAt: "desc" },
       include: {
         client: {
           select: { id: true, name: true },

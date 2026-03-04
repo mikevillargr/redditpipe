@@ -285,6 +285,56 @@ export function Dashboard() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
+  // Pipeline status polling
+  interface PipelineStatusData {
+    running: boolean
+    phase: string
+    progress: string
+    startedAt: string | null
+    lastCompletedAt: string | null
+    lastResult: {
+      summary: {
+        opportunitiesCreated: number
+        threadsDiscovered: number
+        aiCalls: number
+        durationMs: number
+        errors: number
+      }
+    } | null
+  }
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusData | null>(null)
+  const [triggeringSearch, setTriggeringSearch] = useState(false)
+
+  const fetchPipelineStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/search/status')
+      if (res.ok) {
+        const data = await res.json()
+        setPipelineStatus(data)
+        // If pipeline just finished, refresh opportunities
+        if (data.lastCompletedAt && !data.running) {
+          fetchOpportunities()
+        }
+      }
+    } catch { /* ignore */ }
+  }, [fetchOpportunities])
+
+  useEffect(() => {
+    fetchPipelineStatus()
+    // Poll every 3s while running, 30s otherwise
+    const interval = setInterval(fetchPipelineStatus, pipelineStatus?.running ? 3000 : 30000)
+    return () => clearInterval(interval)
+  }, [fetchPipelineStatus, pipelineStatus?.running])
+
+  const handleTriggerSearch = async () => {
+    setTriggeringSearch(true)
+    try {
+      await fetch('/api/search/run', { method: 'POST' })
+      setTimeout(fetchPipelineStatus, 1000)
+    } catch { /* ignore */ }
+    setTriggeringSearch(false)
+  }
+
   const [verifyingCards, setVerifyingCards] = useState<Set<string>>(new Set())
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [snackbar, setSnackbar] = useState<{
@@ -521,6 +571,57 @@ export function Dashboard() {
       >
         Opportunities
       </Typography>
+
+      {/* Pipeline Status Banner */}
+      <Paper
+        sx={{
+          mb: 2,
+          p: 1.5,
+          bgcolor: pipelineStatus?.running
+            ? (isDark ? '#1e3a5f' : '#eff6ff')
+            : (isDark ? '#0f172a' : '#f8fafc'),
+          border: `1px solid ${pipelineStatus?.running ? '#3b82f6' : (isDark ? '#1e293b' : '#e2e8f0')}`,
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
+        }}
+      >
+        {pipelineStatus?.running ? (
+          <>
+            <CircularProgress size={16} sx={{ color: '#3b82f6' }} />
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#3b82f6' }}>
+                Search running — {pipelineStatus.phase}
+              </Typography>
+              <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>
+                {pipelineStatus.progress}
+              </Typography>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
+                {pipelineStatus?.lastCompletedAt
+                  ? `Last search: ${getTimeAgo(new Date(pipelineStatus.lastCompletedAt))}${pipelineStatus.lastResult ? ` — ${pipelineStatus.lastResult.summary.opportunitiesCreated} new, ${pipelineStatus.lastResult.summary.threadsDiscovered} threads, ${(pipelineStatus.lastResult.summary.durationMs / 1000).toFixed(0)}s` : ''}`
+                  : 'No search run yet'}
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleTriggerSearch}
+              disabled={triggeringSearch}
+              startIcon={triggeringSearch ? <CircularProgress size={14} /> : <RefreshCwIcon size={14} />}
+              sx={{ fontSize: '12px', textTransform: 'none', borderColor: isDark ? '#334155' : '#e2e8f0' }}
+            >
+              Run Search
+            </Button>
+          </>
+        )}
+      </Paper>
 
       {/* Filter Bar */}
       <Paper

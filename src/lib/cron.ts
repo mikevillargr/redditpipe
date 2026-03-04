@@ -1,25 +1,20 @@
 import cron from "node-cron";
-import { prisma } from "./prisma";
+import { createPrismaClient } from "./prisma";
 import { runSearchPipeline } from "./search-pipeline";
 
 let initialized = false;
-let searchTimer: ReturnType<typeof setInterval> | null = null;
-let currentIntervalMins = 0;
 let searchRunning = false;
 
 async function runSearch() {
   if (searchRunning) {
-    console.log("[Cron] Search already running, skipping this cycle.");
+    console.log("[Cron] Search already running, skipping.");
     return;
   }
   searchRunning = true;
-  console.log("[Cron] Running scheduled search pipeline...");
+  console.log("[Cron] Running search pipeline...");
   try {
     const result = await runSearchPipeline();
     console.log("[Cron] Search complete:", JSON.stringify(result.summary));
-    if (result.errors?.length) {
-      console.warn("[Cron] Search warnings:", result.errors);
-    }
   } catch (error) {
     console.error("[Cron] Search failed:", error);
   } finally {
@@ -27,119 +22,75 @@ async function runSearch() {
   }
 }
 
-async function scheduleSearchJobs() {
-  try {
-    const settings = await prisma.settings.findUnique({
-      where: { id: "singleton" },
-    });
-
-    const frequency = settings?.searchFrequency || "continuous";
-    const intervalMins = settings?.pollingIntervalMins ?? 10;
-
-    // If manual mode, stop any running timer
-    if (frequency !== "continuous") {
-      if (searchTimer) {
-        clearInterval(searchTimer);
-        searchTimer = null;
-        currentIntervalMins = 0;
-        console.log("[Cron] Search mode is manual — polling stopped.");
-      }
-      return;
-    }
-
-    // If interval hasn't changed, keep existing timer
-    if (searchTimer && currentIntervalMins === intervalMins) {
-      return;
-    }
-
-    // Stop old timer and start new one
-    if (searchTimer) {
-      clearInterval(searchTimer);
-      console.log(`[Cron] Polling interval changed: ${currentIntervalMins}m → ${intervalMins}m`);
-    }
-
-    currentIntervalMins = intervalMins;
-    const intervalMs = intervalMins * 60 * 1000;
-
-    searchTimer = setInterval(runSearch, intervalMs);
-    console.log(`[Cron] Search polling every ${intervalMins} minutes (next run in ${intervalMins}m)`);
-
-    // Run immediately on first schedule
-    if (!initialized) {
-      console.log("[Cron] Running initial search on startup...");
-      // Delay slightly to let the server fully start
-      setTimeout(runSearch, 5000);
-    }
-  } catch (error) {
-    console.error("[Cron] Failed to schedule search jobs:", error);
-  }
-}
+// Exported so the manual trigger API can call it
+export { runSearch };
 
 export async function initCronJobs() {
   if (initialized) return;
+  initialized = true;
+
+  // Guard: only run cron in production with ENABLE_CRON=true
+  const cronEnabled = process.env.ENABLE_CRON === "true";
+  if (!cronEnabled) {
+    console.log("[Cron] Cron disabled (ENABLE_CRON !== 'true'). Use manual trigger in UI.");
+    return;
+  }
 
   console.log("[Cron] Initializing cron jobs...");
 
-  // Schedule search jobs from settings (and refresh every 5 min)
-  await scheduleSearchJobs();
-  initialized = true;
-  cron.schedule("*/5 * * * *", scheduleSearchJobs);
+  // Search digest: 6am and 2pm UTC (adjust to your timezone)
+  cron.schedule("0 6,14 * * *", runSearch);
+  console.log("[Cron] Search scheduled at 6:00 and 14:00 UTC");
 
-  // Reset Daily Counts — Midnight
+  // Run initial search on startup (delayed 5s for server to be ready)
+  setTimeout(runSearch, 5000);
+
+  // Reset Daily Counts — Midnight UTC
   cron.schedule("0 0 * * *", async () => {
-    console.log("[Cron] Resetting daily post counts...");
+    const db = createPrismaClient();
     try {
-      await prisma.redditAccount.updateMany({
-        data: { postsTodayCount: 0 },
-      });
+      await db.redditAccount.updateMany({ data: { postsTodayCount: 0 } });
       console.log("[Cron] Daily counts reset.");
     } catch (error) {
       console.error("[Cron] Daily count reset failed:", error);
+    } finally {
+      await db.$disconnect().catch(() => {});
     }
   });
 
-  // Reset Weekly Counts — Monday Midnight
+  // Reset Weekly Counts — Monday Midnight UTC
   cron.schedule("0 0 * * 1", async () => {
-    console.log("[Cron] Resetting weekly counts...");
+    const db = createPrismaClient();
     try {
-      await prisma.redditAccount.updateMany({
-        data: {
-          organicPostsWeek: 0,
-          citationPostsWeek: 0,
-        },
-      });
+      await db.redditAccount.updateMany({ data: { organicPostsWeek: 0, citationPostsWeek: 0 } });
       console.log("[Cron] Weekly counts reset.");
     } catch (error) {
       console.error("[Cron] Weekly count reset failed:", error);
+    } finally {
+      await db.$disconnect().catch(() => {});
     }
   });
 
   // Cooldown Check — Every 30 minutes
   cron.schedule("*/30 * * * *", async () => {
+    const db = createPrismaClient();
     try {
-      const cooldownAccounts = await prisma.redditAccount.findMany({
-        where: { status: "cooldown" },
-      });
-
+      const cooldownAccounts = await db.redditAccount.findMany({ where: { status: "cooldown" } });
       for (const account of cooldownAccounts) {
         if (account.lastPostAt) {
-          const hoursSinceLastPost =
-            (Date.now() - account.lastPostAt.getTime()) / (1000 * 60 * 60);
-          if (hoursSinceLastPost >= account.minHoursBetweenPosts) {
-            await prisma.redditAccount.update({
-              where: { id: account.id },
-              data: { status: "active" },
-            });
-            console.log(
-              `[Cron] Account ${account.username} reactivated from cooldown.`
-            );
+          const hours = (Date.now() - account.lastPostAt.getTime()) / (1000 * 60 * 60);
+          if (hours >= account.minHoursBetweenPosts) {
+            await db.redditAccount.update({ where: { id: account.id }, data: { status: "active" } });
+            console.log(`[Cron] ${account.username} reactivated from cooldown.`);
           }
         }
       }
     } catch (error) {
       console.error("[Cron] Cooldown check failed:", error);
+    } finally {
+      await db.$disconnect().catch(() => {});
     }
   });
 
-  console.log("[Cron] All cron jobs scheduled.");
+  console.log("[Cron] All jobs scheduled.");
 }

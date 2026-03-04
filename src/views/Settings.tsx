@@ -317,14 +317,13 @@ export function Settings() {
       const data = await res.json()
       if (data.error) {
         setSearchResult(`Error: ${data.error}`)
+        setSearchRunning(false)
       } else {
-        setSearchResult(
-          `Search complete: ${data.summary.opportunitiesCreated} new opportunities from ${data.summary.clientsSearched} clients`
-        )
+        setSearchResult('Search started — check Dashboard for live progress')
+        setSearchRunning(false)
       }
     } catch (err) {
       setSearchResult(`Search failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
-    } finally {
       setSearchRunning(false)
     }
   }
