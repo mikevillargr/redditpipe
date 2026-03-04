@@ -9,6 +9,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,11 +36,15 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
+        env:
+          ENV_CONTENT: ${{ secrets.PRODUCTION_ENV }}
+          REPO_URL: ${{ secrets.REPO_URL }}
         with:
           host: 76.13.191.149
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 10m
+          envs: ENV_CONTENT,REPO_URL
           script: |
             set -e
 
@@ -53,16 +60,13 @@ jobs:
               git fetch origin main
               git reset --hard origin/main
             else
-              git clone -b main ${{ secrets.REPO_URL }} .
+              git clone -b main "$REPO_URL" .
             fi
 
             echo "=== Code updated to $(git rev-parse --short HEAD) ==="
 
-            # Write env file
-            cat > .env.production << 'ENVEOF'
-            ${{ secrets.PRODUCTION_ENV }}
-            ENVEOF
-            sed -i 's/^[[:space:]]*//' .env.production
+            # Write env file from secret
+            printf '%s\n' "$ENV_CONTENT" > .env.production
 
             # Build
             echo "=== Building Docker image ==="
@@ -72,7 +76,7 @@ jobs:
             echo "=== Starting container ==="
             docker compose -f docker-compose.production.yml up -d
 
-            # Wait for health check
+            # Wait for health check (up to 60s)
             echo "=== Waiting for health check ==="
             for i in $(seq 1 30); do
               if docker inspect --format='{{.State.Health.Status}}' redditpipe-production 2>/dev/null | grep -q healthy; then
@@ -80,16 +84,13 @@ jobs:
                 break
               fi
               if [ "$i" -eq 30 ]; then
-                echo "::warning::Health check timed out after 30 attempts"
-                echo "Container logs:"
+                echo "WARNING: Health check timed out after 60s"
                 docker logs --tail 20 redditpipe-production
               fi
               sleep 2
             done
 
-            # Cleanup
             docker image prune -f
-
             echo "=== Production deploy complete ==="
 
       - name: Create GitHub Release
