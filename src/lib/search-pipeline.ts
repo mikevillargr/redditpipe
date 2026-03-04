@@ -147,6 +147,14 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   let aiScoringCalls = 0;
   let threadIdx = 0;
 
+  // Batch-load existing opportunities to avoid per-thread DB queries (SQLite locking issue)
+  console.log(`[Search] Phase 2: Loading existing opportunities...`);
+  const existingOpps = await prisma.opportunity.findMany({
+    select: { threadId: true, clientId: true },
+  });
+  const existingSet = new Set(existingOpps.map((o) => `${o.threadId}::${o.clientId}`));
+  console.log(`[Search] Phase 2: ${existingSet.size} existing opportunities loaded`);
+
   console.log(`[Search] Phase 2: Scoring ${discoveredThreads.size} threads × ${clients.length} clients (heuristic pre-filter: ${heuristicPreFilter.toFixed(2)}, AI: ${hasAiKey ? 'yes' : 'no'})`);
 
   for (const [, thread] of discoveredThreads) {
@@ -173,15 +181,11 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           : `${Math.floor(ageDays)}d ago`;
 
     // Pre-filter: check if any client has a minimum heuristic match
-    // This avoids fetching comments and AI scoring for completely irrelevant threads
     const candidateClients: Array<{ client: typeof clients[0]; keywords: string[]; heuristicScore: number }> = [];
 
     for (const client of clients) {
-      // Check for existing opportunity in DB
-      const existing = await prisma.opportunity.findFirst({
-        where: { threadId: thread.threadId, clientId: client.id },
-      });
-      if (existing) { skippedDuplicate++; continue; }
+      // Check for existing opportunity using in-memory Set (avoids SQLite locking)
+      if (existingSet.has(`${thread.threadId}::${client.id}`)) { skippedDuplicate++; continue; }
 
       const keywords = clientKeywordMap.get(client.id) || [];
       const heuristicScore = computeRelevanceScore({
