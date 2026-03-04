@@ -24,16 +24,14 @@ const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
 // ── Rate Limiter ────────────────────────────────────────────────────────────
 // Simple mutex + delay pattern. One request at a time with minimum delay.
 
-// Simple rate limiter state
+// Simple rate limiter state — no mutex, no lock, just enforce delay between requests
 let lastRequestTime = 0;
 let baseDelay = 2000; // 2s for public_json; 1s for OAuth
-let locked = false;
 
 // Reset rate limiter state — call before each search run to clear stale state
 export function resetRateLimiter(mode: "oauth" | "public_json" = "public_json"): void {
   lastRequestTime = 0;
   baseDelay = mode === "oauth" ? 1000 : 2000;
-  locked = false;
 }
 
 const MAX_RETRIES = 2;
@@ -41,26 +39,11 @@ const MAX_RETRIES = 2;
 // Simple delay helper
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// Wait for the lock to be released, then acquire it
-async function acquireLock(): Promise<void> {
-  while (locked) {
-    await delay(100);
-  }
-  locked = true;
-}
-
-function releaseLock(): void {
-  locked = false;
-}
-
-// Central fetch wrapper: mutex lock + simple delay + retry
+// Central fetch wrapper: simple delay + retry (no mutex — caller must await sequentially)
 async function redditFetch(url: string, init: RequestInit): Promise<Response> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // Acquire the lock so only one request at a time
-    await acquireLock();
-
     try {
       // Enforce minimum delay between requests
       const now = Date.now();
@@ -68,16 +51,12 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
       if (elapsed < baseDelay) {
         await delay(baseDelay - elapsed);
       }
-
       lastRequestTime = Date.now();
 
       const response = await fetch(url, {
         ...init,
         signal: AbortSignal.timeout(15_000), // 15s timeout per request
       });
-
-      // Release lock before processing response
-      releaseLock();
 
       if (response.ok) {
         return response;
@@ -109,7 +88,6 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
       // Non-retryable error — return response so caller can handle
       return response;
     } catch (err) {
-      releaseLock();
       lastError = err instanceof Error ? err : new Error(String(err));
       if (attempt < MAX_RETRIES) {
         const backoff = 2000 * Math.pow(2, attempt) + Math.random() * 1000;

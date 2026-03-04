@@ -103,17 +103,11 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   for (const keyword of uniqueKeywords) {
     kwIdx++;
     try {
-      // Wrap each keyword search in a 30s timeout to prevent hangs
-      const threads = await Promise.race([
-        searchReddit(token, keyword, {
-          sort: "new",
-          time: "day",
-          limit: maxResults,
-        }, redditConfig),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Keyword search timed out after 30s")), 30_000)
-        ),
-      ]);
+      const threads = await searchReddit(token, keyword, {
+        sort: "new",
+        time: "day",
+        limit: maxResults,
+      }, redditConfig);
 
       for (const thread of threads) {
         if (!discoveredThreads.has(thread.id)) {
