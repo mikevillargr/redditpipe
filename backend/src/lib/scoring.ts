@@ -41,13 +41,24 @@ export function computeRelevanceScore(params: ScoringParams): number {
     threadMaxAgeDays = 2,
   } = params;
 
-  // 1. Keyword Match (weight: 0.4) — simple exact phrase matching
+  // 1. Keyword Match (weight: 0.4) — word-level matching for broader coverage
   const text = `${threadTitle} ${threadBody}`.toLowerCase();
-  const matchedKeywords = clientKeywords.filter((kw) =>
-    text.includes(kw.toLowerCase().trim())
-  );
+  let totalKeywordScore = 0;
+  for (const kw of clientKeywords) {
+    const kwLower = kw.toLowerCase().trim();
+    if (text.includes(kwLower)) {
+      totalKeywordScore += 1.0; // exact phrase match
+    } else {
+      // Partial: count how many significant words from the keyword appear
+      const words = kwLower.split(/\s+/).filter((w) => w.length > 2);
+      if (words.length > 0) {
+        const matched = words.filter((w) => text.includes(w)).length;
+        totalKeywordScore += matched / words.length * 0.6; // partial match worth up to 60%
+      }
+    }
+  }
   const keywordScore =
-    clientKeywords.length > 0 ? matchedKeywords.length / clientKeywords.length : 0;
+    clientKeywords.length > 0 ? Math.min(totalKeywordScore / clientKeywords.length, 1.0) : 0;
 
   // 2. Recency (weight: 0.2)
   const ageMs = Date.now() - threadCreatedAt.getTime();

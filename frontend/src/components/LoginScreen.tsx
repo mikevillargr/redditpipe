@@ -93,10 +93,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               fontSize: '20px',
               fontWeight: 700,
               color: '#f1f5f9',
-              mb: 0.5,
+              mb: 0.25,
             }}
           >
             RedditPipe
+          </Typography>
+          <Typography sx={{ fontSize: '10px', color: '#475569', mb: 0.5 }}>
+            by Growth Rocket AI Labs
           </Typography>
           <Typography sx={{ fontSize: '13px', color: '#64748b' }}>
             Sign in to access the dashboard

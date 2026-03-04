@@ -13,6 +13,7 @@ model Client {
   description  String
   keywords     String
   mentionTerms String?
+  nuance       String?
   status       String   @default("active")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -119,4 +120,5 @@ model Settings {
   relevanceThreshold    Float  @default(0.4)
   aiSearchContext       String?
   aiModel               String @default("claude-sonnet-4-20250514")
+  searchBreadth         String @default("balanced")
 }

@@ -40,6 +40,7 @@ interface Client {
   website: string
   keywords: string[]
   mentionTerms: string[]
+  nuance: string
   active: boolean
   opportunities: number
   description: string
@@ -63,6 +64,7 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
     client?.mentionTerms?.join(', ') ?? '',
   )
   const [csvFileName, setCsvFileName] = useState<string | null>(null)
+  const [nuance, setNuance] = useState(client?.nuance ?? '')
   const [detecting, setDetecting] = useState(false)
   const [detectError, setDetectError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -73,6 +75,7 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
       setDescription(client?.description ?? '')
       setKeywords(client?.keywords.join(', ') ?? '')
       setMentionTerms(client?.mentionTerms?.join(', ') ?? '')
+      setNuance(client?.nuance ?? '')
       setKeywordMode('comma')
       setCsvFileName(null)
       setDetectError(null)
@@ -100,6 +103,7 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
         setKeywordMode('comma')
       }
       if (data.mentionTerms?.length) setMentionTerms(data.mentionTerms.join(', '))
+      if (data.nuance) setNuance(data.nuance)
     } catch (err) {
       setDetectError(err instanceof Error ? err.message : 'Network error')
     } finally {
@@ -146,6 +150,7 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean),
+      nuance: nuance.trim(),
       active: client?.active ?? true,
     })
     onClose()
@@ -519,6 +524,41 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
             </Box>
           )}
         </Box>
+
+        {/* Nuance / Special Instructions */}
+        <Box>
+          <Typography
+            sx={{
+              fontSize: '13px',
+              fontWeight: 600,
+              color: 'text.primary',
+              mb: 0.5,
+            }}
+          >
+            Nuance
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: '11px',
+              color: 'text.secondary',
+              mb: 1,
+              lineHeight: 1.5,
+            }}
+          >
+            Special filtering instructions passed to the AI scorer — e.g.
+            geographic focus, target audience, industries to prioritize or
+            avoid.
+          </Typography>
+          <TextField
+            value={nuance}
+            onChange={(e) => setNuance(e.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+            placeholder='e.g. "US-only, focus on small businesses, avoid enterprise/B2B threads"'
+            sx={inputSx}
+          />
+        </Box>
       </DialogContent>
 
       <DialogActions
@@ -575,12 +615,13 @@ export function Clients() {
       const res = await fetch('/api/clients')
       if (res.ok) {
         const data = await res.json()
-        setClients(data.map((c: { id: string; name: string; websiteUrl: string; keywords: string; mentionTerms: string | null; status: string; _count: { opportunities: number }; description: string }) => ({
+        setClients(data.map((c: { id: string; name: string; websiteUrl: string; keywords: string; mentionTerms: string | null; nuance: string | null; status: string; _count: { opportunities: number }; description: string }) => ({
           id: c.id,
           name: c.name,
           website: c.websiteUrl,
           keywords: c.keywords.split(',').map((k: string) => k.trim()).filter(Boolean),
           mentionTerms: c.mentionTerms ? c.mentionTerms.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
+          nuance: c.nuance || '',
           active: c.status === 'active',
           opportunities: c._count.opportunities,
           description: c.description,
@@ -637,6 +678,7 @@ export function Clients() {
             description: data.description,
             keywords: data.keywords,
             mentionTerms: data.mentionTerms,
+            nuance: data.nuance || null,
             status: data.active ? 'active' : 'paused',
           }),
         })
@@ -650,6 +692,7 @@ export function Clients() {
             description: data.description,
             keywords: data.keywords,
             mentionTerms: data.mentionTerms,
+            nuance: data.nuance || null,
           }),
         })
       }

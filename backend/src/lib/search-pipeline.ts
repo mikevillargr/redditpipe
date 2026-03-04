@@ -19,6 +19,7 @@ export interface PipelineStatus {
   startedAt: string | null;
   lastCompletedAt: string | null;
   lastResult: SearchResult | null;
+  opportunitiesCreated: number;
 }
 
 let pipelineStatus: PipelineStatus = {
@@ -28,6 +29,7 @@ let pipelineStatus: PipelineStatus = {
   startedAt: null,
   lastCompletedAt: null,
   lastResult: null,
+  opportunitiesCreated: 0,
 };
 
 export function getPipelineStatus(): PipelineStatus {
@@ -62,6 +64,39 @@ interface DiscoveredThread {
   discoveredVia: "thread_search" | "comment_search";
 }
 
+// ── Keyword expansion for broader Reddit search coverage ─────────────────────
+// Long exact phrases rarely match Reddit titles/posts. This function generates
+// additional shorter query variants so Reddit's search finds more threads.
+function expandKeywords(keywords: string[], breadth: string): string[] {
+  if (breadth === "narrow") return keywords; // exact phrases only
+
+  const expanded = new Set<string>();
+  for (const kw of keywords) {
+    expanded.add(kw); // always keep original
+
+    const words = kw.split(/\s+/).filter((w) => w.length > 2);
+    if (words.length <= 2) continue; // already short enough
+
+    if (breadth === "broad") {
+      // Generate all 2-word and 3-word sliding windows
+      for (let i = 0; i < words.length - 1; i++) {
+        expanded.add(words.slice(i, i + 2).join(" "));
+        if (i < words.length - 2) {
+          expanded.add(words.slice(i, i + 3).join(" "));
+        }
+      }
+    } else {
+      // "balanced" — keep original + generate 3-word windows only
+      if (words.length > 3) {
+        for (let i = 0; i < words.length - 2; i++) {
+          expanded.add(words.slice(i, i + 3).join(" "));
+        }
+      }
+    }
+  }
+  return Array.from(expanded);
+}
+
 // ── Original inline AI scoring pipeline ──────────────────────────────────────
 // Restored from the first working release (commit 56d94da).
 // Key difference: AI scores every thread per client INLINE (not batched).
@@ -76,6 +111,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     startedAt: new Date().toISOString(),
     lastCompletedAt: pipelineStatus.lastCompletedAt,
     lastResult: pipelineStatus.lastResult,
+    opportunitiesCreated: 0,
   };
 
   const db = createPrismaClient();
@@ -86,6 +122,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const maxResults = settings?.maxResultsPerKeyword ?? 10;
     const threadMaxAgeDays = settings?.threadMaxAgeDays ?? 2;
     const relevanceThreshold = settings?.relevanceThreshold ?? 0.4;
+    const searchBreadth = (settings as Record<string, unknown>)?.searchBreadth as string || "balanced";
     const hasAiKey = !!(settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY);
 
     clearConfigCache();
@@ -108,7 +145,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           aiCalls: 0, mode: redditConfig.mode, errors: 0, durationMs: Date.now() - startTime,
         },
       };
-      pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result };
+      pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: 0 };
       return result;
     }
 
@@ -130,7 +167,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const discoveredThreads = new Map<string, DiscoveredThread>();
 
     for (const client of clients) {
-      const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+      const rawKeywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+      const keywords = expandKeywords(rawKeywords, searchBreadth);
+      console.log(`[Search] ${client.name}: ${rawKeywords.length} keywords → ${keywords.length} search queries (breadth: ${searchBreadth})`);
 
       for (const keyword of keywords) {
         pipelineStatus.progress = `Searching "${keyword}" for ${client.name}...`;
@@ -262,10 +301,14 @@ export async function runSearchPipeline(): Promise<SearchResult> {
               clientName: client.name,
               clientDescription: client.description,
               clientKeywords: keywords,
+              clientNuance: client.nuance,
               threshold: relevanceThreshold,
             });
             relevanceScore = aiResult.score;
-            aiRelevanceNote = aiResult.note;
+            aiRelevanceNote = JSON.stringify({
+              note: aiResult.note,
+              factors: aiResult.factors || null,
+            });
             if (!aiResult.shouldKeep) {
               skippedLowScore++;
               continue;
@@ -307,6 +350,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         });
 
         totalOpportunities++;
+        pipelineStatus.opportunitiesCreated = totalOpportunities;
       }
     }
 
@@ -328,12 +372,12 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       errors: errors.length > 0 ? errors : undefined,
     };
 
-    pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result };
+    pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: totalOpportunities };
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[Search] Pipeline error: ${msg}`);
-    pipelineStatus = { running: false, phase: "error", progress: msg, startedAt: null, lastCompletedAt: pipelineStatus.lastCompletedAt, lastResult: pipelineStatus.lastResult };
+    pipelineStatus = { running: false, phase: "error", progress: msg, startedAt: null, lastCompletedAt: pipelineStatus.lastCompletedAt, lastResult: pipelineStatus.lastResult, opportunitiesCreated: pipelineStatus.opportunitiesCreated };
     throw err;
   } finally {
     await db.$disconnect().catch(() => {});

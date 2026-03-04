@@ -17,6 +17,10 @@ import {
   Tooltip,
   ToggleButtonGroup,
   ToggleButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
 import {
   EyeIcon,
@@ -25,6 +29,8 @@ import {
   XCircleIcon,
   PlayIcon,
   SaveIcon,
+  Trash2Icon,
+  AlertTriangleIcon,
 } from 'lucide-react'
 type ConnectionStatus = 'idle' | 'testing' | 'success' | 'error'
 interface SectionCardProps {
@@ -234,6 +240,7 @@ export function Settings() {
   const [anthropicKey, setAnthropicKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   // Search
+  const [searchBreadth, setSearchBreadth] = useState('balanced')
   const [searchFrequency, setSearchFrequency] = useState('continuous')
   const [pollingInterval, setPollingInterval] = useState(60)
   const [dailyBudget, setDailyBudget] = useState(80)
@@ -247,6 +254,9 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
   const [searchRunning, setSearchRunning] = useState(false)
   const [searchResult, setSearchResult] = useState<string | null>(null)
+  const [nukeStep, setNukeStep] = useState(0)
+  const [nukeConfirmText, setNukeConfirmText] = useState('')
+  const [nukeLoading, setNukeLoading] = useState(false)
 
   const loadSettings = useCallback(async () => {
     try {
@@ -267,6 +277,7 @@ export function Settings() {
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
         setAiSearchContext(data.aiSearchContext || '')
         setAiModel(data.aiModel || 'claude-sonnet-4-20250514')
+        setSearchBreadth(data.searchBreadth || 'balanced')
       }
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -328,11 +339,35 @@ export function Settings() {
     }
   }
 
+  const handleNukeOpportunities = async () => {
+    setNukeLoading(true)
+    try {
+      const res = await fetch('/api/opportunities/all', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE_ALL_OPPORTUNITIES' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        alert(`Deleted ${data.deleted} opportunities and ${data.dismissalsCleared} dismissal logs.`)
+      } else {
+        alert('Failed to clear opportunities')
+      }
+    } catch {
+      alert('Network error')
+    } finally {
+      setNukeLoading(false)
+      setNukeStep(0)
+      setNukeConfirmText('')
+    }
+  }
+
   const handleSave = async () => {
     try {
       const payload: Record<string, unknown> = {
         redditApiMode,
         searchFrequency,
+        searchBreadth,
         pollingIntervalMins: pollingInterval,
         dailyRequestBudget: dailyBudget,
         maxResultsPerKeyword: maxResults,
@@ -405,6 +440,7 @@ export function Settings() {
               size="small"
               fullWidth
               sx={{
+                overflow: 'visible',
                 '& .MuiToggleButton-root': {
                   color: '#64748b',
                   borderColor: '#334155',
@@ -416,6 +452,7 @@ export function Settings() {
                     bgcolor: 'rgba(249, 115, 22, 0.1)',
                     color: '#f97316',
                     borderColor: '#f97316',
+                    zIndex: 1,
                     '&:hover': {
                       bgcolor: 'rgba(249, 115, 22, 0.15)',
                     },
@@ -545,6 +582,7 @@ export function Settings() {
               size="small"
               fullWidth
               sx={{
+                overflow: 'visible',
                 '& .MuiToggleButton-root': {
                   color: '#64748b',
                   borderColor: '#334155',
@@ -556,6 +594,7 @@ export function Settings() {
                     bgcolor: 'rgba(249, 115, 22, 0.1)',
                     color: '#f97316',
                     borderColor: '#f97316',
+                    zIndex: 1,
                     '&:hover': {
                       bgcolor: 'rgba(249, 115, 22, 0.15)',
                     },
@@ -605,6 +644,50 @@ export function Settings() {
           )}
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
+
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
+              Search Breadth
+            </Typography>
+            <ToggleButtonGroup
+              value={searchBreadth}
+              exclusive
+              onChange={(_, val) => val && setSearchBreadth(val)}
+              size="small"
+              fullWidth
+              sx={{
+                overflow: 'visible',
+                '& .MuiToggleButton-root': {
+                  color: '#64748b',
+                  borderColor: '#334155',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  py: 0.75,
+                  textTransform: 'none',
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(249, 115, 22, 0.1)',
+                    color: '#f97316',
+                    borderColor: '#f97316',
+                    zIndex: 1,
+                    '&:hover': {
+                      bgcolor: 'rgba(249, 115, 22, 0.15)',
+                    },
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="narrow">Narrow</ToggleButton>
+              <ToggleButton value="balanced">Balanced</ToggleButton>
+              <ToggleButton value="broad">Broad</ToggleButton>
+            </ToggleButtonGroup>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
+              {searchBreadth === 'narrow'
+                ? 'Exact keyword phrases only. Fewer results but highly targeted.'
+                : searchBreadth === 'broad'
+                  ? 'Expands keywords into 2-word and 3-word sub-queries. More results, relies on AI scoring to filter noise.'
+                  : 'Expands long keywords into 3-word sub-queries. Good balance of coverage and precision.'}
+            </Typography>
+          </Box>
 
           <TextField
             label="Max Results Per Keyword"
@@ -734,10 +817,34 @@ export function Settings() {
               onChange={(e) => setAiModel(e.target.value)}
               label="AI Model"
             >
-              <MenuItem value="claude-sonnet-4-20250514">Claude Sonnet 4 (Recommended)</MenuItem>
-              <MenuItem value="claude-haiku-4-20250514">Claude Haiku 4 (Faster/Cheaper)</MenuItem>
-              <MenuItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</MenuItem>
+              <MenuItem value="claude-3-5-haiku-20241022">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude 3.5 Haiku</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-20250514">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15 · Recommended</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-5-20250929">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.5</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15 · Latest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250115">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75 · Most capable</Typography>
+                </Box>
+              </MenuItem>
             </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
+              Prices shown are per million input/output tokens. Haiku is ~4x cheaper than Sonnet for scoring tasks.
+            </Typography>
           </FormControl>
 
           <TextField
@@ -776,6 +883,129 @@ export function Settings() {
       >
         {saved ? '✓ Settings Saved' : 'Save Settings'}
       </Button>
+
+      {/* Danger Zone */}
+      <Card
+        sx={{
+          bgcolor: 'background.paper',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '12px',
+          mb: 3,
+          mt: 1,
+        }}
+      >
+        <CardContent sx={{ p: 3 }}>
+          <Typography
+            sx={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#ef4444',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              mb: 2.5,
+              pb: 2,
+              borderBottom: '1px solid rgba(239, 68, 68, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+            }}
+          >
+            <AlertTriangleIcon size={14} /> Danger Zone
+          </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: '14px', fontWeight: 600, color: '#ef4444' }}>
+                Clear All Opportunities
+              </Typography>
+              <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>
+                Permanently delete all opportunities and dismissal logs. This cannot be undone.
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<Trash2Icon size={14} />}
+              onClick={() => setNukeStep(1)}
+              sx={{
+                fontSize: '12px',
+                textTransform: 'none',
+                whiteSpace: 'nowrap',
+                borderColor: '#ef4444',
+                color: '#ef4444',
+                '&:hover': { bgcolor: 'rgba(239,68,68,0.08)', borderColor: '#dc2626' },
+              }}
+            >
+              Clear All
+            </Button>
+          </Box>
+        </Box>
+        </CardContent>
+      </Card>
+
+      {/* Double-confirm dialog — Step 1 */}
+      <Dialog open={nukeStep === 1} onClose={() => setNukeStep(0)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
+          <AlertTriangleIcon size={20} /> Clear All Opportunities?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>
+            This will permanently delete <strong>all opportunities</strong> and <strong>all dismissal logs</strong> from the database.
+          </Typography>
+          <Typography sx={{ fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>
+            This action is irreversible.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setNukeStep(0)} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => setNukeStep(2)}
+            sx={{ textTransform: 'none' }}
+          >
+            Yes, I'm Sure
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Double-confirm dialog — Step 2 (final) */}
+      <Dialog open={nukeStep === 2} onClose={() => setNukeStep(0)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
+          <AlertTriangleIcon size={20} /> Final Confirmation
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '14px', color: 'text.secondary', mb: 2 }}>
+            Type <strong>DELETE</strong> below to confirm you want to permanently erase all opportunities.
+          </Typography>
+          <TextField
+            value={nukeConfirmText}
+            onChange={(e) => setNukeConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            fullWidth
+            size="small"
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: '#ef4444' },
+                '&:hover fieldset': { borderColor: '#dc2626' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setNukeStep(0); setNukeConfirmText('') }} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={nukeConfirmText !== 'DELETE' || nukeLoading}
+            onClick={handleNukeOpportunities}
+            sx={{ textTransform: 'none' }}
+          >
+            {nukeLoading ? 'Deleting...' : 'Permanently Delete All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

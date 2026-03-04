@@ -47,6 +47,34 @@ app.get("/", async (c) => {
   }
 });
 
+// GET /api/opportunities/dismissals
+app.get("/dismissals", async (c) => {
+  try {
+    const analysis = await analyzeDismissals();
+    return c.json(analysis);
+  } catch (error) {
+    console.error("GET /api/opportunities/dismissals error:", error);
+    return c.json({ error: "Failed to analyze dismissals" }, 500);
+  }
+});
+
+// DELETE /api/opportunities/all — nuclear: clear ALL opportunities + dismissal logs
+app.delete("/all", async (c) => {
+  try {
+    const body = await c.req.json();
+    if (body?.confirm !== "DELETE_ALL_OPPORTUNITIES") {
+      return c.json({ error: "Confirmation required: send { confirm: 'DELETE_ALL_OPPORTUNITIES' }" }, 400);
+    }
+    const dismissals = await prisma.dismissalLog.deleteMany({});
+    const opps = await prisma.opportunity.deleteMany({});
+    console.log(`[NUCLEAR] Cleared ${opps.count} opportunities and ${dismissals.count} dismissal logs`);
+    return c.json({ deleted: opps.count, dismissalsCleared: dismissals.count });
+  } catch (error) {
+    console.error("DELETE /api/opportunities/all error:", error);
+    return c.json({ error: "Failed to clear opportunities" }, 500);
+  }
+});
+
 // GET /api/opportunities/:id
 app.get("/:id", async (c) => {
   try {
@@ -271,17 +299,6 @@ app.post("/bulk-dismiss", async (c) => {
   } catch (error) {
     console.error("POST /api/opportunities/bulk-dismiss error:", error);
     return c.json({ error: "Failed to bulk dismiss" }, 500);
-  }
-});
-
-// GET /api/opportunities/dismissals
-app.get("/dismissals", async (c) => {
-  try {
-    const analysis = await analyzeDismissals();
-    return c.json(analysis);
-  } catch (error) {
-    console.error("GET /api/opportunities/dismissals error:", error);
-    return c.json({ error: "Failed to analyze dismissals" }, 500);
   }
 });
 

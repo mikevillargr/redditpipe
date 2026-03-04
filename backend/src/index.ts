@@ -9,6 +9,7 @@ import accountsRoutes from "./routes/accounts.js";
 import settingsRoutes from "./routes/settings.js";
 import searchRoutes from "./routes/search.js";
 import authRoutes from "./routes/auth.js";
+import warmingRoutes from "./routes/warming.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -32,6 +33,7 @@ app.route("/api/accounts", accountsRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api/search", searchRoutes);
 app.route("/api/auth", authRoutes);
+app.route("/api/warming", warmingRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);

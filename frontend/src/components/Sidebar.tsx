@@ -23,9 +23,10 @@ import {
   MoonIcon,
   LogOutIcon,
   BarChart3Icon,
+  FlameIcon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights'
+type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'warming'
 interface SidebarProps {
   activePage: Page
   onNavigate: (page: Page) => void
@@ -55,6 +56,11 @@ const navItems = [
     label: 'Reddit Accounts',
     icon: null,
     isReddit: true,
+  },
+  {
+    id: 'warming' as Page,
+    label: 'Account Warming',
+    icon: FlameIcon,
   },
   {
     id: 'insights' as Page,
@@ -131,17 +137,31 @@ export function Sidebar({
           </Typography>
         </Box>
         {!effectiveCollapsed && (
-          <Typography
-            sx={{
-              color: '#f1f5f9',
-              fontWeight: 700,
-              fontSize: '15px',
-              letterSpacing: '-0.3px',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            RedditPipe
-          </Typography>
+          <Box>
+            <Typography
+              sx={{
+                color: '#f1f5f9',
+                fontWeight: 700,
+                fontSize: '15px',
+                letterSpacing: '-0.3px',
+                whiteSpace: 'nowrap',
+                lineHeight: 1.2,
+              }}
+            >
+              RedditPipe
+            </Typography>
+            <Typography
+              sx={{
+                color: '#475569',
+                fontSize: '9px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap',
+                letterSpacing: '0.02em',
+              }}
+            >
+              by Growth Rocket AI Labs
+            </Typography>
+          </Box>
         )}
       </Box>
 

@@ -10,7 +10,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  tag-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump semver tag
+        id: bump
+        run: |
+          # Get latest tag or start at v0.0.0
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          if [ -z "$LATEST" ]; then
+            NEW="v0.1.0"
+          else
+            # Auto-increment patch
+            MAJOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f1)
+            MINOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f2)
+            PATCH=$(echo "$LATEST" | sed 's/v//' | cut -d. -f3)
+            PATCH=$((PATCH + 1))
+            NEW="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "Tagging $NEW"
+
+      - name: Create tag and GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.bump.outputs.version }}"
+          git tag "$VERSION"
+          git push origin "$VERSION"
+          gh release create "$VERSION" \
+            --title "$VERSION" \
+            --generate-notes \
+            --latest
+
   deploy:
+    needs: tag-release
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH (git pull + rebuild on VPS)
@@ -19,15 +61,16 @@ jobs:
           ENV_CONTENT: ${{ secrets.PRODUCTION_ENV }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.tag-release.outputs.version }}
         with:
           host: 76.13.191.149
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 5m
-          envs: ENV_CONTENT,GH_TOKEN,GH_REPO
+          envs: ENV_CONTENT,GH_TOKEN,GH_REPO,VERSION
           script: |
             set -e
-            echo "=== Deploy started $(date -u '+%H:%M:%S UTC') ==="
+            echo "=== Deploy $VERSION started $(date -u '+%H:%M:%S UTC') ==="
 
             REPO_DIR="/opt/redditpipe"
             REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
@@ -36,7 +79,7 @@ jobs:
             if [ -d "$REPO_DIR/.git" ]; then
               cd "$REPO_DIR"
               git remote set-url origin "$REPO_URL"
-              git fetch origin main
+              git fetch origin main --tags
               git reset --hard origin/main
             else
               git clone "$REPO_URL" "$REPO_DIR"
@@ -49,7 +92,6 @@ jobs:
 
             # Stop old monolith container if still running
             docker stop redditpipe-production 2>/dev/null && docker rm redditpipe-production 2>/dev/null || true
-            # Also stop any old compose from /docker/redditpipe-production
             cd /docker/redditpipe-production 2>/dev/null && docker compose -f docker-compose.production.yml down 2>/dev/null || true
             cd "$REPO_DIR"
 
@@ -69,4 +111,4 @@ jobs:
             done
 
             docker image prune -f
-            echo "=== Deploy complete $(date -u '+%H:%M:%S UTC') ==="
+            echo "=== Deploy $VERSION complete $(date -u '+%H:%M:%S UTC') ==="

@@ -296,6 +296,7 @@ export function Dashboard() {
     progress: string
     startedAt: string | null
     lastCompletedAt: string | null
+    opportunitiesCreated: number
     lastResult: {
       summary: {
         opportunitiesCreated: number
@@ -309,13 +310,24 @@ export function Dashboard() {
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusData | null>(null)
   const [triggeringSearch, setTriggeringSearch] = useState(false)
 
+  const prevCreatedRef = useRef(0)
   const fetchPipelineStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/search/status')
       if (res.ok) {
         const data = await res.json()
         setPipelineStatus(data)
-        // If pipeline just finished, refresh opportunities
+        // Refresh opportunities when new ones appear during the run
+        if (data.running && data.opportunitiesCreated > prevCreatedRef.current) {
+          prevCreatedRef.current = data.opportunitiesCreated
+          fetchOpportunities()
+        }
+        // Refresh when pipeline finishes
+        if (!data.running && prevCreatedRef.current > 0) {
+          prevCreatedRef.current = 0
+          fetchOpportunities()
+        }
+        // Also refresh if pipeline just completed (first load after completion)
         if (data.lastCompletedAt && !data.running) {
           fetchOpportunities()
         }
@@ -616,6 +628,9 @@ export function Dashboard() {
             <Box sx={{ flex: 1, minWidth: 200 }}>
               <Typography sx={{ fontSize: '13px', fontWeight: 600, color: '#3b82f6' }}>
                 Search running — {pipelineStatus.phase}
+                {pipelineStatus.opportunitiesCreated > 0
+                  ? ` (${pipelineStatus.opportunitiesCreated} found)`
+                  : ''}
               </Typography>
               <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>
                 {pipelineStatus.progress}
@@ -1236,7 +1251,33 @@ export function Dashboard() {
             Showing {visibleOpportunities.length} of {filteredOpportunities.length} opportunities
           </Typography>
         )}
-        {filteredOpportunities.length === 0 && (
+        {filteredOpportunities.length === 0 && opportunities.length === 0 && (
+          <Paper
+            sx={{
+              textAlign: 'center',
+              py: 6,
+              px: 3,
+              bgcolor: isDark ? '#0f172a' : '#f8fafc',
+              border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
+              borderRadius: '12px',
+            }}
+          >
+            <Box sx={{ fontSize: 40, mb: 1.5 }}>
+              {clientList.length === 0 ? '🏢' : '🔍'}
+            </Box>
+            <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>
+              {clientList.length === 0
+                ? 'No clients configured yet'
+                : 'No opportunities found'}
+            </Typography>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
+              {clientList.length === 0
+                ? 'Add a client first — go to the Clients page and enter a website URL. The AI will auto-detect keywords and set up everything for you.'
+                : 'Run a search to discover Reddit threads that match your clients. Opportunities will appear here once the pipeline finds relevant threads. Reddit accounts are optional — opportunities will show as "Unassigned" until accounts are added.'}
+            </Typography>
+          </Paper>
+        )}
+        {filteredOpportunities.length === 0 && opportunities.length > 0 && (
           <Box
             sx={{
               textAlign: 'center',
@@ -1244,11 +1285,7 @@ export function Dashboard() {
               color: 'text.secondary',
             }}
           >
-            <Typography
-              sx={{
-                fontSize: '14px',
-              }}
-            >
+            <Typography sx={{ fontSize: '14px' }}>
               No opportunities match the current filters.
             </Typography>
           </Box>
@@ -1834,34 +1871,39 @@ function OpportunityCard({
             >
               {opp.title}
             </Typography>
-            {opp.aiRelevanceNote && (
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 1,
-                  mt: 0.75,
-                  mb: 0.75,
-                  px: 1.5,
-                  py: 1,
-                  borderRadius: '8px',
-                  bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
-                  border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
-                }}
-              >
-                <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
-                <Typography
+            {opp.aiRelevanceNote && (() => {
+              let parsed: { note?: string; factors?: { subredditRelevance?: number; topicMatch?: number; intent?: number; naturalFit?: number } } | null = null
+              try { parsed = JSON.parse(opp.aiRelevanceNote) } catch { parsed = { note: opp.aiRelevanceNote } }
+              const note = parsed?.note || opp.aiRelevanceNote
+              return (
+                <Box
                   sx={{
-                    fontSize: '12px',
-                    color: isDark ? '#a5b4fc' : '#4f46e5',
-                    lineHeight: 1.5,
-                    fontWeight: 500,
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                    mt: 0.75,
+                    mb: 0.75,
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: '8px',
+                    bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
+                    border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
                   }}
                 >
-                  {opp.aiRelevanceNote}
-                </Typography>
-              </Box>
-            )}
+                  <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
+                  <Typography
+                    sx={{
+                      fontSize: '12px',
+                      color: isDark ? '#a5b4fc' : '#4f46e5',
+                      lineHeight: 1.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {note}
+                  </Typography>
+                </Box>
+              )
+            })()}
             <Typography
               sx={{
                 fontSize: '13px',
@@ -1876,25 +1918,6 @@ function OpportunityCard({
             >
               {opp.snippet}
             </Typography>
-            {opp.aiRelevanceNote && (
-              <Box
-                sx={{
-                  mt: 0.5,
-                  mb: 0.5,
-                  p: 1,
-                  bgcolor: isDark ? 'rgba(139,92,246,0.06)' : 'rgba(139,92,246,0.04)',
-                  border: `1px solid ${isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)'}`,
-                  borderRadius: '6px',
-                }}
-              >
-                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', mb: 0.25 }}>
-                  AI Summary
-                </Typography>
-                <Typography sx={{ fontSize: '12px', color: 'text.secondary', lineHeight: 1.5 }}>
-                  {opp.aiRelevanceNote}
-                </Typography>
-              </Box>
-            )}
             <Box
               sx={{
                 display: 'flex',
@@ -1990,66 +2013,50 @@ function OpportunityCard({
           >
             {/* Score */}
             <Tooltip
-              title={
-                <Box
-                  sx={{
-                    p: 0.5,
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      mb: 0.5,
-                    }}
-                  >
-                    AI Relevance Score
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: '11px',
-                      color: '#94a3b8',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    How closely this thread matches the client's keywords,
-                    scored 0–1.
-                  </Typography>
-                  <Box
-                    sx={{
-                      mt: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 0.25,
-                    }}
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: '10px',
-                        color: '#10b981',
-                      }}
-                    >
-                      ● 0.85–1.0 Strong
+              title={(() => {
+                let factors: { subredditRelevance?: number; topicMatch?: number; intent?: number; naturalFit?: number } | null = null
+                let note = ''
+                try {
+                  const parsed = JSON.parse(opp.aiRelevanceNote || '{}')
+                  factors = parsed.factors || null
+                  note = parsed.note || opp.aiRelevanceNote || ''
+                } catch { note = opp.aiRelevanceNote || '' }
+                const fmtPct = (v?: number) => v != null ? `${Math.round(v * 100)}%` : '—'
+                const fmtColor = (v?: number) => !v ? '#64748b' : v >= 0.7 ? '#10b981' : v >= 0.4 ? '#f59e0b' : '#ef4444'
+                return (
+                  <Box sx={{ p: 0.5, maxWidth: 280 }}>
+                    <Typography sx={{ fontSize: '12px', fontWeight: 600, mb: 0.5 }}>
+                      AI Relevance Score: {opp.relevanceScore}
                     </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '10px',
-                        color: '#f59e0b',
-                      }}
-                    >
-                      ● 0.70–0.84 Moderate
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: '10px',
-                        color: '#ef4444',
-                      }}
-                    >
-                      ● Below 0.70 Weak
-                    </Typography>
+                    {factors ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1 }}>
+                        {[
+                          { label: 'Subreddit Relevance', val: factors.subredditRelevance, weight: '30%' },
+                          { label: 'Topic Match', val: factors.topicMatch, weight: '30%' },
+                          { label: 'Intent Signal', val: factors.intent, weight: '25%' },
+                          { label: 'Natural Fit', val: factors.naturalFit, weight: '15%' },
+                        ].map((f) => (
+                          <Box key={f.label} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                            <Typography sx={{ fontSize: '11px', color: '#94a3b8' }}>{f.label} ({f.weight})</Typography>
+                            <Typography sx={{ fontSize: '11px', fontWeight: 600, color: fmtColor(f.val) }}>{fmtPct(f.val)}</Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25, mb: 1 }}>
+                        <Typography sx={{ fontSize: '10px', color: '#10b981' }}>● 0.85–1.0 Strong</Typography>
+                        <Typography sx={{ fontSize: '10px', color: '#f59e0b' }}>● 0.70–0.84 Moderate</Typography>
+                        <Typography sx={{ fontSize: '10px', color: '#ef4444' }}>● Below 0.70 Weak</Typography>
+                      </Box>
+                    )}
+                    {note && (
+                      <Typography sx={{ fontSize: '11px', color: '#cbd5e1', lineHeight: 1.4, fontStyle: 'italic' }}>
+                        {note}
+                      </Typography>
+                    )}
                   </Box>
-                </Box>
-              }
+                )
+              })()}
               arrow
               placement="left"
             >
