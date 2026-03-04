@@ -153,6 +153,8 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   let aiScoringCalls = 0;
   let threadIdx = 0;
 
+  console.log(`[Search] Phase 2: Scoring ${discoveredThreads.size} threads × ${clients.length} clients (heuristic pre-filter: ${heuristicPreFilter.toFixed(2)}, AI: ${hasAiKey ? 'yes' : 'no'})`);
+
   for (const [, thread] of discoveredThreads) {
     threadIdx++;
     // Check thread age once
@@ -264,9 +266,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       totalOpportunities++;
     }
 
-    // Progress log every 100 threads
-    if (threadIdx % 100 === 0) {
-      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opportunities, ${aiScoringCalls} AI calls`);
+    // Progress log every 50 threads
+    if (threadIdx % 50 === 0 || threadIdx === 1) {
+      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opps, ${aiScoringCalls} AI, ${skippedTooOld} old, ${skippedLowScore} low, ${skippedDuplicate} dup`);
     }
   }
 
