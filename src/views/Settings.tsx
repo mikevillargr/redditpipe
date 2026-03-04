@@ -578,24 +578,28 @@ export function Settings() {
             <>
               <TextField
                 label="Polling Interval (minutes)"
-                type="number"
                 value={pollingInterval}
-                onChange={(e) => setPollingInterval(Math.max(15, Number(e.target.value)))}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '')
+                  setPollingInterval(v === '' ? '' as unknown as number : Number(v))
+                }}
+                onBlur={() => setPollingInterval(Math.max(5, Number(pollingInterval) || 10))}
                 fullWidth
                 size="small"
-                inputProps={{ min: 15, max: 1440 }}
-                helperText="Minutes between search cycles. Min 15 min. Each cycle searches all active clients."
+                helperText="Minutes between search cycles. Min 5 min. Each cycle searches all active clients."
                 sx={inputSx}
               />
               <TextField
                 label="Daily API Request Budget"
-                type="number"
                 value={dailyBudget}
-                onChange={(e) => setDailyBudget(Math.max(10, Number(e.target.value)))}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '')
+                  setDailyBudget(v === '' ? '' as unknown as number : Number(v))
+                }}
+                onBlur={() => setDailyBudget(Math.max(100, Number(dailyBudget) || 15000))}
                 fullWidth
                 size="small"
-                inputProps={{ min: 10, max: 1000 }}
-                helperText={`Max Reddit API requests per day. ${redditApiMode === 'public_json' ? 'Public JSON: ~10 req/min, ~600/hr safe limit.' : 'OAuth: ~60 req/min, ~1000/day recommended.'} Requests are spread evenly across polling intervals.`}
+                helperText={`Max Reddit API requests per day. ${redditApiMode === 'public_json' ? 'Public JSON: ~30 req/min safe, ~14,400/day at 10-min intervals.' : 'OAuth: ~60 req/min, ~28,800/day at 10-min intervals.'} Requests are spread evenly across polling intervals.`}
                 sx={inputSx}
               />
             </>

@@ -93,6 +93,14 @@ jobs:
             docker image prune -f
             echo "=== Production deploy complete ==="
 
+      - name: Read version from package.json
+        if: success()
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
       - name: Create GitHub Release
         if: success()
         uses: actions/github-script@v7
@@ -100,27 +108,28 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const sha = context.sha.substring(0, 7);
+            const version = '${{ steps.version.outputs.version }}';
+            const tag = `v${version}`;
 
-            // Get commits since last tag or last 10 commits
-            let changelog = '';
+            // Check if this tag already exists — append build number if so
+            let finalTag = tag;
             try {
-              const tags = await github.rest.repos.listTags({ owner, repo, per_page: 1 });
-              const since = tags.data.length > 0 ? tags.data[0].name : null;
-              const commits = context.payload.commits || [];
-              changelog = commits
-                .map(c => `- ${c.message.split('\n')[0]} (\`${c.id.substring(0, 7)}\`)`)
-                .join('\n') || '_No commit details available_';
+              await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` });
+              // Tag exists, append short sha
+              finalTag = `${tag}+${sha}`;
             } catch {
-              changelog = '_Could not generate changelog_';
+              // Tag doesn't exist yet, use as-is
             }
 
-            // Generate tag name from date
-            const now = new Date();
-            const tag = `v${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}-${sha}`;
+            const commits = context.payload.commits || [];
+            const changelog = commits
+              .map(c => `- ${c.message.split('\n')[0]} (\`${c.id.substring(0, 7)}\`)`)
+              .join('\n') || '_No commit details available_';
 
             const body = [
-              `## Production Release — \`${sha}\``,
-              `**Deployed**: ${now.toISOString()}`,
+              `## ${finalTag}`,
+              `**Deployed**: ${new Date().toISOString()}`,
+              `**Commit**: \`${context.sha}\``,
               `**URL**: http://76.13.191.149:3200`,
               '',
               '### Changes',
@@ -129,9 +138,9 @@ jobs:
 
             await github.rest.repos.createRelease({
               owner, repo,
-              tag_name: tag,
+              tag_name: finalTag,
               target_commitish: context.sha,
-              name: `Release ${tag}`,
+              name: finalTag,
               body,
               draft: false,
               prerelease: false,

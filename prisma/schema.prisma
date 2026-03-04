@@ -101,8 +101,8 @@ model Settings {
   redditPassword       String?
   anthropicApiKey      String?
   searchFrequency      String @default("continuous")   // "continuous" | "manual"
-  pollingIntervalMins  Int    @default(60)              // minutes between search runs
-  dailyRequestBudget   Int    @default(80)              // max Reddit API requests per day
+  pollingIntervalMins  Int    @default(10)              // minutes between search runs
+  dailyRequestBudget   Int    @default(15000)           // max Reddit API requests per day
   searchTimezone       String @default("UTC")
   searchTimes          String @default("09:00")        // legacy, kept for migration compat
   maxResultsPerKeyword  Int    @default(10)
