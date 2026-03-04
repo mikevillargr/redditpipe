@@ -13,7 +13,14 @@ async function runSearch() {
       { method: "POST" }
     );
     const data = await res.json();
-    console.log("[Cron] Search complete:", JSON.stringify(data.summary));
+    if (data.error) {
+      console.error("[Cron] Search error:", data.error, data.details || "");
+    } else {
+      console.log("[Cron] Search complete:", JSON.stringify(data.summary));
+    }
+    if (data.errors?.length) {
+      console.warn("[Cron] Search warnings:", data.errors);
+    }
   } catch (error) {
     console.error("[Cron] Search failed:", error);
   }

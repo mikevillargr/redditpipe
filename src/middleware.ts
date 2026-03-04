@@ -10,6 +10,12 @@ export function middleware(request: NextRequest) {
 
   // Protect all other API routes
   if (pathname.startsWith("/api/")) {
+    // Allow internal requests (cron jobs calling from localhost)
+    const host = request.headers.get("host") || "";
+    if (host.startsWith("localhost:") || host.startsWith("127.0.0.1:")) {
+      return NextResponse.next();
+    }
+
     const token = request.cookies.get("rp_session")?.value;
 
     if (!token) {
