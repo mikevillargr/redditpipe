@@ -47,6 +47,12 @@ jobs:
             printf '%s\n' "$ENV_CONTENT" > .env.production
             mkdir -p data
 
+            # Stop old monolith container if still running
+            docker stop redditpipe-production 2>/dev/null && docker rm redditpipe-production 2>/dev/null || true
+            # Also stop any old compose from /docker/redditpipe-production
+            cd /docker/redditpipe-production 2>/dev/null && docker compose -f docker-compose.production.yml down 2>/dev/null || true
+            cd "$REPO_DIR"
+
             # Build and restart
             docker compose -f docker-compose.production.yml build
             docker compose -f docker-compose.production.yml up -d --remove-orphans
