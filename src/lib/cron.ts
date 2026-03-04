@@ -2,7 +2,8 @@ import cron from "node-cron";
 import { prisma } from "./prisma";
 
 let initialized = false;
-let searchTasks: ReturnType<typeof cron.schedule>[] = [];
+let searchTimer: ReturnType<typeof setInterval> | null = null;
+let currentIntervalMins = 0;
 
 async function runSearch() {
   console.log("[Cron] Running scheduled search pipeline...");
@@ -12,38 +13,54 @@ async function runSearch() {
       { method: "POST" }
     );
     const data = await res.json();
-    console.log("[Cron] Search complete:", data.summary);
+    console.log("[Cron] Search complete:", JSON.stringify(data.summary));
   } catch (error) {
     console.error("[Cron] Search failed:", error);
   }
 }
 
 async function scheduleSearchJobs() {
-  // Stop existing search tasks
-  for (const task of searchTasks) {
-    task.stop();
-  }
-  searchTasks = [];
-
   try {
     const settings = await prisma.settings.findUnique({
       where: { id: "singleton" },
     });
 
-    const times = (settings?.searchTimes || "09:00")
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    const tz = settings?.searchTimezone || "UTC";
+    const frequency = settings?.searchFrequency || "continuous";
+    const intervalMins = settings?.pollingIntervalMins ?? 10;
 
-    for (const time of times) {
-      const [hour, minute] = time.split(":").map(Number);
-      if (isNaN(hour) || isNaN(minute)) continue;
+    // If manual mode, stop any running timer
+    if (frequency !== "continuous") {
+      if (searchTimer) {
+        clearInterval(searchTimer);
+        searchTimer = null;
+        currentIntervalMins = 0;
+        console.log("[Cron] Search mode is manual — polling stopped.");
+      }
+      return;
+    }
 
-      const cronExpr = `${minute} ${hour} * * *`;
-      const task = cron.schedule(cronExpr, runSearch, { timezone: tz });
-      searchTasks.push(task);
-      console.log(`[Cron] Search scheduled at ${time} ${tz}`);
+    // If interval hasn't changed, keep existing timer
+    if (searchTimer && currentIntervalMins === intervalMins) {
+      return;
+    }
+
+    // Stop old timer and start new one
+    if (searchTimer) {
+      clearInterval(searchTimer);
+      console.log(`[Cron] Polling interval changed: ${currentIntervalMins}m → ${intervalMins}m`);
+    }
+
+    currentIntervalMins = intervalMins;
+    const intervalMs = intervalMins * 60 * 1000;
+
+    searchTimer = setInterval(runSearch, intervalMs);
+    console.log(`[Cron] Search polling every ${intervalMins} minutes (next run in ${intervalMins}m)`);
+
+    // Run immediately on first schedule
+    if (!initialized) {
+      console.log("[Cron] Running initial search on startup...");
+      // Delay slightly to let the server fully start
+      setTimeout(runSearch, 5000);
     }
   } catch (error) {
     console.error("[Cron] Failed to schedule search jobs:", error);
