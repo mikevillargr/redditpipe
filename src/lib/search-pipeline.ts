@@ -215,7 +215,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         threadMaxAgeDays,
       });
 
-      if (heuristicScore < relevanceThreshold) {
+      if (heuristicScore < heuristicPreFilter) {
         skippedLowScore++;
         continue;
       }
