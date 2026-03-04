@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RedditPipe
 
-## Getting Started
+Reddit outreach automation tool — discover relevant posts, score opportunities, and generate context-aware reply drafts.
 
-First, run the development server:
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **UI**: React 19, MUI, Tailwind CSS
+- **Database**: Prisma 7 + SQLite
+- **AI**: Anthropic Claude (claude-sonnet-4-20250514)
+- **Deployment**: Docker, GitHub Actions
+
+## Local Development
 
 ```bash
+cp .env.example .env.local
+npm install
+npx prisma db push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environments
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Environment | Branch    | Port | URL                          |
+|-------------|-----------|------|------------------------------|
+| Local       | any       | 3000 | http://localhost:3000         |
+| Staging     | `staging` | 3100 | http://76.13.191.149:3100    |
+| Production  | `main`    | 3200 | http://76.13.191.149:3200    |
 
-## Learn More
+## Deployment
 
-To learn more about Next.js, take a look at the following resources:
+Deployments are automated via GitHub Actions:
+- **Staging**: Push to `staging` branch triggers deploy to VPS port 3100
+- **Production**: Push to `main` branch triggers deploy to VPS port 3200
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Required GitHub Secrets
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Set these in your repo under **Settings → Secrets and variables → Actions**:
 
-## Deploy on Vercel
+| Secret            | Description                                                                 |
+|-------------------|-----------------------------------------------------------------------------|
+| `VPS_SSH_KEY`     | Private SSH key for root access to the VPS (76.13.191.149)                  |
+| `REPO_URL`        | Git clone URL for the repo (e.g. `https://github.com/user/redditpipe.git`) |
+| `STAGING_ENV`     | Full contents of `.env.staging` (all env vars, one per line)                |
+| `PRODUCTION_ENV`  | Full contents of `.env.production` (all env vars, one per line)             |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+> **Note**: `PRODUCTION_ENV` and the production deploy workflow use a GitHub **environment** called `production`. Create it under **Settings → Environments** to enable approval gates if desired.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Env File Format
+
+Use `.env.example` as a template. The `STAGING_ENV` / `PRODUCTION_ENV` secrets should contain the full file contents:
+
+```
+DATABASE_URL=file:/app/data/staging.db
+AUTH_USERNAME=admin
+AUTH_PASSWORD=your-staging-password
+ANTHROPIC_API_KEY=sk-ant-...
+REDDIT_CLIENT_ID=...
+REDDIT_CLIENT_SECRET=...
+REDDIT_USERNAME=...
+REDDIT_PASSWORD=...
+```
+
+### Manual Docker Deploy
+
+```bash
+# Staging
+docker compose -f docker-compose.staging.yml build --no-cache
+docker compose -f docker-compose.staging.yml up -d
+
+# Production
+docker compose -f docker-compose.production.yml build --no-cache
+docker compose -f docker-compose.production.yml up -d
+```
+
+Database migrations run automatically on container startup via `entrypoint.sh`.
