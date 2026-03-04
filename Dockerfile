@@ -1,28 +1,21 @@
-# ── Stage 1: Install dependencies ──
+# ── Stage 1: Install deps + generate Prisma ──
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --ignore-scripts
-
-# ── Stage 2: Generate Prisma client (cached until schema changes) ──
-FROM node:20-alpine AS prisma
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 COPY prisma ./prisma
 COPY prisma.config.ts ./
 RUN npx prisma generate
 
-# ── Stage 3: Build ──
+# ── Stage 2: Build ──
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY --from=prisma /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
-# ── Stage 4: Production image ──
+# ── Stage 3: Production image ──
 FROM node:20-alpine AS runner
 WORKDIR /app
 
