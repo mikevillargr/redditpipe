@@ -301,12 +301,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           }
         }
 
-        // Add remaining (non-AI-scored) candidates if room in drip limit
-        const aiScoredIds = new Set(toScore.map((c) => c.thread.threadId));
-        const remaining = candidates.filter((c) => !aiScoredIds.has(c.thread.threadId));
-        for (const cand of remaining.slice(0, MAX_OPPS_PER_CLIENT - toScore.length)) {
-          aiScoredOpps.push({ candidate: cand, relevanceScore: cand.heuristicScore, aiNote: null });
-        }
+        // No non-AI-scored fallbacks — only AI-approved opportunities are written
       }
 
       console.log(`[Search] Phase 3 done: ${aiCalls} AI calls, ${aiScoredOpps.length} passed`);

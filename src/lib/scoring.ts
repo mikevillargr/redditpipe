@@ -48,12 +48,11 @@ export function computeRelevanceScore(params: ScoringParams): number {
     const lower = kw.toLowerCase().trim();
     // Exact phrase match = best case
     if (text.includes(lower)) return true;
-    // Word-overlap match: require majority of significant words
+    // Word-overlap: require ALL significant words present (strict)
     const words = lower.split(/\s+/).filter((w) => w.length >= 3 && !STOPWORDS.has(w));
-    if (words.length === 0) return false;
+    if (words.length <= 1) return false; // single-word already checked via phrase match
     const matched = words.filter((w) => text.includes(w));
-    // Require at least 60% of significant words to match
-    return matched.length >= Math.ceil(words.length * 0.6);
+    return matched.length === words.length;
   };
 
   const matchedKeywords = clientKeywords.filter(keywordMatches);

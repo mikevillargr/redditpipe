@@ -1,6 +1,8 @@
 services:
   app:
-    image: ${IMAGE:-ghcr.io/mikevillargr/redditpipe:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: redditpipe-production
     restart: unless-stopped
     ports:
