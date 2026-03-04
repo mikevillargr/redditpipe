@@ -60,6 +60,7 @@ export async function refreshSearchSchedule(): Promise<void> {
     const settings = await db.settings.findUnique({ where: { id: "singleton" } });
     const frequency = settings?.searchFrequency || "once_daily";
     const scheduleTimes = (settings as Record<string, unknown>)?.searchScheduleTimes as string || "09:00";
+    const timezone = settings?.searchTimezone || "UTC";
 
     // Stop existing search task
     if (searchTask) {
@@ -69,8 +70,8 @@ export async function refreshSearchSchedule(): Promise<void> {
 
     const cronExpr = buildSearchCron(frequency, scheduleTimes);
     if (cronExpr && process.env.ENABLE_CRON === "true") {
-      searchTask = cron.schedule(cronExpr, runSearch);
-      console.log(`[Cron] Search rescheduled: "${cronExpr}" (${frequency}, times: ${scheduleTimes})`);
+      searchTask = cron.schedule(cronExpr, runSearch, { timezone });
+      console.log(`[Cron] Search rescheduled: "${cronExpr}" (${frequency}, times: ${scheduleTimes}, tz: ${timezone})`);
     } else if (frequency === "manual") {
       console.log("[Cron] Search set to manual-only mode.");
     }

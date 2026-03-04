@@ -33,15 +33,22 @@ app.get("/", async (c) => {
 });
 
 // PUT /api/settings
+const ALLOWED_FIELDS = new Set([
+  "redditApiMode", "redditClientId", "redditClientSecret", "redditUsername", "redditPassword",
+  "anthropicApiKey", "searchFrequency", "searchScheduleTimes", "searchTimezone",
+  "maxResultsPerKeyword", "threadMaxAgeDays", "relevanceThreshold", "aiSearchContext",
+  "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
+]);
+
 app.put("/", async (c) => {
   try {
     const body = await c.req.json();
     const data: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(body)) {
+      if (!ALLOWED_FIELDS.has(key)) continue;
       if (typeof value === "string" && value.startsWith("****")) continue;
       data[key] = value;
     }
-    delete data.id;
 
     const settings = await prisma.settings.upsert({
       where: { id: "singleton" },

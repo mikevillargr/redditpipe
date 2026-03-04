@@ -243,6 +243,7 @@ export function Settings() {
   const [searchBreadth, setSearchBreadth] = useState('balanced')
   const [searchFrequency, setSearchFrequency] = useState('once_daily')
   const [searchScheduleTimes, setSearchScheduleTimes] = useState('09:00')
+  const [searchTimezone, setSearchTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
   // AI tuning
@@ -253,6 +254,7 @@ export function Settings() {
   const [aiModelDetection, setAiModelDetection] = useState('claude-sonnet-4-20250514')
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [searchRunning, setSearchRunning] = useState(false)
   const [searchResult, setSearchResult] = useState<string | null>(null)
   const [nukeStep, setNukeStep] = useState(0)
@@ -272,6 +274,7 @@ export function Settings() {
         setAnthropicKey(data.anthropicApiKey || '')
         setSearchFrequency(data.searchFrequency || 'once_daily')
         setSearchScheduleTimes(data.searchScheduleTimes || '09:00')
+        setSearchTimezone(data.searchTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
@@ -365,11 +368,13 @@ export function Settings() {
   }
 
   const handleSave = async () => {
+    setSaveError(null)
     try {
       const payload: Record<string, unknown> = {
         redditApiMode,
         searchFrequency,
         searchScheduleTimes,
+        searchTimezone,
         searchBreadth,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
@@ -393,11 +398,16 @@ export function Settings() {
       })
       if (res.ok) {
         setSaved(true)
+        setSaveError(null)
         setTimeout(() => setSaved(false), 2500)
         loadSettings()
+      } else {
+        const errData = await res.json().catch(() => null)
+        setSaveError(errData?.error || `Save failed (${res.status})`)
       }
     } catch (err) {
       console.error('Failed to save settings:', err)
+      setSaveError(err instanceof Error ? err.message : 'Network error')
     }
   }
   return (
@@ -619,18 +629,43 @@ export function Settings() {
           </Box>
 
           {searchFrequency !== 'manual' && (
-            <TextField
-              label={searchFrequency === 'twice_daily' ? 'Schedule Times (comma-separated HH:MM UTC)' : 'Schedule Time (HH:MM UTC)'}
-              value={searchScheduleTimes}
-              onChange={(e) => setSearchScheduleTimes(e.target.value)}
-              fullWidth
-              size="small"
-              placeholder={searchFrequency === 'twice_daily' ? '09:00, 17:00' : '09:00'}
-              helperText={searchFrequency === 'twice_daily'
-                ? 'Two times in 24h format, e.g. "09:00, 17:00". Searches run at these times UTC.'
-                : 'Time in 24h format, e.g. "09:00". Search runs once at this time UTC.'}
-              sx={inputSx}
-            />
+            <>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  label={searchFrequency === 'twice_daily' ? 'Schedule Times (HH:MM)' : 'Schedule Time (HH:MM)'}
+                  value={searchScheduleTimes}
+                  onChange={(e) => setSearchScheduleTimes(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder={searchFrequency === 'twice_daily' ? '09:00, 17:00' : '09:00'}
+                  sx={inputSx}
+                />
+                <FormControl size="small" sx={{ minWidth: 220, ...inputSx }}>
+                  <InputLabel>Timezone</InputLabel>
+                  <Select
+                    value={searchTimezone}
+                    onChange={(e) => setSearchTimezone(e.target.value)}
+                    label="Timezone"
+                  >
+                    {[
+                      'Pacific/Honolulu', 'America/Anchorage', 'America/Los_Angeles', 'America/Denver',
+                      'America/Chicago', 'America/New_York', 'America/Sao_Paulo',
+                      'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+                      'Africa/Cairo', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Bangkok',
+                      'Asia/Shanghai', 'Asia/Manila', 'Asia/Tokyo', 'Asia/Seoul',
+                      'Australia/Sydney', 'Pacific/Auckland', 'UTC',
+                    ].map((tz: string) => (
+                      <MenuItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mt: -1.5 }}>
+                {searchFrequency === 'twice_daily'
+                  ? 'Two times in 24h format, e.g. "09:00, 17:00".'
+                  : 'Time in 24h format, e.g. "09:00".'}
+              </Typography>
+            </>
           )}
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
@@ -936,6 +971,23 @@ export function Settings() {
           />
         </Box>
       </SectionCard>
+
+      {/* Save Error */}
+      {saveError && (
+        <Alert
+          severity="error"
+          onClose={() => setSaveError(null)}
+          sx={{
+            mb: 1,
+            bgcolor: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#ef4444',
+            fontSize: '13px',
+          }}
+        >
+          {saveError}
+        </Alert>
+      )}
 
       {/* Save Button */}
       <Button
