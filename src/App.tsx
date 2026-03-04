@@ -8,12 +8,12 @@ import {
 } from '@mui/material'
 import { MenuIcon } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
-import { Dashboard } from './pages/Dashboard'
-import { Clients } from './pages/Clients'
-import { Accounts } from './pages/Accounts'
-import { AccountDetail } from './pages/AccountDetail'
-import { Settings } from './pages/Settings'
-import { Insights } from './pages/Insights'
+import { Dashboard } from './views/Dashboard'
+import { Clients } from './views/Clients'
+import { Accounts } from './views/Accounts'
+import { AccountDetail } from './views/AccountDetail'
+import { Settings } from './views/Settings'
+import { Insights } from './views/Insights'
 import { LoginScreen } from './components/LoginScreen'
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
