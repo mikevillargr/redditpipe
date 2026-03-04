@@ -147,21 +147,12 @@ export async function analyzeDismissals(): Promise<{
   summary: string;
   recommendations: string[];
 }> {
-  const dismissed = await prisma.opportunity.findMany({
-    where: { status: "dismissed" },
-    select: {
-      title: true,
-      subreddit: true,
-      bodySnippet: true,
-      dismissReason: true,
-      relevanceScore: true,
-      client: { select: { name: true } },
-    },
-    orderBy: { updatedAt: "desc" },
+  const logs = await prisma.dismissalLog.findMany({
+    orderBy: { createdAt: "desc" },
     take: 200,
   });
 
-  if (dismissed.length === 0) {
+  if (logs.length === 0) {
     return {
       totalDismissed: 0,
       patterns: [],
@@ -173,9 +164,9 @@ export async function analyzeDismissals(): Promise<{
   const config = await getConfig();
   const client = new Anthropic({ apiKey: config.apiKey });
 
-  const dismissedSummary = dismissed
+  const dismissedSummary = logs
     .slice(0, 50)
-    .map((d, i) => `${i + 1}. [r/${d.subreddit}] "${d.title}" (score: ${d.relevanceScore?.toFixed(2) || "N/A"}, client: ${d.client?.name || "?"})${d.dismissReason ? ` — Reason: ${d.dismissReason}` : ""}`)
+    .map((d, i) => `${i + 1}. [r/${d.subreddit}] "${d.title}" (score: ${d.relevanceScore?.toFixed(2) || "N/A"}, client: ${d.clientName}) — Reason: ${d.reason}`)
     .join("\n");
 
   const response = await client.messages.create({
@@ -189,14 +180,14 @@ export async function analyzeDismissals(): Promise<{
 }`,
     messages: [{
       role: "user",
-      content: `Analyze these ${dismissed.length} dismissed opportunities:\n\n${dismissedSummary}`,
+      content: `Analyze these ${logs.length} dismissed opportunities:\n\n${dismissedSummary}`,
     }],
   });
 
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") {
     return {
-      totalDismissed: dismissed.length,
+      totalDismissed: logs.length,
       patterns: [],
       summary: "Unable to analyze patterns",
       recommendations: [],
@@ -214,10 +205,10 @@ export async function analyzeDismissals(): Promise<{
       summary: string;
       recommendations: string[];
     };
-    return { totalDismissed: dismissed.length, ...parsed };
+    return { totalDismissed: logs.length, ...parsed };
   } catch {
     return {
-      totalDismissed: dismissed.length,
+      totalDismissed: logs.length,
       patterns: [],
       summary: text.text,
       recommendations: [],

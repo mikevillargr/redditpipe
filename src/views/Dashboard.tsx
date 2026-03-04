@@ -49,7 +49,7 @@ import {
   AlertCircleIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
-type StatusFilter = 'all' | 'new' | 'published' | 'unverified' | 'dismissed'
+type StatusFilter = 'all' | 'new' | 'published' | 'unverified'
 interface AccountStats {
   postsToday: number
   maxPostsPerDay: number
@@ -278,6 +278,10 @@ export function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showDismissDialog, setShowDismissDialog] = useState(false)
   const [dismissReason, setDismissReason] = useState('')
+  // Single dismiss
+  const [dismissingId, setDismissingId] = useState<string | null>(null)
+  const [showSingleDismissDialog, setShowSingleDismissDialog] = useState(false)
+  const [singleDismissReason, setSingleDismissReason] = useState('')
   // Thread preview
   const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
   // Lazy load / infinite scroll
@@ -421,14 +425,28 @@ export function Dashboard() {
       setSnackbar({ open: true, message: 'Manual verification failed', severity: 'warning' })
     }
   }
-  const handleDismiss = async (id: string) => {
+  const handleDismiss = (id: string) => {
+    setDismissingId(id)
+    setSingleDismissReason('')
+    setShowSingleDismissDialog(true)
+  }
+  const handleConfirmSingleDismiss = async () => {
+    if (!dismissingId || !singleDismissReason.trim()) return
     try {
-      await fetch(`/api/opportunities/${id}`, {
+      const res = await fetch(`/api/opportunities/${dismissingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'dismissed' }),
+        body: JSON.stringify({ status: 'dismissed', dismissReason: singleDismissReason.trim() }),
       })
-      setSnackbar({ open: true, message: 'Opportunity dismissed', severity: 'info' })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Opportunity dismissed & logged', severity: 'info' })
+      } else {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.error || 'Failed to dismiss', severity: 'warning' })
+      }
+      setShowSingleDismissDialog(false)
+      setDismissingId(null)
+      setSingleDismissReason('')
       fetchOpportunities()
     } catch {
       setSnackbar({ open: true, message: 'Failed to dismiss', severity: 'warning' })
@@ -478,18 +496,23 @@ export function Dashboard() {
     }
   }
   const handleBulkDismiss = async () => {
-    if (selectedIds.size === 0) return
+    if (selectedIds.size === 0 || !dismissReason.trim()) return
     try {
-      await fetch('/api/opportunities/bulk', {
+      const res = await fetch('/api/opportunities/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ids: Array.from(selectedIds),
           action: 'dismiss',
-          dismissReason: dismissReason.trim() || undefined,
+          dismissReason: dismissReason.trim(),
         }),
       })
-      setSnackbar({ open: true, message: `${selectedIds.size} opportunities dismissed`, severity: 'info' })
+      if (res.ok) {
+        setSnackbar({ open: true, message: `${selectedIds.size} opportunities dismissed & logged`, severity: 'info' })
+      } else {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.error || 'Bulk dismiss failed', severity: 'warning' })
+      }
       setSelectedIds(new Set())
       setShowDismissDialog(false)
       setDismissReason('')
@@ -542,7 +565,6 @@ export function Dashboard() {
   const newCount = countByStatus('new')
   const publishedCount = countByStatus('published')
   const unverifiedCount = countByStatus('unverified')
-  const dismissedCount = countByStatus('dismissed')
   const allCount = clientFilteredOpps.length
   // clients are fetched from API
   return (
@@ -703,13 +725,6 @@ export function Dashboard() {
                   count={unverifiedCount}
                   active={statusFilter === 'unverified'}
                   color="#f59e0b"
-                />
-              </ToggleButton>
-              <ToggleButton value="dismissed">
-                Dismissed{' '}
-                <CountBadge
-                  count={dismissedCount}
-                  active={statusFilter === 'dismissed'}
                 />
               </ToggleButton>
               <ToggleButton value="all">
@@ -1390,7 +1405,7 @@ export function Dashboard() {
         )}
       </Dialog>
 
-      {/* Dismiss Reason Dialog */}
+      {/* Bulk Dismiss Reason Dialog */}
       <Dialog
         open={showDismissDialog}
         onClose={() => { setShowDismissDialog(false); setDismissReason('') }}
@@ -1409,17 +1424,17 @@ export function Dashboard() {
         </DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
-            Providing a reason helps train the model to show more relevant results in the future.
+            A reason is required — it trains the model to show more relevant results.
           </Typography>
           <TextField
-            label="Reason (optional)"
+            label="Reason"
             value={dismissReason}
             onChange={(e) => setDismissReason(e.target.value)}
             fullWidth
             multiline
             rows={3}
             size="small"
-            placeholder="e.g. Off-topic, local news, not seeking recommendations..."
+            placeholder="e.g. Off-topic, wrong industry, not seeking recommendations..."
             sx={{
               '& .MuiOutlinedInput-root': {
                 '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
@@ -1440,10 +1455,71 @@ export function Dashboard() {
           <Button
             size="small"
             variant="contained"
+            disabled={!dismissReason.trim()}
             onClick={handleBulkDismiss}
             sx={{ bgcolor: '#ef4444', textTransform: 'none', '&:hover': { bgcolor: '#dc2626' } }}
           >
             Dismiss {selectedIds.size} Selected
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Single Dismiss Reason Dialog */}
+      <Dialog
+        open={showSingleDismissDialog}
+        onClose={() => { setShowSingleDismissDialog(false); setDismissingId(null); setSingleDismissReason('') }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px' }}>
+          Dismiss Opportunity
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
+            A reason is required — it trains the model to show more relevant results.
+          </Typography>
+          <TextField
+            label="Reason"
+            value={singleDismissReason}
+            onChange={(e) => setSingleDismissReason(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+            size="small"
+            placeholder="e.g. Off-topic, wrong industry, not seeking recommendations..."
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#f97316' },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button
+            size="small"
+            onClick={() => { setShowSingleDismissDialog(false); setDismissingId(null); setSingleDismissReason('') }}
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!singleDismissReason.trim()}
+            onClick={handleConfirmSingleDismiss}
+            sx={{ bgcolor: '#ef4444', textTransform: 'none', '&:hover': { bgcolor: '#dc2626' } }}
+          >
+            Dismiss
           </Button>
         </DialogActions>
       </Dialog>
@@ -1504,7 +1580,6 @@ function OpportunityCard({
     citationPct <= 25 ? '#10b981' : citationPct <= 40 ? '#f59e0b' : '#ef4444'
   const isPublished = opp.status === 'published'
   const isUnverified = opp.status === 'unverified'
-  const isDismissed = opp.status === 'dismissed'
   const isNew = opp.status === 'new'
   const handleCopy = () => {
     navigator.clipboard.writeText(opp.accountPassword)
@@ -1562,9 +1637,7 @@ function OpportunityCard({
     ? { borderLeft: '4px solid #10b981', border: '1px solid rgba(16,185,129,0.3)', bg: isDark ? 'rgba(16,185,129,0.04)' : 'rgba(16,185,129,0.03)', opacity: 1 }
     : isUnverified
       ? { borderLeft: '4px solid #f59e0b', border: '1px solid rgba(245,158,11,0.3)', bg: isDark ? 'rgba(245,158,11,0.04)' : 'rgba(245,158,11,0.03)', opacity: 1 }
-      : isDismissed
-        ? { borderLeft: '4px solid #64748b', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, bg: isDark ? 'rgba(100,116,139,0.04)' : 'rgba(100,116,139,0.03)', opacity: 0.6 }
-        : isNew
+      : isNew
           ? { borderLeft: '4px solid #3b82f6', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, bg: 'background.paper', opacity: 1 }
           : { borderLeft: '4px solid transparent', border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`, bg: 'background.paper', opacity: 1 }
   return (
@@ -1737,20 +1810,6 @@ function OpportunityCard({
                     bgcolor: 'rgba(245,158,11,0.15)',
                     color: '#f59e0b',
                     border: '1px solid rgba(245,158,11,0.35)',
-                  }}
-                />
-              )}
-              {isDismissed && (
-                <Chip
-                  label="✕ Dismissed"
-                  size="small"
-                  sx={{
-                    height: 22,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    bgcolor: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)',
-                    color: isDark ? '#94a3b8' : '#64748b',
-                    border: `1px solid ${isDark ? '#334155' : '#cbd5e1'}`,
                   }}
                 />
               )}
@@ -2518,7 +2577,7 @@ function OpportunityCard({
               </Box>
             )}
 
-            {!isDismissed && !isPublished && (
+            {!isPublished && (
               <Button
                 variant="outlined"
                 size="small"

@@ -40,12 +40,44 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    const allowedFields = [
-      "aiDraftReply",
-      "status",
-      "accountId",
-      "permalinkUrl",
-    ];
+    // Dismiss = log pattern data + hard delete
+    if (body.status === "dismissed") {
+      if (!body.dismissReason || !body.dismissReason.trim()) {
+        return NextResponse.json(
+          { error: "Dismissal reason is required" },
+          { status: 400 }
+        );
+      }
+
+      const opp = await prisma.opportunity.findUnique({
+        where: { id },
+        include: { client: { select: { id: true, name: true } } },
+      });
+      if (!opp) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      // Log dismissal for pattern analysis
+      await prisma.dismissalLog.create({
+        data: {
+          clientId: opp.clientId,
+          clientName: opp.client?.name || "Unknown",
+          threadId: opp.threadId,
+          subreddit: opp.subreddit,
+          title: opp.title,
+          relevanceScore: opp.relevanceScore,
+          reason: body.dismissReason.trim(),
+        },
+      });
+
+      // Hard delete
+      await prisma.opportunity.delete({ where: { id } });
+
+      return NextResponse.json({ deleted: true, id });
+    }
+
+    // Normal update (non-dismiss)
+    const allowedFields = ["aiDraftReply", "status", "accountId", "permalinkUrl"];
     const data: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (body[key] !== undefined) {

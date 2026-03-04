@@ -92,6 +92,18 @@ model Opportunity {
   @@unique([threadId, clientId])
 }
 
+model DismissalLog {
+  id             String   @id @default(cuid())
+  clientId       String
+  clientName     String
+  threadId       String
+  subreddit      String
+  title          String
+  relevanceScore Float?
+  reason         String
+  createdAt      DateTime @default(now())
+}
+
 model Settings {
   id                   String @id @default("singleton")
   redditApiMode        String @default("public_json") // "oauth" | "public_json"
