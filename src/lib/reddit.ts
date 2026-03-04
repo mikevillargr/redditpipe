@@ -26,15 +26,15 @@ const CONFIG_TTL_MS = 60_000; // re-read settings at most once per minute
 
 // Simple rate limiter state — no mutex, no lock, just enforce delay between requests
 let lastRequestTime = 0;
-let baseDelay = 2000; // 2s for public_json; 1s for OAuth
+let baseDelay = 3000; // 3s for public_json; 1.5s for OAuth
 
 // Reset rate limiter state — call before each search run to clear stale state
 export function resetRateLimiter(mode: "oauth" | "public_json" = "public_json"): void {
   lastRequestTime = 0;
-  baseDelay = mode === "oauth" ? 1000 : 2000;
+  baseDelay = mode === "oauth" ? 1500 : 3000;
 }
 
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 3;
 
 // Simple delay helper
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -132,7 +132,7 @@ export async function getRedditConfig(): Promise<RedditConfig> {
     mode,
     token,
     userAgent: "RedditPipe/1.0 (internal tool)",
-    delayMs: mode === "oauth" ? 1000 : 2000,
+    delayMs: mode === "oauth" ? 1500 : 3000,
   };
   configCachedAt = Date.now();
 
