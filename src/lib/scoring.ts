@@ -39,10 +39,24 @@ export function computeRelevanceScore(params: ScoringParams): number {
   } = params;
 
   // 1. Keyword Match (weight: 0.4)
+  // Flexible matching: for multi-word keywords, check if majority of
+  // significant words appear in the text (handles word order differences)
   const text = `${threadTitle} ${threadBody}`.toLowerCase();
-  const matchedKeywords = clientKeywords.filter((kw) =>
-    text.includes(kw.toLowerCase().trim())
-  );
+  const STOPWORDS = new Set(["a", "an", "the", "in", "on", "at", "to", "for", "of", "is", "and", "or", "vs", "how", "do", "my", "i"]);
+
+  const keywordMatches = (kw: string): boolean => {
+    const lower = kw.toLowerCase().trim();
+    // Exact phrase match = best case
+    if (text.includes(lower)) return true;
+    // Word-overlap match: require majority of significant words
+    const words = lower.split(/\s+/).filter((w) => w.length >= 3 && !STOPWORDS.has(w));
+    if (words.length === 0) return false;
+    const matched = words.filter((w) => text.includes(w));
+    // Require at least 60% of significant words to match
+    return matched.length >= Math.ceil(words.length * 0.6);
+  };
+
+  const matchedKeywords = clientKeywords.filter(keywordMatches);
   // HARD GATE: must match at least 1 keyword or score is 0
   if (matchedKeywords.length === 0) return 0;
   const keywordScore =
