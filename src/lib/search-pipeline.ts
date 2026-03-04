@@ -4,7 +4,6 @@ import {
   clearConfigCache,
   resetRateLimiter,
   searchReddit,
-  getThreadComments,
 } from "@/lib/reddit";
 import { computeRelevanceScore } from "@/lib/scoring";
 import { findBestAccount } from "@/lib/matching";
@@ -154,8 +153,6 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   let aiScoringCalls = 0;
   let threadIdx = 0;
 
-  const threadCommentsCache = new Map<string, string>();
-
   for (const [, thread] of discoveredThreads) {
     threadIdx++;
     // Check thread age once
@@ -204,21 +201,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
     if (candidateClients.length === 0) continue;
 
-    // Fetch comments only for threads with at least one candidate client
-    let topComments = threadCommentsCache.get(thread.threadId) ?? "";
-    if (!threadCommentsCache.has(thread.threadId)) {
-      try {
-        const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
-        topComments = comments
-          .map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`)
-          .join("\n\n");
-      } catch (err) {
-        console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
-      }
-      threadCommentsCache.set(thread.threadId, topComments);
-    }
-
-    // Score each candidate client
+    // Score each candidate client (no comment fetching — avoids Reddit rate limit exhaustion)
     for (const { client, keywords, heuristicScore } of candidateClients) {
       let relevanceScore = heuristicScore;
       let aiRelevanceNote: string | null = null;
@@ -229,7 +212,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           const aiResult = await aiScoreRelevance({
             threadTitle: thread.title,
             threadBody: thread.selftext,
-            topComments,
+            topComments: "",
             subreddit: thread.subreddit,
             clientName: client.name,
             clientDescription: client.description,
@@ -266,7 +249,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           subreddit: thread.subreddit,
           title: thread.title,
           bodySnippet: thread.selftext.slice(0, 500) || null,
-          topComments: topComments || null,
+          topComments: null,
           score: thread.threadScore,
           commentCount: thread.numComments,
           threadAge,
