@@ -27,7 +27,7 @@ export function App() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(
     null,
   )
-  const [mode, setMode] = useState<'light' | 'dark'>('light')
+  const [mode, setMode] = useState<'light' | 'dark'>('dark')
 
   const checkAuth = useCallback(async () => {
     try {
