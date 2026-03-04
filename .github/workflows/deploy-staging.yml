@@ -4,12 +4,31 @@ on:
   push:
     branches: [staging]
 
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate secrets
+        run: |
+          missing=""
+          [ -z "${{ secrets.VPS_SSH_KEY }}" ] && missing="$missing VPS_SSH_KEY"
+          [ -z "${{ secrets.REPO_URL }}" ] && missing="$missing REPO_URL"
+          [ -z "${{ secrets.STAGING_ENV }}" ] && missing="$missing STAGING_ENV"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets:$missing"
+            echo "Go to Settings → Secrets and variables → Actions to configure them."
+            exit 1
+          fi
+          echo "All required secrets are configured."
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1
@@ -17,14 +36,18 @@ jobs:
           host: 76.13.191.149
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
           script: |
             set -e
 
-            # Create app directory if it doesn't exist
+            echo "=== Staging Deploy Started ==="
+            echo "Commit: ${{ github.sha }}"
+            echo "Time: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
             mkdir -p /docker/redditpipe-staging
             cd /docker/redditpipe-staging
 
-            # Clone or pull latest code
+            # Pull latest code
             if [ -d ".git" ]; then
               git fetch origin staging
               git reset --hard origin/staging
@@ -32,14 +55,79 @@ jobs:
               git clone -b staging ${{ secrets.REPO_URL }} .
             fi
 
-            # Write env file from secret
-            echo "${{ secrets.STAGING_ENV }}" > .env.staging
+            echo "=== Code updated to $(git rev-parse --short HEAD) ==="
 
-            # Build and deploy
+            # Write env file
+            cat > .env.staging << 'ENVEOF'
+            ${{ secrets.STAGING_ENV }}
+            ENVEOF
+            # Remove leading whitespace from heredoc
+            sed -i 's/^[[:space:]]*//' .env.staging
+
+            # Build
+            echo "=== Building Docker image ==="
             docker compose -f docker-compose.staging.yml build
+
+            # Deploy
+            echo "=== Starting container ==="
             docker compose -f docker-compose.staging.yml up -d
 
-            # Cleanup old images
+            # Wait for health check
+            echo "=== Waiting for health check ==="
+            for i in $(seq 1 30); do
+              if docker inspect --format='{{.State.Health.Status}}' redditpipe-staging 2>/dev/null | grep -q healthy; then
+                echo "Container is healthy!"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "::warning::Health check timed out after 30 attempts"
+                echo "Container logs:"
+                docker logs --tail 20 redditpipe-staging
+              fi
+              sleep 2
+            done
+
+            # Cleanup
             docker image prune -f
 
-            echo "Staging deployed successfully"
+            echo "=== Staging deploy complete ==="
+
+      - name: Create release note
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.sha.substring(0, 7);
+            const commits = context.payload.commits || [];
+            const commitList = commits
+              .map(c => `- ${c.message.split('\n')[0]} (\`${c.id.substring(0, 7)}\`)`)
+              .join('\n');
+            const body = [
+              `## 🚀 Staging Deploy — \`${sha}\``,
+              `**Deployed**: ${new Date().toISOString()}`,
+              `**Branch**: staging`,
+              `**URL**: http://76.13.191.149:3100`,
+              '',
+              '### Changes',
+              commitList || '_No commit details available_',
+            ].join('\n');
+
+            // Post as a commit comment
+            await github.rest.repos.createCommitComment({
+              owner, repo,
+              commit_sha: context.sha,
+              body,
+            });
+
+      - name: Notify failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.repos.createCommitComment({
+              owner, repo,
+              commit_sha: context.sha,
+              body: `## ❌ Staging Deploy Failed\n\n[View logs](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId})`,
+            });
