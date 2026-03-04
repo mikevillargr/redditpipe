@@ -202,7 +202,7 @@ app.post("/detect", async (c) => {
 
     const aiResponse = await Promise.race([
       ai.messages.create({
-        model: getValidModel(settings?.aiModel),
+        model: getValidModel((settings as Record<string, unknown>)?.aiModelDetection as string | undefined),
         max_tokens: 1024,
         system: `You are an expert at understanding businesses and how people discuss them on Reddit.
 

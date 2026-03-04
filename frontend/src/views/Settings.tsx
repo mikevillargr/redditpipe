@@ -241,15 +241,16 @@ export function Settings() {
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   // Search
   const [searchBreadth, setSearchBreadth] = useState('balanced')
-  const [searchFrequency, setSearchFrequency] = useState('continuous')
-  const [pollingInterval, setPollingInterval] = useState(60)
-  const [dailyBudget, setDailyBudget] = useState(80)
+  const [searchFrequency, setSearchFrequency] = useState('once_daily')
+  const [searchScheduleTimes, setSearchScheduleTimes] = useState('09:00')
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
   // AI tuning
   const [relevanceThreshold, setRelevanceThreshold] = useState(0.4)
   const [aiSearchContext, setAiSearchContext] = useState('')
-  const [aiModel, setAiModel] = useState('claude-sonnet-4-20250514')
+  const [aiModelScoring, setAiModelScoring] = useState('claude-3-5-haiku-20241022')
+  const [aiModelReplies, setAiModelReplies] = useState('claude-sonnet-4-20250514')
+  const [aiModelDetection, setAiModelDetection] = useState('claude-sonnet-4-20250514')
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [searchRunning, setSearchRunning] = useState(false)
@@ -269,14 +270,15 @@ export function Settings() {
         setRedditUsername(data.redditUsername || '')
         setRedditPassword(data.redditPassword || '')
         setAnthropicKey(data.anthropicApiKey || '')
-        setSearchFrequency(data.searchFrequency || 'continuous')
-        setPollingInterval(data.pollingIntervalMins ?? 60)
-        setDailyBudget(data.dailyRequestBudget ?? 80)
+        setSearchFrequency(data.searchFrequency || 'once_daily')
+        setSearchScheduleTimes(data.searchScheduleTimes || '09:00')
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
         setAiSearchContext(data.aiSearchContext || '')
-        setAiModel(data.aiModel || 'claude-sonnet-4-20250514')
+        setAiModelScoring(data.aiModelScoring || 'claude-3-5-haiku-20241022')
+        setAiModelReplies(data.aiModelReplies || 'claude-sonnet-4-20250514')
+        setAiModelDetection(data.aiModelDetection || 'claude-sonnet-4-20250514')
         setSearchBreadth(data.searchBreadth || 'balanced')
       }
     } catch (err) {
@@ -367,14 +369,15 @@ export function Settings() {
       const payload: Record<string, unknown> = {
         redditApiMode,
         searchFrequency,
+        searchScheduleTimes,
         searchBreadth,
-        pollingIntervalMins: pollingInterval,
-        dailyRequestBudget: dailyBudget,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
         relevanceThreshold,
         aiSearchContext: aiSearchContext.trim() || null,
-        aiModel,
+        aiModelScoring,
+        aiModelReplies,
+        aiModelDetection,
       }
       // Only include non-masked values
       if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
@@ -573,7 +576,7 @@ export function Settings() {
         >
           <Box>
             <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
-              Search Mode
+              Search Schedule
             </Typography>
             <ToggleButtonGroup
               value={searchFrequency}
@@ -602,45 +605,32 @@ export function Settings() {
                 },
               }}
             >
-              <ToggleButton value="continuous">Continuous (Rate-Limit Aware)</ToggleButton>
+              <ToggleButton value="once_daily">Once Daily</ToggleButton>
+              <ToggleButton value="twice_daily">Twice Daily</ToggleButton>
               <ToggleButton value="manual">Manual Only</ToggleButton>
             </ToggleButtonGroup>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
-              {searchFrequency === 'continuous'
-                ? 'Searches run automatically throughout the day, spacing requests to stay within rate limits. All active clients are serviced each cycle.'
-                : 'Searches only run when you click "Run Search Now" below.'}
+              {searchFrequency === 'once_daily'
+                ? 'One full digest per day. Conserves tokens and gives you a complete batch to work through.'
+                : searchFrequency === 'twice_daily'
+                  ? 'Two digests per day (morning + afternoon). Good for active teams who check in twice.'
+                  : 'Searches only run when you click "Run Search Now" below.'}
             </Typography>
           </Box>
 
-          {searchFrequency === 'continuous' && (
-            <>
-              <TextField
-                label="Polling Interval (minutes)"
-                value={pollingInterval}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '')
-                  setPollingInterval(v === '' ? '' as unknown as number : Number(v))
-                }}
-                onBlur={() => setPollingInterval(Math.max(5, Number(pollingInterval) || 10))}
-                fullWidth
-                size="small"
-                helperText="Minutes between search cycles. Min 5 min. Each cycle searches all active clients."
-                sx={inputSx}
-              />
-              <TextField
-                label="Daily API Request Budget"
-                value={dailyBudget}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, '')
-                  setDailyBudget(v === '' ? '' as unknown as number : Number(v))
-                }}
-                onBlur={() => setDailyBudget(Math.max(100, Number(dailyBudget) || 15000))}
-                fullWidth
-                size="small"
-                helperText={`Max Reddit API requests per day. ${redditApiMode === 'public_json' ? 'Public JSON: ~30 req/min safe, ~14,400/day at 10-min intervals.' : 'OAuth: ~60 req/min, ~28,800/day at 10-min intervals.'} Requests are spread evenly across polling intervals.`}
-                sx={inputSx}
-              />
-            </>
+          {searchFrequency !== 'manual' && (
+            <TextField
+              label={searchFrequency === 'twice_daily' ? 'Schedule Times (comma-separated HH:MM UTC)' : 'Schedule Time (HH:MM UTC)'}
+              value={searchScheduleTimes}
+              onChange={(e) => setSearchScheduleTimes(e.target.value)}
+              fullWidth
+              size="small"
+              placeholder={searchFrequency === 'twice_daily' ? '09:00, 17:00' : '09:00'}
+              helperText={searchFrequency === 'twice_daily'
+                ? 'Two times in 24h format, e.g. "09:00, 17:00". Searches run at these times UTC.'
+                : 'Time in 24h format, e.g. "09:00". Search runs once at this time UTC.'}
+              sx={inputSx}
+            />
           )}
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
@@ -810,12 +800,58 @@ export function Settings() {
             </Box>
           </Box>
 
+          <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
+
+          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            AI Models by Activity
+          </Typography>
+          <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 0.5 }}>
+            Choose cheaper models for high-volume tasks (scoring) and better models for quality tasks (replies). Prices: input/output per million tokens.
+          </Typography>
+
           <FormControl size="small" fullWidth sx={inputSx}>
-            <InputLabel>AI Model</InputLabel>
+            <InputLabel>Scoring Model (high volume)</InputLabel>
             <Select
-              value={aiModel}
-              onChange={(e) => setAiModel(e.target.value)}
-              label="AI Model"
+              value={aiModelScoring}
+              onChange={(e) => setAiModelScoring(e.target.value)}
+              label="Scoring Model (high volume)"
+            >
+              <MenuItem value="claude-3-5-haiku-20241022">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude 3.5 Haiku</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Recommended</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-20250514">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-5-20250929">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.5</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250115">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Used for scoring every thread that passes heuristic pre-filter. Haiku recommended — 4x cheaper, fast.
+            </Typography>
+          </FormControl>
+
+          <FormControl size="small" fullWidth sx={inputSx}>
+            <InputLabel>Reply Generation Model</InputLabel>
+            <Select
+              value={aiModelReplies}
+              onChange={(e) => setAiModelReplies(e.target.value)}
+              label="Reply Generation Model"
             >
               <MenuItem value="claude-3-5-haiku-20241022">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
@@ -842,10 +878,49 @@ export function Settings() {
                 </Box>
               </MenuItem>
             </Select>
-            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.75 }}>
-              Prices shown are per million input/output tokens. Haiku is ~4x cheaper than Sonnet for scoring tasks.
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Used for drafting and rewriting Reddit replies. Better models produce more natural-sounding text.
             </Typography>
           </FormControl>
+
+          <FormControl size="small" fullWidth sx={inputSx}>
+            <InputLabel>Client Detection Model</InputLabel>
+            <Select
+              value={aiModelDetection}
+              onChange={(e) => setAiModelDetection(e.target.value)}
+              label="Client Detection Model"
+            >
+              <MenuItem value="claude-3-5-haiku-20241022">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude 3.5 Haiku</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-20250514">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15 · Recommended</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-sonnet-4-5-20250929">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Sonnet 4.5</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="claude-opus-4-20250115">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>Claude Opus 4</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                </Box>
+              </MenuItem>
+            </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Used for auto-detecting client info from website URLs. Only runs when adding new clients.
+            </Typography>
+          </FormControl>
+
+          <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
 
           <TextField
             label="AI Scoring Instructions"

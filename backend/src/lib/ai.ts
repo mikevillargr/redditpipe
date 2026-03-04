@@ -1,7 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma.js";
+import { getValidModel } from "./models.js";
 
 let cachedApiKey: string | null = null;
+let cachedReplyModel: string | null = null;
 
 async function getApiKey(): Promise<string> {
   if (cachedApiKey) return cachedApiKey;
@@ -9,7 +11,12 @@ async function getApiKey(): Promise<string> {
   const key = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("Anthropic API key not configured. Set it in Settings or ANTHROPIC_API_KEY env var.");
   cachedApiKey = key;
+  cachedReplyModel = getValidModel((settings as Record<string, unknown>)?.aiModelReplies as string | undefined);
   return key;
+}
+
+function getReplyModel(): string {
+  return cachedReplyModel || getValidModel();
 }
 
 function getClient(apiKey: string): Anthropic {
@@ -18,6 +25,7 @@ function getClient(apiKey: string): Anthropic {
 
 export function clearApiKeyCache(): void {
   cachedApiKey = null;
+  cachedReplyModel = null;
 }
 
 interface GenerateReplyParams {
@@ -115,7 +123,7 @@ Mention terms (use the most natural one): ${params.clientMentionTerms}
 Write a Reddit reply now.`;
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: getReplyModel(),
     max_tokens: 1024,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
@@ -154,7 +162,7 @@ export async function rewriteReply(
     : "";
 
   const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
+    model: getReplyModel(),
     max_tokens: 1024,
     system: "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.",
     messages: [{ role: "user", content: `${actionPrompts[action]}${userInstruction}\n\nCurrent reply:\n${currentDraft}` }],
@@ -170,7 +178,7 @@ export async function testConnection(overrideApiKey?: string): Promise<{ success
     const apiKey = overrideApiKey || await getApiKey();
     const client = getClient(apiKey);
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: getReplyModel(),
       max_tokens: 50,
       messages: [{ role: "user", content: "Say hello in one word." }],
     });

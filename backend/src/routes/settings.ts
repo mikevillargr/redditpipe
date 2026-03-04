@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { prisma } from "../lib/prisma.js";
 import { clearApiKeyCache, testConnection } from "../lib/ai.js";
 import { getRedditAccessToken } from "../lib/reddit.js";
+import { refreshSearchSchedule } from "../lib/cron.js";
+import { clearScoringCache } from "../lib/ai-scoring.js";
 
 const app = new Hono();
 
@@ -46,6 +48,11 @@ app.put("/", async (c) => {
       update: data,
       create: { id: "singleton", ...data },
     });
+
+    // Refresh caches and schedules when settings change
+    clearApiKeyCache();
+    clearScoringCache();
+    refreshSearchSchedule().catch((err) => console.error("[Settings] Failed to refresh schedule:", err));
 
     return c.json({
       ...settings,

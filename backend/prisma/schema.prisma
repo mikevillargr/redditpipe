@@ -110,15 +110,15 @@ model Settings {
   redditUsername        String?
   redditPassword       String?
   anthropicApiKey      String?
-  searchFrequency      String @default("continuous")
-  pollingIntervalMins  Int    @default(10)
-  dailyRequestBudget   Int    @default(15000)
+  searchFrequency      String @default("once_daily")
+  searchScheduleTimes  String @default("09:00")
   searchTimezone       String @default("UTC")
-  searchTimes          String @default("09:00")
   maxResultsPerKeyword  Int    @default(10)
   threadMaxAgeDays      Int    @default(2)
   relevanceThreshold    Float  @default(0.4)
   aiSearchContext       String?
-  aiModel               String @default("claude-sonnet-4-20250514")
+  aiModelScoring        String @default("claude-3-5-haiku-20241022")
+  aiModelReplies        String @default("claude-sonnet-4-20250514")
+  aiModelDetection      String @default("claude-sonnet-4-20250514")
   searchBreadth         String @default("balanced")
 }

@@ -195,7 +195,7 @@ app.post("/generate", async (c) => {
 
     const { default: Anthropic } = await import("@anthropic-ai/sdk");
     const ai = new Anthropic({ apiKey });
-    const model = getValidModel(settings?.aiModel);
+    const model = getValidModel((settings as Record<string, unknown>)?.aiModelReplies as string | undefined);
 
     if (type === "thread_ideas") {
       const newsHint = newsContext ? `\n\nHere are today's trending news topics for inspiration:\n${newsContext}` : "";

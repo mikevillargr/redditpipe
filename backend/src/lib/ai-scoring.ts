@@ -9,7 +9,7 @@ async function getConfig(): Promise<{ apiKey: string; model: string; context: st
   const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
   const key = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("Anthropic API key not configured");
-  const requestedModel = settings?.aiModel || DEFAULT_MODEL;
+  const requestedModel = (settings as Record<string, unknown>)?.aiModelScoring as string || DEFAULT_MODEL;
   const model = VALID_MODELS.has(requestedModel) ? requestedModel : DEFAULT_MODEL;
   if (model !== requestedModel) {
     console.warn(`[AI Scoring] Model "${requestedModel}" is invalid, falling back to "${model}"`);

@@ -4,6 +4,7 @@ import { runSearchPipeline } from "./search-pipeline.js";
 
 let initialized = false;
 let searchRunning = false;
+let searchTask: ReturnType<typeof cron.schedule> | null = null;
 
 async function runSearch() {
   if (searchRunning) {
@@ -24,6 +25,62 @@ async function runSearch() {
 
 export { runSearch };
 
+function buildSearchCron(frequency: string, scheduleTimes: string): string | null {
+  if (frequency === "manual") return null;
+
+  // Parse comma-separated HH:MM times
+  const times = scheduleTimes.split(",").map((t) => t.trim()).filter(Boolean);
+  if (times.length === 0) return null;
+
+  if (frequency === "once_daily") {
+    const [h, m] = (times[0] || "09:00").split(":");
+    return `${parseInt(m || "0", 10)} ${parseInt(h || "9", 10)} * * *`;
+  }
+
+  if (frequency === "twice_daily") {
+    const hours = times.slice(0, 2).map((t) => {
+      const [h] = t.split(":");
+      return parseInt(h || "9", 10);
+    });
+    if (hours.length === 1) hours.push((hours[0] + 12) % 24);
+    const mins = times.map((t) => {
+      const parts = t.split(":");
+      return parseInt(parts[1] || "0", 10);
+    });
+    // Use minute from first time for simplicity
+    return `${mins[0] || 0} ${hours.join(",")} * * *`;
+  }
+
+  return null;
+}
+
+export async function refreshSearchSchedule(): Promise<void> {
+  const db = createPrismaClient();
+  try {
+    const settings = await db.settings.findUnique({ where: { id: "singleton" } });
+    const frequency = settings?.searchFrequency || "once_daily";
+    const scheduleTimes = (settings as Record<string, unknown>)?.searchScheduleTimes as string || "09:00";
+
+    // Stop existing search task
+    if (searchTask) {
+      searchTask.stop();
+      searchTask = null;
+    }
+
+    const cronExpr = buildSearchCron(frequency, scheduleTimes);
+    if (cronExpr && process.env.ENABLE_CRON === "true") {
+      searchTask = cron.schedule(cronExpr, runSearch);
+      console.log(`[Cron] Search rescheduled: "${cronExpr}" (${frequency}, times: ${scheduleTimes})`);
+    } else if (frequency === "manual") {
+      console.log("[Cron] Search set to manual-only mode.");
+    }
+  } catch (error) {
+    console.error("[Cron] Failed to refresh schedule:", error);
+  } finally {
+    await db.$disconnect().catch(() => {});
+  }
+}
+
 export async function initCronJobs() {
   if (initialized) return;
   initialized = true;
@@ -31,17 +88,17 @@ export async function initCronJobs() {
   const cronEnabled = process.env.ENABLE_CRON === "true";
   if (!cronEnabled) {
     console.log("[Cron] Cron disabled (ENABLE_CRON !== 'true'). Use manual trigger in UI.");
-    return;
   }
 
   console.log("[Cron] Initializing cron jobs...");
 
-  // Search digest: 6am and 2pm UTC
-  cron.schedule("0 6,14 * * *", runSearch);
-  console.log("[Cron] Search scheduled at 6:00 and 14:00 UTC");
+  // Schedule search based on DB settings
+  await refreshSearchSchedule();
 
-  // Run initial search on startup (delayed 5s)
-  setTimeout(runSearch, 5000);
+  // Run initial search on startup (delayed 10s)
+  if (cronEnabled) {
+    setTimeout(runSearch, 10000);
+  }
 
   // Reset Daily Counts — Midnight UTC
   cron.schedule("0 0 * * *", async () => {
