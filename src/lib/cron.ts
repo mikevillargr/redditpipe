@@ -10,7 +10,7 @@ async function runSearch() {
   try {
     const res = await fetch(
       `http://localhost:${process.env.PORT || 3000}/api/search/run`,
-      { method: "POST" }
+      { method: "POST", signal: AbortSignal.timeout(600_000) } // 10 min timeout
     );
     const data = await res.json();
     if (data.error) {
@@ -74,14 +74,14 @@ async function scheduleSearchJobs() {
   }
 }
 
-export function initCronJobs() {
+export async function initCronJobs() {
   if (initialized) return;
-  initialized = true;
 
   console.log("[Cron] Initializing cron jobs...");
 
   // Schedule search jobs from settings (and refresh every 5 min)
-  scheduleSearchJobs();
+  await scheduleSearchJobs();
+  initialized = true;
   cron.schedule("*/5 * * * *", scheduleSearchJobs);
 
   // Reset Daily Counts — Midnight

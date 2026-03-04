@@ -101,7 +101,10 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
         await rateLimitWait();
 
         try {
-          const response = await fetch(url, init);
+          const response = await fetch(url, {
+            ...init,
+            signal: AbortSignal.timeout(15_000), // 15s timeout per request
+          });
 
           // Always parse rate limit headers
           updateFromHeaders(response.headers);
