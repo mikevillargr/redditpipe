@@ -1,25 +1,24 @@
 services:
-  app:
-    image: redditpipe:latest
-    container_name: redditpipe-production
+  backend:
+    build: ./backend
+    container_name: redditpipe-backend
     restart: unless-stopped
     ports:
-      - "3200:3000"
+      - "8000:8000"
     volumes:
-      - production-data:/app/data
+      - ./data:/app/data
     env_file:
       - .env.production
     environment:
-      - NODE_ENV=production
+      - PORT=8000
       - DATABASE_URL=file:/app/data/production.db
       - ENABLE_CRON=true
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/auth/check"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
 
-volumes:
-  production-data:
-    driver: local
+  frontend:
+    build: ./frontend
+    container_name: redditpipe-frontend
+    restart: unless-stopped
+    ports:
+      - "3200:80"
+    depends_on:
+      - backend

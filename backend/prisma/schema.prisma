@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  name         String
+  websiteUrl   String
+  description  String
+  keywords     String
+  mentionTerms String?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  opportunities      Opportunity[]
+  accountAssignments AccountClientAssignment[]
+}
+
+model RedditAccount {
+  id                   String    @id @default(cuid())
+  username             String    @unique
+  password             String?
+  accountAgeDays       Int?
+  postKarma            Int?
+  commentKarma         Int?
+  status               String    @default("warming")
+  activeSubreddits     String?
+  personalitySummary   String?
+  writingStyleNotes    String?
+  sampleComments       String?
+  location             String?
+  maxPostsPerDay       Int       @default(3)
+  minHoursBetweenPosts Int       @default(4)
+  lastPostAt           DateTime?
+  postsTodayCount      Int       @default(0)
+  organicPostsWeek     Int       @default(0)
+  citationPostsWeek    Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  opportunities      Opportunity[]
+  accountAssignments AccountClientAssignment[]
+}
+
+model AccountClientAssignment {
+  id                    String  @id @default(cuid())
+  accountId             String
+  clientId              String
+  subredditOverlapScore Float?
+
+  account RedditAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  client  Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, clientId])
+}
+
+model Opportunity {
+  id              String    @id @default(cuid())
+  clientId        String
+  accountId       String?
+  threadId        String
+  threadUrl       String
+  subreddit       String
+  title           String
+  bodySnippet     String?
+  topComments     String?
+  score           Int?
+  commentCount    Int?
+  threadAge       String?
+  threadCreatedAt DateTime?
+  relevanceScore  Float?
+  aiDraftReply    String?
+  status          String    @default("new")
+  permalinkUrl    String?
+  discoveredVia   String?
+  dismissReason   String?
+  aiRelevanceNote String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  account RedditAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@unique([threadId, clientId])
+}
+
+model DismissalLog {
+  id             String   @id @default(cuid())
+  clientId       String
+  clientName     String
+  threadId       String
+  subreddit      String
+  title          String
+  relevanceScore Float?
+  reason         String
+  createdAt      DateTime @default(now())
+}
+
+model Settings {
+  id                   String @id @default("singleton")
+  redditApiMode        String @default("public_json")
+  redditClientId       String?
+  redditClientSecret   String?
+  redditUsername        String?
+  redditPassword       String?
+  anthropicApiKey      String?
+  searchFrequency      String @default("continuous")
+  pollingIntervalMins  Int    @default(10)
+  dailyRequestBudget   Int    @default(15000)
+  searchTimezone       String @default("UTC")
+  searchTimes          String @default("09:00")
+  maxResultsPerKeyword  Int    @default(10)
+  threadMaxAgeDays      Int    @default(2)
+  relevanceThreshold    Float  @default(0.4)
+  aiSearchContext       String?
+  aiModel               String @default("claude-sonnet-4-20250514")
+}
