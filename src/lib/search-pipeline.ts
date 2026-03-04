@@ -4,6 +4,7 @@ import {
   clearConfigCache,
   resetRateLimiter,
   searchReddit,
+  getThreadComments,
 } from "@/lib/reddit";
 import { computeRelevanceScore } from "@/lib/scoring";
 import { findBestAccount } from "@/lib/matching";
@@ -65,6 +66,7 @@ interface DiscoveredThread {
   numComments: number;
   createdUtc: number;
   permalink: string;
+  topComments?: string;
 }
 
 interface ScoredCandidate {
@@ -268,11 +270,19 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
         for (const cand of toScore) {
           try {
+            // Fetch top comments for context (rate-limited)
+            let topCommentsText = "";
+            try {
+              const comments = await getThreadComments(token, cand.thread.threadId, cand.thread.subreddit, redditConfig);
+              topCommentsText = comments.map((c) => `u/${c.author} (${c.score} pts): ${c.body}`).join("\n\n");
+              cand.thread.topComments = topCommentsText;
+            } catch { /* ignore — AI scoring works without comments */ }
+
             aiCalls++;
             const result = await aiScoreRelevance({
               threadTitle: cand.thread.title,
               threadBody: cand.thread.selftext,
-              topComments: "",
+              topComments: topCommentsText,
               subreddit: cand.thread.subreddit,
               clientName: client.name,
               clientDescription: client.description,
@@ -326,8 +336,8 @@ export async function runSearchPipeline(): Promise<SearchResult> {
             threadUrl: c.thread.threadUrl,
             subreddit: c.thread.subreddit,
             title: c.thread.title,
-            bodySnippet: c.thread.selftext.slice(0, 500) || null,
-            topComments: null,
+            bodySnippet: c.thread.selftext || null,
+            topComments: c.thread.topComments || null,
             score: c.thread.threadScore,
             commentCount: c.thread.numComments,
             threadAge: c.threadAge,

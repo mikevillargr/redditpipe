@@ -43,6 +43,8 @@ export function computeRelevanceScore(params: ScoringParams): number {
   const matchedKeywords = clientKeywords.filter((kw) =>
     text.includes(kw.toLowerCase().trim())
   );
+  // HARD GATE: must match at least 1 keyword or score is 0
+  if (matchedKeywords.length === 0) return 0;
   const keywordScore =
     clientKeywords.length > 0 ? matchedKeywords.length / clientKeywords.length : 0;
 

@@ -1876,6 +1876,25 @@ function OpportunityCard({
             >
               {opp.snippet}
             </Typography>
+            {opp.aiRelevanceNote && (
+              <Box
+                sx={{
+                  mt: 0.5,
+                  mb: 0.5,
+                  p: 1,
+                  bgcolor: isDark ? 'rgba(139,92,246,0.06)' : 'rgba(139,92,246,0.04)',
+                  border: `1px solid ${isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)'}`,
+                  borderRadius: '6px',
+                }}
+              >
+                <Typography sx={{ fontSize: '11px', fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', mb: 0.25 }}>
+                  AI Summary
+                </Typography>
+                <Typography sx={{ fontSize: '12px', color: 'text.secondary', lineHeight: 1.5 }}>
+                  {opp.aiRelevanceNote}
+                </Typography>
+              </Box>
+            )}
             <Box
               sx={{
                 display: 'flex',
