@@ -4,7 +4,6 @@ import {
   clearConfigCache,
   resetRateLimiter,
   searchReddit,
-  searchRedditComments,
   getThreadComments,
 } from "@/lib/reddit";
 import { computeRelevanceScore } from "@/lib/scoring";
@@ -90,78 +89,49 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   let skippedTooOld = 0;
   let skippedLowScore = 0;
 
-  // ── Phase 1: Collect unique threads from all clients' keyword searches ──
+  // ── Phase 1: Collect unique threads from deduplicated keyword searches ──
+  // Deduplicate keywords across all clients to minimize Reddit API calls
+  const uniqueKeywords = new Set<string>();
+  for (const client of clients) {
+    const keywords = client.keywords.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
+    for (const kw of keywords) uniqueKeywords.add(kw);
+  }
+
+  console.log(`[Search] Phase 1: Searching ${uniqueKeywords.size} unique keywords across ${clients.length} clients`);
   const discoveredThreads = new Map<string, DiscoveredThread>();
 
-  for (const client of clients) {
-    const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+  for (const keyword of uniqueKeywords) {
+    try {
+      const threads = await searchReddit(token, keyword, {
+        sort: "new",
+        time: "day",
+        limit: maxResults,
+      }, redditConfig);
 
-    for (const keyword of keywords) {
-      // Thread search
-      try {
-        const threads = await searchReddit(token, keyword, {
-          sort: "new",
-          time: "day",
-          limit: maxResults,
-        }, redditConfig);
-
-        for (const thread of threads) {
-          if (!discoveredThreads.has(thread.id)) {
-            discoveredThreads.set(thread.id, {
-              threadId: thread.id,
-              threadUrl: `https://www.reddit.com${thread.permalink}`,
-              subreddit: thread.subreddit,
-              title: thread.title,
-              selftext: thread.selftext,
-              threadScore: thread.score,
-              numComments: thread.num_comments,
-              createdUtc: thread.created_utc,
-              permalink: thread.permalink,
-              discoveredVia: "thread_search",
-            });
-          }
+      for (const thread of threads) {
+        if (!discoveredThreads.has(thread.id)) {
+          discoveredThreads.set(thread.id, {
+            threadId: thread.id,
+            threadUrl: `https://www.reddit.com${thread.permalink}`,
+            subreddit: thread.subreddit,
+            title: thread.title,
+            selftext: thread.selftext,
+            threadScore: thread.score,
+            numComments: thread.num_comments,
+            createdUtc: thread.created_utc,
+            permalink: thread.permalink,
+            discoveredVia: "thread_search",
+          });
         }
-      } catch (err) {
-        const msg = `Error searching threads "${keyword}" for ${client.name}: ${err instanceof Error ? err.message : "Unknown"}`;
-        console.error(msg);
-        errors.push(msg);
       }
-
-      // Comment search
-      try {
-        const commentResults = await searchRedditComments(token, keyword, {
-          sort: "new",
-          time: "day",
-          limit: maxResults,
-        }, redditConfig);
-
-        for (const comment of commentResults) {
-          if (!comment.link_id) continue;
-          const parentThreadId = comment.link_id.replace(/^t3_/, "");
-          if (!discoveredThreads.has(parentThreadId)) {
-            discoveredThreads.set(parentThreadId, {
-              threadId: parentThreadId,
-              threadUrl: comment.link_url,
-              subreddit: comment.subreddit,
-              title: comment.link_title,
-              selftext: comment.body.slice(0, 500),
-              threadScore: comment.score,
-              numComments: 0,
-              createdUtc: comment.created_utc,
-              permalink: comment.permalink,
-              discoveredVia: "comment_search",
-            });
-          }
-        }
-      } catch (err) {
-        const msg = `Error searching comments "${keyword}" for ${client.name}: ${err instanceof Error ? err.message : "Unknown"}`;
-        console.error(msg);
-        errors.push(msg);
-      }
+    } catch (err) {
+      const msg = `Error searching "${keyword}": ${err instanceof Error ? err.message : "Unknown"}`;
+      console.error(msg);
+      errors.push(msg);
     }
   }
 
-  console.log(`[Search] Phase 1: Discovered ${discoveredThreads.size} unique threads from keyword searches`);
+  console.log(`[Search] Phase 1 complete: ${discoveredThreads.size} unique threads from ${uniqueKeywords.size} keywords`);
 
   // ── Phase 2: Evaluate each thread against ALL active clients ──
   // Cache thread comments so we don't re-fetch per client
