@@ -151,6 +151,12 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
   for (const [, thread] of discoveredThreads) {
     threadIdx++;
+
+    // Progress log every 50 threads (BEFORE any skips)
+    if (threadIdx % 50 === 0 || threadIdx === 1) {
+      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opps, ${aiScoringCalls} AI, ${skippedTooOld} old, ${skippedLowScore} low, ${skippedDuplicate} dup`);
+    }
+
     // Check thread age once
     const threadDate = new Date(thread.createdUtc * 1000);
     const ageMs = Date.now() - threadDate.getTime();
@@ -260,10 +266,6 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       totalOpportunities++;
     }
 
-    // Progress log every 50 threads
-    if (threadIdx % 50 === 0 || threadIdx === 1) {
-      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opps, ${aiScoringCalls} AI, ${skippedTooOld} old, ${skippedLowScore} low, ${skippedDuplicate} dup`);
-    }
   }
 
   console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${totalOpportunities} created, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} low score`);
