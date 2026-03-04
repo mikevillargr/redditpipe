@@ -98,7 +98,7 @@ function getBackoffMs(attempt: number): number {
   return base + jitter;
 }
 
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 2;
 
 // Central fetch wrapper: serial queue + retry + backoff + header parsing
 async function redditFetch(url: string, init: RequestInit): Promise<Response> {
@@ -140,7 +140,7 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
             if (attempt < MAX_RETRIES) {
               await new Promise((r) => setTimeout(r, backoff));
               // After a 429, increase the minimum delay for future requests
-              rateLimiter.minDelay = Math.min(rateLimiter.minDelay * 1.5, 15_000);
+              rateLimiter.minDelay = Math.min(rateLimiter.minDelay * 1.5, 5_000);
               continue;
             }
           }

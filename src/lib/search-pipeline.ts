@@ -100,13 +100,21 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   console.log(`[Search] Phase 1: Searching ${uniqueKeywords.size} unique keywords across ${clients.length} clients`);
   const discoveredThreads = new Map<string, DiscoveredThread>();
 
+  let kwIdx = 0;
   for (const keyword of uniqueKeywords) {
+    kwIdx++;
     try {
-      const threads = await searchReddit(token, keyword, {
-        sort: "new",
-        time: "day",
-        limit: maxResults,
-      }, redditConfig);
+      // Wrap each keyword search in a 30s timeout to prevent hangs
+      const threads = await Promise.race([
+        searchReddit(token, keyword, {
+          sort: "new",
+          time: "day",
+          limit: maxResults,
+        }, redditConfig),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Keyword search timed out after 30s")), 30_000)
+        ),
+      ]);
 
       for (const thread of threads) {
         if (!discoveredThreads.has(thread.id)) {
@@ -124,9 +132,10 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           });
         }
       }
+      console.log(`[Search] Keyword ${kwIdx}/${uniqueKeywords.size} "${keyword}": ${threads.length} results (${discoveredThreads.size} total unique)`);
     } catch (err) {
       const msg = `Error searching "${keyword}": ${err instanceof Error ? err.message : "Unknown"}`;
-      console.error(msg);
+      console.error(`[Search] Keyword ${kwIdx}/${uniqueKeywords.size} ${msg}`);
       errors.push(msg);
     }
   }
