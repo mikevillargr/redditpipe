@@ -100,7 +100,12 @@ Score this thread's relevance as a citation opportunity for this client.`;
       return { score: 0.5, note: "AI scoring returned no text", shouldKeep: true };
     }
 
-    const parsed = JSON.parse(text.text) as { score: number; note: string };
+    // Strip markdown code fences if present (```json ... ```)
+    let jsonStr = text.text.trim();
+    if (jsonStr.startsWith("```")) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    }
+    const parsed = JSON.parse(jsonStr) as { score: number; note: string };
     return {
       score: Math.round(parsed.score * 100) / 100,
       note: parsed.note,

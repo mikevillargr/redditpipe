@@ -134,17 +134,68 @@ export async function runSearchPipeline(): Promise<SearchResult> {
   console.log(`[Search] Phase 1 complete: ${discoveredThreads.size} unique threads from ${uniqueKeywords.size} keywords`);
 
   // ── Phase 2: Evaluate each thread against ALL active clients ──
-  // Cache thread comments so we don't re-fetch per client
+  // Pre-compute client keywords for heuristic scoring
+  const clientKeywordMap = new Map<string, string[]>();
+  for (const client of clients) {
+    clientKeywordMap.set(client.id, client.keywords.split(",").map((k) => k.trim()).filter(Boolean));
+  }
+
+  // Heuristic pre-filter threshold: threads must score at least this to proceed to AI
+  const heuristicPreFilter = Math.max(relevanceThreshold * 0.5, 0.1);
+  let aiScoringCalls = 0;
+  let threadIdx = 0;
+
   const threadCommentsCache = new Map<string, string>();
 
   for (const [, thread] of discoveredThreads) {
+    threadIdx++;
     // Check thread age once
     const threadDate = new Date(thread.createdUtc * 1000);
     const ageMs = Date.now() - threadDate.getTime();
     const ageDays = ageMs / (1000 * 60 * 60 * 24);
     if (ageDays > threadMaxAgeDays) { skippedTooOld++; continue; }
 
-    // Fetch comments once per thread
+    // Calculate thread age string
+    const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
+    const threadAge =
+      ageHours < 1
+        ? "just now"
+        : ageHours < 24
+          ? `${ageHours}h ago`
+          : `${Math.floor(ageDays)}d ago`;
+
+    // Pre-filter: check if any client has a minimum heuristic match
+    // This avoids fetching comments and AI scoring for completely irrelevant threads
+    const candidateClients: Array<{ client: typeof clients[0]; keywords: string[]; heuristicScore: number }> = [];
+
+    for (const client of clients) {
+      // Check for existing opportunity in DB
+      const existing = await prisma.opportunity.findFirst({
+        where: { threadId: thread.threadId, clientId: client.id },
+      });
+      if (existing) { skippedDuplicate++; continue; }
+
+      const keywords = clientKeywordMap.get(client.id) || [];
+      const heuristicScore = computeRelevanceScore({
+        threadTitle: thread.title,
+        threadBody: thread.selftext,
+        clientKeywords: keywords,
+        threadScore: thread.threadScore,
+        commentCount: thread.numComments,
+        threadCreatedAt: threadDate,
+        threadMaxAgeDays,
+      });
+
+      if (heuristicScore >= heuristicPreFilter) {
+        candidateClients.push({ client, keywords, heuristicScore });
+      } else {
+        skippedLowScore++;
+      }
+    }
+
+    if (candidateClients.length === 0) continue;
+
+    // Fetch comments only for threads with at least one candidate client
     let topComments = threadCommentsCache.get(thread.threadId) ?? "";
     if (!threadCommentsCache.has(thread.threadId)) {
       try {
@@ -158,41 +209,14 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       threadCommentsCache.set(thread.threadId, topComments);
     }
 
-    // Calculate thread age string
-    const ageHours = Math.floor(ageMs / (1000 * 60 * 60));
-    const threadAge =
-      ageHours < 1
-        ? "just now"
-        : ageHours < 24
-          ? `${ageHours}h ago`
-          : `${Math.floor(ageDays)}d ago`;
-
-    // Score against each client
-    for (const client of clients) {
-      // Check for existing opportunity in DB
-      const existing = await prisma.opportunity.findFirst({
-        where: { threadId: thread.threadId, clientId: client.id },
-      });
-      if (existing) { skippedDuplicate++; continue; }
-
-      const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
-
-      // Heuristic score as fallback
-      const heuristicScore = computeRelevanceScore({
-        threadTitle: thread.title,
-        threadBody: thread.selftext,
-        clientKeywords: keywords,
-        threadScore: thread.threadScore,
-        commentCount: thread.numComments,
-        threadCreatedAt: threadDate,
-        threadMaxAgeDays,
-      });
-
-      // AI score — use directly, no blending with heuristic
+    // Score each candidate client
+    for (const { client, keywords, heuristicScore } of candidateClients) {
       let relevanceScore = heuristicScore;
       let aiRelevanceNote: string | null = null;
+
       if (hasAiKey) {
         try {
+          aiScoringCalls++;
           const aiResult = await aiScoreRelevance({
             threadTitle: thread.title,
             threadBody: thread.selftext,
@@ -246,6 +270,11 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       });
 
       totalOpportunities++;
+    }
+
+    // Progress log every 100 threads
+    if (threadIdx % 100 === 0) {
+      console.log(`[Search] Progress: ${threadIdx}/${discoveredThreads.size} threads, ${totalOpportunities} opportunities, ${aiScoringCalls} AI calls`);
     }
   }
 
