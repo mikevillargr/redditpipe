@@ -88,12 +88,18 @@ ${params.topComments ? `Top Comments:\n${params.topComments.slice(0, 500)}` : ""
 Score this thread's relevance as a citation opportunity for this client.`;
 
   try {
-    const response = await client.messages.create({
-      model: config.model,
-      max_tokens: 200,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    // Race the API call against a 30s timeout to prevent hangs
+    const response = await Promise.race([
+      client.messages.create({
+        model: config.model,
+        max_tokens: 200,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI scoring timed out after 30s")), 30_000)
+      ),
+    ]);
 
     const text = response.content.find((b) => b.type === "text");
     if (!text || text.type !== "text") {
@@ -112,7 +118,8 @@ Score this thread's relevance as a citation opportunity for this client.`;
       shouldKeep: parsed.score >= params.threshold,
     };
   } catch (err) {
-    console.error("AI scoring failed:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[AI Scoring] Failed for "${params.clientName}" / r/${params.subreddit}: ${msg}`);
     return { score: 0.5, note: "AI scoring unavailable — using heuristic score", shouldKeep: true };
   }
 }
