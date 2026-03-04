@@ -33,13 +33,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema + config + dependencies for runtime DB push
+# Copy Prisma schema + config for runtime DB push
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=builder /app/package.json ./package.json
+
+# Copy full node_modules for prisma CLI + Prisma client runtime
+COPY --from=builder /app/node_modules ./node_modules
 
 # Create data directory for SQLite DB (mounted as volume)
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
