@@ -1,28 +1,29 @@
 import cron from "node-cron";
 import { prisma } from "./prisma";
+import { runSearchPipeline } from "./search-pipeline";
 
 let initialized = false;
 let searchTimer: ReturnType<typeof setInterval> | null = null;
 let currentIntervalMins = 0;
+let searchRunning = false;
 
 async function runSearch() {
+  if (searchRunning) {
+    console.log("[Cron] Search already running, skipping this cycle.");
+    return;
+  }
+  searchRunning = true;
   console.log("[Cron] Running scheduled search pipeline...");
   try {
-    const res = await fetch(
-      `http://localhost:${process.env.PORT || 3000}/api/search/run`,
-      { method: "POST", signal: AbortSignal.timeout(600_000) } // 10 min timeout
-    );
-    const data = await res.json();
-    if (data.error) {
-      console.error("[Cron] Search error:", data.error, data.details || "");
-    } else {
-      console.log("[Cron] Search complete:", JSON.stringify(data.summary));
-    }
-    if (data.errors?.length) {
-      console.warn("[Cron] Search warnings:", data.errors);
+    const result = await runSearchPipeline();
+    console.log("[Cron] Search complete:", JSON.stringify(result.summary));
+    if (result.errors?.length) {
+      console.warn("[Cron] Search warnings:", result.errors);
     }
   } catch (error) {
     console.error("[Cron] Search failed:", error);
+  } finally {
+    searchRunning = false;
   }
 }
 
