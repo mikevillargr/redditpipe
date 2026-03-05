@@ -23,12 +23,9 @@ import {
 import {
   DownloadIcon,
   FileSpreadsheetIcon,
-  FileTextIcon,
   ExternalLinkIcon,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 
 interface Client {
   id: string
@@ -69,7 +66,7 @@ export function Reports() {
   const [opportunities, setOpportunities] = useState<ReportOpportunity[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
+  const [exporting, setExporting] = useState<'excel' | null>(null)
 
   const borderColor = isDark ? '#334155' : '#e2e8f0'
   const rowBorder = isDark ? '#1e293b' : '#f1f5f9'
@@ -146,127 +143,6 @@ export function Reports() {
     }
   }
 
-  const handleExportPDF = async () => {
-    setExporting('pdf')
-    try {
-      const selectedClient = clients.find((c) => c.id === selectedClientId)
-      const doc = new jsPDF()
-      
-      // Page dimensions
-      const pageWidth = doc.internal.pageSize.getWidth()
-      const pageHeight = doc.internal.pageSize.getHeight()
-      const margin = 14
-      const contentWidth = pageWidth - (margin * 2)
-      
-      // Header background
-      doc.setFillColor(249, 115, 22)
-      doc.rect(0, 0, pageWidth, 45, 'F')
-      
-      // Logo/Brand area
-      doc.setTextColor(255, 255, 255)
-      doc.setFontSize(24)
-      doc.setFont('helvetica', 'bold')
-      doc.text('RedditPipe', margin, 20)
-      
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'normal')
-      doc.text('by Growth Rocket AI Labs', margin, 28)
-      
-      // Report title
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`${selectedClient?.name || 'Client'} - Opportunity Report`, margin, 38)
-      
-      // Report metadata
-      doc.setTextColor(0, 0, 0)
-      doc.setFontSize(9)
-      doc.setFont('helvetica', 'normal')
-      doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, 55)
-      doc.text(`Total Opportunities: ${opportunities.length}`, margin, 62)
-      
-      // Table data with full text (no truncation)
-      const tableData = opportunities.map((opp) => [
-        opp.threadTitle,
-        opp.threadUrl,
-        opp.subreddit,
-        opp.aiScore ? (opp.aiScore * 100).toFixed(0) + '%' : 'N/A',
-        opp.status.charAt(0).toUpperCase() + opp.status.slice(1),
-        opp.aiScoreCommentary || 'N/A',
-        opp.commentText || 'N/A',
-        opp.citationAnchorText || 'None',
-      ])
-
-      autoTable(doc, {
-        head: [['Thread Title', 'Thread URL', 'Subreddit', 'AI Score', 'Status', 'AI Commentary', 'Comment Text', 'Citations']],
-        body: tableData,
-        startY: 70,
-        styles: {
-          fontSize: 9,
-          cellPadding: 4,
-          overflow: 'linebreak',
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1,
-        },
-        columnStyles: {
-          0: { cellWidth: 50, fontStyle: 'bold' },
-          1: { cellWidth: 50, textColor: [59, 130, 246] },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 25, halign: 'center' },
-          4: { cellWidth: 30 },
-          5: { cellWidth: 'auto' },
-          6: { cellWidth: 'auto' },
-          7: { cellWidth: 'auto' },
-        },
-        headStyles: {
-          fillColor: [249, 115, 22],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 10,
-          cellPadding: 4,
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252],
-        },
-        theme: 'grid',
-        didParseCell: (data) => {
-          // Make URLs clickable
-          if (data.section === 'body' && data.column.index === 1) {
-            const url = data.cell.raw
-            if (url && typeof url === 'string' && url.startsWith('http')) {
-              const cell = data.cell
-              // Add link annotation to the cell
-              const x = cell.x
-              const y = cell.y
-              const width = cell.width
-              const height = cell.height
-              doc.link(x, y, width, height, { url })
-            }
-          }
-        },
-      })
-
-      // Footer with page numbers
-      const pageCount = doc.internal.pages.length - 1
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        doc.setFontSize(8)
-        doc.setTextColor(128, 128, 128)
-        doc.text(
-          `Page ${i} of ${pageCount} | RedditPipe by Growth Rocket AI Labs`,
-          pageWidth / 2,
-          pageHeight - 10,
-          { align: 'center' }
-        )
-      }
-
-      doc.save(`${selectedClient?.name || 'report'}-opportunities.pdf`)
-    } catch (err) {
-      console.error('PDF export failed:', err)
-    } finally {
-      setExporting(null)
-    }
-  }
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new':
@@ -336,25 +212,6 @@ export function Reports() {
             }}
           >
             Export Excel
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={exporting === 'pdf' ? <CircularProgress size={16} /> : <FileTextIcon size={16} />}
-            onClick={handleExportPDF}
-            disabled={loading || opportunities.length === 0 || exporting !== null}
-            sx={{
-              borderColor: '#3b82f6',
-              color: '#3b82f6',
-              '&:hover': {
-                borderColor: '#2563eb',
-                bgcolor: 'rgba(59, 130, 246, 0.08)',
-              },
-              '&:disabled': {
-                opacity: 0.5,
-              },
-            }}
-          >
-            Export PDF
           </Button>
         </Box>
       </Box>
