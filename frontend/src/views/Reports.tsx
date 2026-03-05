@@ -184,19 +184,20 @@ export function Reports() {
       doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, 55)
       doc.text(`Total Opportunities: ${opportunities.length}`, margin, 62)
       
-      // Table data with better formatting
+      // Table data with full text (no truncation)
       const tableData = opportunities.map((opp) => [
-        opp.threadTitle.substring(0, 60) + (opp.threadTitle.length > 60 ? '...' : ''),
+        opp.threadTitle,
+        opp.threadUrl,
         opp.subreddit,
         opp.aiScore ? (opp.aiScore * 100).toFixed(0) + '%' : 'N/A',
         opp.status.charAt(0).toUpperCase() + opp.status.slice(1),
-        opp.aiScoreCommentary?.substring(0, 80) + ((opp.aiScoreCommentary?.length ?? 0) > 80 ? '...' : '') || 'N/A',
-        opp.commentText?.substring(0, 70) + ((opp.commentText?.length ?? 0) > 70 ? '...' : '') || 'N/A',
-        opp.citationAnchorText?.substring(0, 40) + ((opp.citationAnchorText?.length ?? 0) > 40 ? '...' : '') || 'None',
+        opp.aiScoreCommentary || 'N/A',
+        opp.commentText || 'N/A',
+        opp.citationAnchorText || 'None',
       ])
 
       autoTable(doc, {
-        head: [['Thread Title', 'Subreddit', 'AI Score', 'Status', 'AI Commentary', 'Comment Text', 'Citations']],
+        head: [['Thread Title', 'Thread URL', 'Subreddit', 'AI Score', 'Status', 'AI Commentary', 'Comment Text', 'Citations']],
         body: tableData,
         startY: 70,
         styles: {
@@ -209,12 +210,13 @@ export function Reports() {
         },
         columnStyles: {
           0: { cellWidth: 'auto', fontStyle: 'bold' },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 20, halign: 'center' },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 'auto' },
+          1: { cellWidth: 'auto', textColor: [59, 130, 246] },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 25 },
           5: { cellWidth: 'auto' },
           6: { cellWidth: 'auto' },
+          7: { cellWidth: 'auto' },
         },
         headStyles: {
           fillColor: [249, 115, 22],
@@ -227,6 +229,21 @@ export function Reports() {
           fillColor: [248, 250, 252],
         },
         theme: 'grid',
+        didParseCell: (data) => {
+          // Make URLs clickable
+          if (data.section === 'body' && data.column.index === 1) {
+            const url = data.cell.raw
+            if (url && typeof url === 'string' && url.startsWith('http')) {
+              const cell = data.cell
+              // Add link annotation to the cell
+              const x = cell.x
+              const y = cell.y
+              const width = cell.width
+              const height = cell.height
+              doc.link(x, y, width, height, { url })
+            }
+          }
+        },
       })
 
       // Footer with page numbers
