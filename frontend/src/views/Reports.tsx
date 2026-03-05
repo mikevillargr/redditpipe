@@ -152,44 +152,96 @@ export function Reports() {
       const selectedClient = clients.find((c) => c.id === selectedClientId)
       const doc = new jsPDF()
       
-      // Title
-      doc.setFontSize(16)
+      // Page dimensions
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const margin = 14
+      const contentWidth = pageWidth - (margin * 2)
+      
+      // Header background
+      doc.setFillColor(249, 115, 22)
+      doc.rect(0, 0, pageWidth, 45, 'F')
+      
+      // Logo/Brand area
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(24)
       doc.setFont('helvetica', 'bold')
-      doc.text(`Opportunity Report: ${selectedClient?.name || 'Client'}`, 14, 20)
+      doc.text('RedditPipe', margin, 20)
       
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 28)
-      doc.text(`Total Opportunities: ${opportunities.length}`, 14, 34)
-
-      // Table data
+      doc.text('by Growth Rocket AI Labs', margin, 28)
+      
+      // Report title
+      doc.setFontSize(16)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`${selectedClient?.name || 'Client'} - Opportunity Report`, margin, 38)
+      
+      // Report metadata
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, margin, 55)
+      doc.text(`Total Opportunities: ${opportunities.length}`, margin, 62)
+      
+      // Table data with better formatting
       const tableData = opportunities.map((opp) => [
-        opp.threadTitle.substring(0, 50) + (opp.threadTitle.length > 50 ? '...' : ''),
+        opp.threadTitle.substring(0, 60) + (opp.threadTitle.length > 60 ? '...' : ''),
         opp.subreddit,
         opp.aiScore ? (opp.aiScore * 100).toFixed(0) + '%' : 'N/A',
-        opp.status,
-        opp.aiScoreCommentary?.substring(0, 60) + ((opp.aiScoreCommentary?.length ?? 0) > 60 ? '...' : '') || 'N/A',
-        opp.commentText?.substring(0, 50) + ((opp.commentText?.length ?? 0) > 50 ? '...' : '') || 'N/A',
-        opp.citationAnchorText || 'N/A',
+        opp.status.charAt(0).toUpperCase() + opp.status.slice(1),
+        opp.aiScoreCommentary?.substring(0, 80) + ((opp.aiScoreCommentary?.length ?? 0) > 80 ? '...' : '') || 'N/A',
+        opp.commentText?.substring(0, 70) + ((opp.commentText?.length ?? 0) > 70 ? '...' : '') || 'N/A',
+        opp.citationAnchorText?.substring(0, 40) + ((opp.citationAnchorText?.length ?? 0) > 40 ? '...' : '') || 'None',
       ])
 
       autoTable(doc, {
         head: [['Thread Title', 'Subreddit', 'AI Score', 'Status', 'AI Commentary', 'Comment Text', 'Citations']],
         body: tableData,
-        startY: 40,
+        startY: 70,
         styles: {
-          fontSize: 8,
-          cellPadding: 2,
+          fontSize: 9,
+          cellPadding: 3,
+          overflow: 'linebreak',
+          cellWidth: 'auto',
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        columnStyles: {
+          0: { cellWidth: 'auto', fontStyle: 'bold' },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 20, halign: 'center' },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 'auto' },
+          5: { cellWidth: 'auto' },
+          6: { cellWidth: 'auto' },
         },
         headStyles: {
           fillColor: [249, 115, 22],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
+          fontSize: 10,
+          cellPadding: 4,
         },
         alternateRowStyles: {
-          fillColor: isDark ? [30, 41, 59] : [241, 245, 249],
+          fillColor: [248, 250, 252],
         },
+        theme: 'grid',
       })
+
+      // Footer with page numbers
+      const pageCount = doc.internal.pages.length - 1
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(128, 128, 128)
+        doc.text(
+          `Page ${i} of ${pageCount} | RedditPipe by Growth Rocket AI Labs`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        )
+      }
 
       doc.save(`${selectedClient?.name || 'report'}-opportunities.pdf`)
     } catch (err) {
