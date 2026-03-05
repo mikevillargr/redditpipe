@@ -11,6 +11,16 @@ import { computeRelevanceScore } from "./scoring.js";
 import { findBestAccount } from "./matching.js";
 import { aiScoreRelevance, warmAiConfig } from "./ai-scoring.js";
 
+// ── Pipeline abort signal ────────────────────────────────────────────────────
+let abortRequested = false;
+
+export function abortSearch(): boolean {
+  if (!pipelineStatus.running) return false;
+  abortRequested = true;
+  console.log("[Search] Abort requested — pipeline will stop at next checkpoint");
+  return true;
+}
+
 // ── Pipeline status (readable by API for frontend) ──────────────────────────
 export interface PipelineStatus {
   running: boolean;
@@ -62,48 +72,18 @@ interface DiscoveredThread {
   createdUtc: number;
   permalink: string;
   discoveredVia: "thread_search" | "comment_search";
+  clientIds: Set<string>; // which clients' keywords discovered this thread
 }
 
-// ── Keyword expansion for broader Reddit search coverage ─────────────────────
-// Long exact phrases rarely match Reddit titles/posts. This function generates
-// additional shorter query variants so Reddit's search finds more threads.
-function expandKeywords(keywords: string[], breadth: string): string[] {
-  if (breadth === "narrow") return keywords; // exact phrases only
-
-  const expanded = new Set<string>();
-  for (const kw of keywords) {
-    expanded.add(kw); // always keep original
-
-    const words = kw.split(/\s+/).filter((w) => w.length > 2);
-    if (words.length <= 2) continue; // already short enough
-
-    if (breadth === "broad") {
-      // Generate all 2-word and 3-word sliding windows
-      for (let i = 0; i < words.length - 1; i++) {
-        expanded.add(words.slice(i, i + 2).join(" "));
-        if (i < words.length - 2) {
-          expanded.add(words.slice(i, i + 3).join(" "));
-        }
-      }
-    } else {
-      // "balanced" — keep original + generate 3-word windows only
-      if (words.length > 3) {
-        for (let i = 0; i < words.length - 2; i++) {
-          expanded.add(words.slice(i, i + 3).join(" "));
-        }
-      }
-    }
-  }
-  return Array.from(expanded);
-}
-
-// ── Original inline AI scoring pipeline ──────────────────────────────────────
-// Restored from the first working release (commit 56d94da).
-// Key difference: AI scores every thread per client INLINE (not batched).
-// This produces much better relevance because AI is the sole quality judge.
+// ── Safety caps ──────────────────────────────────────────────────────────────
+const MAX_AI_CALLS_TOTAL = 200;   // hard cap on AI calls per run
+const MAX_OPPS_PER_CLIENT = 20;   // max opps created per client per run
+const MAX_OPPS_TOTAL = 50;        // max opps created total per run
+const HEURISTIC_PRE_FILTER = 0.25; // threads below this skip AI entirely
 
 export async function runSearchPipeline(): Promise<SearchResult> {
   const startTime = Date.now();
+  abortRequested = false;
   pipelineStatus = {
     running: true,
     phase: "init",
@@ -122,7 +102,6 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const maxResults = settings?.maxResultsPerKeyword ?? 10;
     const threadMaxAgeDays = settings?.threadMaxAgeDays ?? 2;
     const relevanceThreshold = settings?.relevanceThreshold ?? 0.4;
-    const searchBreadth = (settings as Record<string, unknown>)?.searchBreadth as string || "balanced";
     const hasAiKey = !!(settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY);
 
     clearConfigCache();
@@ -156,28 +135,33 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     if (hasAiKey) await warmAiConfig();
 
     let totalOpportunities = 0;
+    const oppsPerClient = new Map<string, number>();
     const errors: string[] = [];
     let skippedDuplicate = 0;
     let skippedTooOld = 0;
     let skippedLowScore = 0;
     let skippedHeuristic = 0;
+    let skippedCapped = 0;
     let aiCalls = 0;
-    const HEURISTIC_PRE_FILTER = 0.10; // threads below this are clearly irrelevant, skip AI
 
     // Pre-load all existing opportunity keys for O(1) dedup
     const existingOpps = await db.opportunity.findMany({ select: { threadId: true, clientId: true } });
     const existingSet = new Set(existingOpps.map((o) => `${o.threadId}::${o.clientId}`));
 
-    // ── Phase 1: Collect unique threads from all clients' keyword searches ──
+    // ── Phase 1: Collect threads PER CLIENT (no keyword expansion) ──────────
+    // Each thread tracks which client(s) discovered it via clientIds set.
+    // No keyword expansion — use raw keywords only for precise results.
     pipelineStatus.phase = "searching";
     const discoveredThreads = new Map<string, DiscoveredThread>();
 
     for (const client of clients) {
-      const rawKeywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
-      const keywords = expandKeywords(rawKeywords, searchBreadth);
-      console.log(`[Search] ${client.name}: ${rawKeywords.length} keywords → ${keywords.length} search queries (breadth: ${searchBreadth})`);
+      if (abortRequested) break;
+
+      const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+      console.log(`[Search] ${client.name}: ${keywords.length} keywords (no expansion)`);
 
       for (const keyword of keywords) {
+        if (abortRequested) break;
         pipelineStatus.progress = `Searching "${keyword}" for ${client.name}...`;
 
         // Thread search
@@ -187,7 +171,10 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           }, redditConfig);
 
           for (const thread of threads) {
-            if (!discoveredThreads.has(thread.id)) {
+            const existing = discoveredThreads.get(thread.id);
+            if (existing) {
+              existing.clientIds.add(client.id);
+            } else {
               discoveredThreads.set(thread.id, {
                 threadId: thread.id,
                 threadUrl: `https://www.reddit.com${thread.permalink}`,
@@ -199,6 +186,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
                 createdUtc: thread.created_utc,
                 permalink: thread.permalink,
                 discoveredVia: "thread_search",
+                clientIds: new Set([client.id]),
               });
             }
           }
@@ -217,7 +205,10 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           for (const comment of commentResults) {
             if (!comment.link_id) continue;
             const parentThreadId = comment.link_id.replace(/^t3_/, "");
-            if (!discoveredThreads.has(parentThreadId)) {
+            const existing = discoveredThreads.get(parentThreadId);
+            if (existing) {
+              existing.clientIds.add(client.id);
+            } else {
               discoveredThreads.set(parentThreadId, {
                 threadId: parentThreadId,
                 threadUrl: comment.link_url,
@@ -229,6 +220,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
                 createdUtc: comment.created_utc,
                 permalink: comment.permalink,
                 discoveredVia: "comment_search",
+                clientIds: new Set([client.id]),
               });
             }
           }
@@ -240,16 +232,17 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       }
     }
 
-    console.log(`[Search] Phase 1: Discovered ${discoveredThreads.size} unique threads from keyword searches`);
+    console.log(`[Search] Phase 1: Discovered ${discoveredThreads.size} unique threads${abortRequested ? " (aborted)" : ""}`);
 
     // ── Phase 2: Heuristic pre-filter + AI scoring ──────────────────────────
-    // Step 1: Heuristic pre-filter (cheap, no API calls) removes clearly irrelevant threads.
-    // Step 2: Fetch comments only for threads that survived heuristic.
-    // Step 3: AI scoring (expensive) is the final quality filter.
+    // Only score threads against the client(s) whose keywords found them.
     pipelineStatus.phase = "scoring";
     const threadCommentsCache = new Map<string, string>();
 
     for (const [, thread] of discoveredThreads) {
+      if (abortRequested) break;
+      if (totalOpportunities >= MAX_OPPS_TOTAL) { console.log(`[Search] Total opp cap (${MAX_OPPS_TOTAL}) reached, stopping.`); break; }
+
       const threadDate = new Date(thread.createdUtc * 1000);
       const ageMs = Date.now() - threadDate.getTime();
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
@@ -259,8 +252,17 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       const threadAge =
         ageHours < 1 ? "just now" : ageHours < 24 ? `${ageHours}h ago` : `${Math.floor(ageDays)}d ago`;
 
-      // Score against each client
-      for (const client of clients) {
+      // Only score against clients whose keywords discovered this thread
+      const relevantClients = clients.filter((c) => thread.clientIds.has(c.id));
+
+      for (const client of relevantClients) {
+        if (abortRequested) break;
+        if (totalOpportunities >= MAX_OPPS_TOTAL) break;
+
+        // Per-client opp cap
+        const clientOppCount = oppsPerClient.get(client.id) ?? 0;
+        if (clientOppCount >= MAX_OPPS_PER_CLIENT) { skippedCapped++; continue; }
+
         pipelineStatus.progress = `Pre-filtering thread ${thread.threadId} for ${client.name}...`;
 
         // Check for existing opportunity (O(1) set lookup)
@@ -305,9 +307,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         // ── Step 3: AI scoring (expensive, final filter) ──
         let relevanceScore = heuristicScore;
         let aiRelevanceNote: string | null = null;
-        if (hasAiKey) {
+        if (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL) {
           try {
-            pipelineStatus.progress = `AI scoring thread ${thread.threadId} for ${client.name}...`;
+            pipelineStatus.progress = `AI scoring thread ${thread.threadId} for ${client.name} (${aiCalls}/${MAX_AI_CALLS_TOTAL})...`;
             aiCalls++;
             const aiResult = await aiScoreRelevance({
               threadTitle: thread.title,
@@ -331,6 +333,12 @@ export async function runSearchPipeline(): Promise<SearchResult> {
             }
           } catch (err) {
             console.error(`AI scoring failed for ${thread.threadId}/${client.name}, using heuristic:`, err);
+          }
+        } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
+          // AI budget exhausted — fall back to heuristic threshold
+          if (heuristicScore < relevanceThreshold) {
+            skippedLowScore++;
+            continue;
           }
         } else if (heuristicScore < relevanceThreshold) {
           skippedLowScore++;
@@ -366,15 +374,17 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         });
 
         totalOpportunities++;
+        oppsPerClient.set(client.id, clientOppCount + 1);
         pipelineStatus.opportunitiesCreated = totalOpportunities;
       }
     }
 
     const durationMs = Date.now() - startTime;
-    console.log(`[Search] Complete: ${discoveredThreads.size} threads × ${clients.length} clients, ${totalOpportunities} created, ${skippedHeuristic} heuristic-filtered, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} AI-filtered, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
+    const aborted = abortRequested;
+    console.log(`[Search] ${aborted ? "Aborted" : "Complete"}: ${discoveredThreads.size} threads, ${totalOpportunities} created, ${skippedHeuristic} heuristic-filtered, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} AI-filtered, ${skippedCapped} capped, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
 
     const result: SearchResult = {
-      message: "Search complete",
+      message: aborted ? "Search aborted" : "Search complete",
       summary: {
         clientsSearched: clients.length,
         opportunitiesCreated: totalOpportunities,
@@ -388,12 +398,14 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       errors: errors.length > 0 ? errors : undefined,
     };
 
-    pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: totalOpportunities };
+    pipelineStatus = { running: false, phase: aborted ? "aborted" : "idle", progress: aborted ? "Stopped by user" : "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: totalOpportunities };
+    abortRequested = false;
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[Search] Pipeline error: ${msg}`);
     pipelineStatus = { running: false, phase: "error", progress: msg, startedAt: null, lastCompletedAt: pipelineStatus.lastCompletedAt, lastResult: pipelineStatus.lastResult, opportunitiesCreated: pipelineStatus.opportunitiesCreated };
+    abortRequested = false;
     throw err;
   } finally {
     await db.$disconnect().catch(() => {});

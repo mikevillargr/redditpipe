@@ -47,6 +47,8 @@ import {
   LinkIcon,
   ExternalLinkIcon,
   AlertCircleIcon,
+  SquareIcon,
+  BrainIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
 type StatusFilter = 'all' | 'new' | 'published' | 'unverified'
@@ -88,7 +90,8 @@ function getTimeAgo(date: Date): string {
   const days = Math.floor(hours / 24)
   return `${days}d ago`
 }
-type ScoreFilter = 'any' | '0.7' | '0.85' | '0.9'
+type ScoreFilter = 'any' | '<0.5' | '0.7' | '0.85' | '0.9'
+type AiScoreFilter = 'all' | 'has_ai' | 'no_ai'
 const scoreFilterOptions: {
   value: ScoreFilter
   label: string
@@ -98,6 +101,11 @@ const scoreFilterOptions: {
     value: 'any',
     label: 'Any score',
     color: '#64748b',
+  },
+  {
+    value: '<0.5',
+    label: '<0.5',
+    color: '#ef4444',
   },
   {
     value: '0.7',
@@ -156,6 +164,7 @@ export function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('new')
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
+  const [aiScoreFilter, setAiScoreFilter] = useState<AiScoreFilter>('all')
   const today = new Date().toISOString().split('T')[0]
   const [dateStart, setDateStart] = useState(today)
   const [dateEnd, setDateEnd] = useState(today)
@@ -352,6 +361,16 @@ export function Dashboard() {
     setTriggeringSearch(false)
   }
 
+  const [stoppingSearch, setStoppingSearch] = useState(false)
+  const handleStopSearch = async () => {
+    setStoppingSearch(true)
+    try {
+      await fetch('/api/search/stop', { method: 'POST' })
+      setTimeout(fetchPipelineStatus, 1000)
+    } catch { /* ignore */ }
+    setTimeout(() => setStoppingSearch(false), 3000)
+  }
+
   const [verifyingCards, setVerifyingCards] = useState<Set<string>>(new Set())
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
   const [snackbar, setSnackbar] = useState<{
@@ -541,15 +560,19 @@ export function Dashboard() {
       : opportunities.filter((o) => o.clientId === clientFilter)
   const filteredOpportunities = clientFilteredOpps.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false
-    if (scoreFilter !== 'any' && o.relevanceScore < parseFloat(scoreFilter))
+    if (scoreFilter === '<0.5' && o.relevanceScore >= 0.5) return false
+    if (scoreFilter !== 'any' && scoreFilter !== '<0.5' && o.relevanceScore < parseFloat(scoreFilter))
       return false
+    if (aiScoreFilter === 'has_ai' && !o.aiRelevanceNote) return false
+    if (aiScoreFilter === 'no_ai' && !!o.aiRelevanceNote) return false
     return true
   })
 
-  // Reset visible count when filters change
+  // Reset visible count and selection when filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [clientFilter, statusFilter, scoreFilter, dateStart, dateEnd])
+    setSelectedIds(new Set())
+  }, [clientFilter, statusFilter, scoreFilter, aiScoreFilter, dateStart, dateEnd])
 
   const visibleOpportunities = useMemo(
     () => filteredOpportunities.slice(0, visibleCount),
@@ -637,6 +660,16 @@ export function Dashboard() {
                 {pipelineStatus.progress}
               </Typography>
             </Box>
+            <Button
+              size="small"
+              variant="contained"
+              onClick={handleStopSearch}
+              disabled={stoppingSearch}
+              startIcon={stoppingSearch ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <SquareIcon size={14} />}
+              sx={{ fontSize: '12px', textTransform: 'none', bgcolor: '#ef4444', color: '#fff', '&:hover': { bgcolor: '#dc2626' }, whiteSpace: 'nowrap' }}
+            >
+              {stoppingSearch ? 'Stopping...' : 'Stop Search'}
+            </Button>
           </>
         ) : (
           <>
@@ -828,6 +861,36 @@ export function Dashboard() {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+            <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0', mx: 0.5 }} />
+            <BrainIcon size={13} color="#64748b" />
+            <ToggleButtonGroup
+              value={aiScoreFilter}
+              exclusive
+              onChange={(_, val) => val && setAiScoreFilter(val)}
+              size="small"
+              sx={{
+                '& .MuiToggleButton-root': {
+                  border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                  color: 'text.secondary',
+                  fontSize: '12px',
+                  px: 1.25,
+                  py: 0.4,
+                  textTransform: 'none',
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(99,102,241,0.12)',
+                    color: '#6366f1',
+                    borderColor: 'rgba(99,102,241,0.4)',
+                  },
+                  '&:hover': {
+                    bgcolor: isDark ? '#1e293b' : '#f1f5f9',
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="all">All</ToggleButton>
+              <ToggleButton value="has_ai">AI Scored</ToggleButton>
+              <ToggleButton value="no_ai">No AI</ToggleButton>
+            </ToggleButtonGroup>
           </Box>
 
           <Box
@@ -998,6 +1061,24 @@ export function Dashboard() {
           flexWrap: 'wrap',
         }}
       >
+        {filteredOpportunities.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Checkbox
+              checked={selectedIds.size > 0 && selectedIds.size === filteredOpportunities.length}
+              indeterminate={selectedIds.size > 0 && selectedIds.size < filteredOpportunities.length}
+              onChange={selectAll}
+              size="small"
+              sx={{ p: 0.25, color: '#94a3b8', '&.Mui-checked': { color: '#f97316' }, '&.MuiCheckbox-indeterminate': { color: '#f97316' } }}
+            />
+            <Typography
+              sx={{ fontSize: '12px', color: 'text.secondary', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
+              onClick={selectAll}
+            >
+              {selectedIds.size > 0 ? `${selectedIds.size} selected` : `Select all (${filteredOpportunities.length})`}
+            </Typography>
+            <Box sx={{ width: '1px', height: 14, bgcolor: subBorder, ml: 0.5 }} />
+          </Box>
+        )}
         <Box
           sx={{
             display: 'flex',

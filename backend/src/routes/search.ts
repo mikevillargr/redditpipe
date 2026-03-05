@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getPipelineStatus } from "../lib/search-pipeline.js";
+import { getPipelineStatus, abortSearch } from "../lib/search-pipeline.js";
 import { runSearch } from "../lib/cron.js";
 
 const app = new Hono();
@@ -15,6 +15,15 @@ app.post("/run", async (c) => {
   }
   runSearch().catch((err) => console.error("[API] Search failed:", err));
   return c.json({ message: "Search started", status: "running" });
+});
+
+// POST /api/search/stop
+app.post("/stop", async (c) => {
+  const stopped = abortSearch();
+  if (!stopped) {
+    return c.json({ error: "No search running to stop" }, 409);
+  }
+  return c.json({ message: "Stop signal sent — pipeline will halt at next checkpoint" });
 });
 
 // GET /api/search/status

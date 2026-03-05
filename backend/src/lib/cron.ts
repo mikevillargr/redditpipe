@@ -96,10 +96,8 @@ export async function initCronJobs() {
   // Schedule search based on DB settings
   await refreshSearchSchedule();
 
-  // Run initial search on startup (delayed 10s)
-  if (cronEnabled) {
-    setTimeout(runSearch, 10000);
-  }
+  // No auto-run on startup — only the cron schedule or manual trigger should start searches.
+  // Previous behavior: setTimeout(runSearch, 10000) caused unscheduled runs on every deploy.
 
   // Reset Daily Counts — Midnight UTC
   cron.schedule("0 0 * * *", async () => {

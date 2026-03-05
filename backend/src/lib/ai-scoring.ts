@@ -137,7 +137,7 @@ Score this thread. Be strict — most threads are NOT good opportunities.`;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[AI Scoring] Failed for "${params.clientName}" / r/${params.subreddit}: ${msg}`);
-    return { score: 0.5, note: "AI scoring unavailable — using heuristic score", shouldKeep: true };
+    return { score: 0, note: "AI scoring failed — rejected for safety", shouldKeep: false };
   }
 }
 
