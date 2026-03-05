@@ -4,7 +4,6 @@ import {
   clearConfigCache,
   resetRateLimiter,
   searchReddit,
-  searchRedditComments,
   getThreadComments,
 } from "./reddit.js";
 import { computeRelevanceScore } from "./scoring.js";
@@ -197,39 +196,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           errors.push(msg);
         }
 
-        // Comment search
-        try {
-          const commentResults = await searchRedditComments(token, keyword, {
-            sort: "new", time: "week", limit: maxResults,
-          }, redditConfig);
-
-          for (const comment of commentResults) {
-            if (!comment.link_id) continue;
-            const parentThreadId = comment.link_id.replace(/^t3_/, "");
-            const existing = discoveredThreads.get(parentThreadId);
-            if (existing) {
-              existing.clientIds.add(client.id);
-            } else {
-              discoveredThreads.set(parentThreadId, {
-                threadId: parentThreadId,
-                threadUrl: comment.link_url,
-                subreddit: comment.subreddit,
-                title: comment.link_title,
-                selftext: comment.body.slice(0, 500),
-                threadScore: comment.score,
-                numComments: 0,
-                createdUtc: comment.created_utc,
-                permalink: comment.permalink,
-                discoveredVia: "comment_search",
-                clientIds: new Set([client.id]),
-              });
-            }
-          }
-        } catch (err) {
-          const msg = `Error searching comments "${keyword}" for ${client.name}: ${err instanceof Error ? err.message : "Unknown"}`;
-          console.error(msg);
-          errors.push(msg);
-        }
+        // Comment search disabled — thread search only for precision and efficiency
       }
     }
 

@@ -104,7 +104,7 @@ const scoreFilterOptions: {
   },
   {
     value: '<0.5',
-    label: '<0.5',
+    label: '≤0.5',
     color: '#ef4444',
   },
   {
@@ -560,11 +560,12 @@ export function Dashboard() {
       : opportunities.filter((o) => o.clientId === clientFilter)
   const filteredOpportunities = clientFilteredOpps.filter((o) => {
     if (statusFilter !== 'all' && o.status !== statusFilter) return false
-    if (scoreFilter === '<0.5' && o.relevanceScore >= 0.5) return false
+    if (scoreFilter === '<0.5' && o.relevanceScore > 0.5) return false
     if (scoreFilter !== 'any' && scoreFilter !== '<0.5' && o.relevanceScore < parseFloat(scoreFilter))
       return false
-    if (aiScoreFilter === 'has_ai' && !o.aiRelevanceNote) return false
-    if (aiScoreFilter === 'no_ai' && !!o.aiRelevanceNote) return false
+    const hasRealAiScore = !!o.aiRelevanceNote && !o.aiRelevanceNote.includes('AI scoring unavailable')
+    if (aiScoreFilter === 'has_ai' && !hasRealAiScore) return false
+    if (aiScoreFilter === 'no_ai' && hasRealAiScore) return false
     return true
   })
 
