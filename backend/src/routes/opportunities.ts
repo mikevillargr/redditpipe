@@ -235,27 +235,37 @@ app.post("/bulk", async (c) => {
     if (action === "dismiss") {
       if (!dismissReason || !dismissReason.trim()) return c.json({ error: "Dismissal reason is required" }, 400);
 
-      const opps = await prisma.opportunity.findMany({
-        where: { id: { in: ids } },
-        include: { client: { select: { id: true, name: true } } },
-      });
+      // Process in chunks to avoid SQLite variable limits and timeouts
+      const CHUNK_SIZE = 100;
+      let totalDismissed = 0;
 
-      for (const opp of opps) {
-        await prisma.dismissalLog.create({
-          data: {
-            clientId: opp.clientId,
-            clientName: opp.client?.name || "Unknown",
-            threadId: opp.threadId,
-            subreddit: opp.subreddit,
-            title: opp.title,
-            relevanceScore: opp.relevanceScore,
-            reason: dismissReason.trim(),
-          },
+      for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+        const chunk = ids.slice(i, i + CHUNK_SIZE);
+
+        const opps = await prisma.opportunity.findMany({
+          where: { id: { in: chunk } },
+          include: { client: { select: { id: true, name: true } } },
         });
+
+        if (opps.length > 0) {
+          await prisma.dismissalLog.createMany({
+            data: opps.map((opp) => ({
+              clientId: opp.clientId,
+              clientName: opp.client?.name || "Unknown",
+              threadId: opp.threadId,
+              subreddit: opp.subreddit,
+              title: opp.title,
+              relevanceScore: opp.relevanceScore,
+              reason: dismissReason.trim(),
+            })),
+          });
+
+          await prisma.opportunity.deleteMany({ where: { id: { in: chunk } } });
+          totalDismissed += opps.length;
+        }
       }
 
-      await prisma.opportunity.deleteMany({ where: { id: { in: ids } } });
-      return c.json({ success: true, count: opps.length, action: "dismissed" });
+      return c.json({ success: true, count: totalDismissed, action: "dismissed" });
     }
 
     await prisma.opportunity.updateMany({ where: { id: { in: ids } }, data: { status: "published" } });

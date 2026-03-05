@@ -787,37 +787,21 @@ export function Dashboard() {
           </Box>
         </Box>
 
-        {/* Row 2: Score + Date */}
+        {/* Row 2: Score + AI filter */}
         <Box
           sx={{
-            px: {
-              xs: 1.5,
-              sm: 2,
-            },
-            py: 1.25,
+            px: { xs: 1.5, sm: 2 },
+            py: 1,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2,
+            gap: 1.5,
             flexWrap: 'wrap',
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.75,
-            }}
-          >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <SlidersHorizontalIcon size={13} color="#64748b" />
-            <Typography
-              sx={{
-                fontSize: '13px',
-                color: 'text.secondary',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Min score:
+            <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              Score:
             </Typography>
             <ToggleButtonGroup
               value={scoreFilter}
@@ -828,42 +812,35 @@ export function Dashboard() {
                 '& .MuiToggleButton-root': {
                   border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
                   color: 'text.secondary',
-                  fontSize: '12px',
-                  px: 1.25,
-                  py: 0.4,
+                  fontSize: '11px',
+                  px: 1,
+                  py: 0.3,
                   textTransform: 'none',
                   '&.Mui-selected': {
                     bgcolor: 'rgba(249,115,22,0.12)',
                     color: '#f97316',
                     borderColor: 'rgba(249,115,22,0.4)',
                   },
-                  '&:hover': {
-                    bgcolor: isDark ? '#1e293b' : '#f1f5f9',
-                  },
+                  '&:hover': { bgcolor: isDark ? '#1e293b' : '#f1f5f9' },
                 },
               }}
             >
               {scoreFilterOptions.map((opt) => (
                 <ToggleButton key={opt.value} value={opt.value}>
                   {opt.value !== 'any' && (
-                    <Box
-                      component="span"
-                      sx={{
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        bgcolor: opt.color,
-                        mr: 0.5,
-                        display: 'inline-block',
-                      }}
-                    />
+                    <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: opt.color, mr: 0.5, display: 'inline-block' }} />
                   )}
                   {opt.label}
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
-            <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0', mx: 0.5 }} />
+          </Box>
+          <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
             <BrainIcon size={13} color="#64748b" />
+            <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              AI:
+            </Typography>
             <ToggleButtonGroup
               value={aiScoreFilter}
               exclusive
@@ -873,18 +850,16 @@ export function Dashboard() {
                 '& .MuiToggleButton-root': {
                   border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
                   color: 'text.secondary',
-                  fontSize: '12px',
-                  px: 1.25,
-                  py: 0.4,
+                  fontSize: '11px',
+                  px: 1,
+                  py: 0.3,
                   textTransform: 'none',
                   '&.Mui-selected': {
                     bgcolor: 'rgba(99,102,241,0.12)',
                     color: '#6366f1',
                     borderColor: 'rgba(99,102,241,0.4)',
                   },
-                  '&:hover': {
-                    bgcolor: isDark ? '#1e293b' : '#f1f5f9',
-                  },
+                  '&:hover': { bgcolor: isDark ? '#1e293b' : '#f1f5f9' },
                 },
               }}
             >
@@ -893,146 +868,81 @@ export function Dashboard() {
               <ToggleButton value="no_ai">No AI</ToggleButton>
             </ToggleButtonGroup>
           </Box>
+        </Box>
 
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.75,
-              flexWrap: 'wrap',
-            }}
-          >
+        {/* Row 3: Date presets + pickers */}
+        <Box
+          sx={{
+            px: { xs: 1.5, sm: 2 },
+            py: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            flexWrap: 'wrap',
+            borderTop: `1px solid ${isDark ? '#1e293b' : '#f1f5f9'}`,
+          }}
+        >
+          {presets.map((p) => (
             <Box
+              key={p.key}
+              onClick={() => applyPreset(p.key)}
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
+                px: 1,
+                py: 0.3,
+                borderRadius: '5px',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: 'pointer',
+                border: `1px solid ${activePreset === p.key ? '#f97316' : isDark ? '#334155' : '#e2e8f0'}`,
+                bgcolor: activePreset === p.key ? 'rgba(249,115,22,0.1)' : 'transparent',
+                color: activePreset === p.key ? '#f97316' : 'text.secondary',
+                transition: 'all 0.1s ease',
+                userSelect: 'none',
+                '&:hover': { borderColor: '#f97316', color: '#f97316', bgcolor: 'rgba(249,115,22,0.06)' },
               }}
             >
-              {presets.map((p) => (
-                <Box
-                  key={p.key}
-                  onClick={() => applyPreset(p.key)}
-                  sx={{
-                    px: 1,
-                    py: 0.3,
-                    borderRadius: '5px',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    border: `1px solid ${activePreset === p.key ? '#f97316' : isDark ? '#334155' : '#e2e8f0'}`,
-                    bgcolor:
-                      activePreset === p.key
-                        ? 'rgba(249,115,22,0.1)'
-                        : 'transparent',
-                    color:
-                      activePreset === p.key ? '#f97316' : 'text.secondary',
-                    transition: 'all 0.1s ease',
-                    userSelect: 'none',
-                    '&:hover': {
-                      borderColor: '#f97316',
-                      color: '#f97316',
-                      bgcolor: 'rgba(249,115,22,0.06)',
-                    },
-                  }}
-                >
-                  {p.label}
-                </Box>
-              ))}
+              {p.label}
             </Box>
-            <Box
+          ))}
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0' }} />
+            <TextField
+              type="date"
+              size="small"
+              value={dateStart}
+              onChange={(e) => setDateStart(e.target.value)}
+              inputProps={{ max: dateEnd }}
               sx={{
-                display: {
-                  xs: 'none',
-                  sm: 'flex',
+                width: 135,
+                '& .MuiOutlinedInput-root': {
+                  fontSize: '12px',
+                  '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                  '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                  '&.Mui-focused fieldset': { borderColor: '#f97316' },
                 },
-                alignItems: 'center',
-                gap: 0.75,
+                '& input': { color: 'text.primary', py: 0.5, px: 1 },
+                '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
               }}
-            >
-              <Box
-                sx={{
-                  width: '1px',
-                  height: 18,
-                  bgcolor: isDark ? '#334155' : '#e2e8f0',
-                }}
-              />
-              <TextField
-                type="date"
-                size="small"
-                value={dateStart}
-                onChange={(e) => setDateStart(e.target.value)}
-                inputProps={{
-                  max: dateEnd,
-                }}
-                sx={{
-                  width: 140,
-                  '& .MuiOutlinedInput-root': {
-                    fontSize: '13px',
-                    '& fieldset': {
-                      borderColor: isDark ? '#334155' : '#e2e8f0',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: isDark ? '#475569' : '#cbd5e1',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#f97316',
-                    },
-                  },
-                  '& input': {
-                    color: 'text.primary',
-                    py: 0.65,
-                    px: 1.25,
-                  },
-                  '& input::-webkit-calendar-picker-indicator': {
-                    filter: isDark ? 'invert(0.5)' : 'none',
-                    cursor: 'pointer',
-                  },
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: '13px',
-                  color: 'text.disabled',
-                }}
-              >
-                –
-              </Typography>
-              <TextField
-                type="date"
-                size="small"
-                value={dateEnd}
-                onChange={(e) => setDateEnd(e.target.value)}
-                inputProps={{
-                  min: dateStart,
-                  max: today,
-                }}
-                sx={{
-                  width: 140,
-                  '& .MuiOutlinedInput-root': {
-                    fontSize: '13px',
-                    '& fieldset': {
-                      borderColor: isDark ? '#334155' : '#e2e8f0',
-                    },
-                    '&:hover fieldset': {
-                      borderColor: isDark ? '#475569' : '#cbd5e1',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: '#f97316',
-                    },
-                  },
-                  '& input': {
-                    color: 'text.primary',
-                    py: 0.65,
-                    px: 1.25,
-                  },
-                  '& input::-webkit-calendar-picker-indicator': {
-                    filter: isDark ? 'invert(0.5)' : 'none',
-                    cursor: 'pointer',
-                  },
-                }}
-              />
-            </Box>
+            />
+            <Typography sx={{ fontSize: '12px', color: 'text.disabled' }}>–</Typography>
+            <TextField
+              type="date"
+              size="small"
+              value={dateEnd}
+              onChange={(e) => setDateEnd(e.target.value)}
+              inputProps={{ min: dateStart, max: today }}
+              sx={{
+                width: 135,
+                '& .MuiOutlinedInput-root': {
+                  fontSize: '12px',
+                  '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                  '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                  '&.Mui-focused fieldset': { borderColor: '#f97316' },
+                },
+                '& input': { color: 'text.primary', py: 0.5, px: 1 },
+                '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
+              }}
+            />
           </Box>
         </Box>
       </Paper>
