@@ -76,7 +76,8 @@ interface DiscoveredThread {
 }
 
 // ── Safety caps ──────────────────────────────────────────────────────────────
-const MAX_AI_CALLS_TOTAL = 200;   // hard cap on AI calls per run
+const MAX_AI_CANDIDATES_PER_CLIENT = 25; // only top N heuristic-ranked threads get AI-scored per client
+const MAX_AI_CALLS_TOTAL = 200;   // hard cap on AI calls per run (safety net)
 const MAX_OPPS_PER_CLIENT = 20;   // max opps created per client per run
 const MAX_OPPS_TOTAL = 50;        // max opps created total per run
 const HEURISTIC_PRE_FILTER = 0.25; // threads below this skip AI entirely
@@ -234,15 +235,22 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
     console.log(`[Search] Phase 1: Discovered ${discoveredThreads.size} unique threads${abortRequested ? " (aborted)" : ""}`);
 
-    // ── Phase 2: Heuristic pre-filter + AI scoring ──────────────────────────
-    // Only score threads against the client(s) whose keywords found them.
-    pipelineStatus.phase = "scoring";
-    const threadCommentsCache = new Map<string, string>();
+    // ── Phase 2A: Heuristic rank ALL thread×client pairs (free, instant) ────
+    // Score everything cheaply, then only AI-score the top candidates.
+    pipelineStatus.phase = "ranking";
+    pipelineStatus.progress = "Heuristic ranking all candidates...";
+
+    interface HeuristicCandidate {
+      thread: DiscoveredThread;
+      clientId: string;
+      heuristicScore: number;
+      threadDate: Date;
+      threadAge: string;
+    }
+
+    const candidates: HeuristicCandidate[] = [];
 
     for (const [, thread] of discoveredThreads) {
-      if (abortRequested) break;
-      if (totalOpportunities >= MAX_OPPS_TOTAL) { console.log(`[Search] Total opp cap (${MAX_OPPS_TOTAL}) reached, stopping.`); break; }
-
       const threadDate = new Date(thread.createdUtc * 1000);
       const ageMs = Date.now() - threadDate.getTime();
       const ageDays = ageMs / (1000 * 60 * 60 * 24);
@@ -256,15 +264,6 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       const relevantClients = clients.filter((c) => thread.clientIds.has(c.id));
 
       for (const client of relevantClients) {
-        if (abortRequested) break;
-        if (totalOpportunities >= MAX_OPPS_TOTAL) break;
-
-        // Per-client opp cap
-        const clientOppCount = oppsPerClient.get(client.id) ?? 0;
-        if (clientOppCount >= MAX_OPPS_PER_CLIENT) { skippedCapped++; continue; }
-
-        pipelineStatus.progress = `Pre-filtering thread ${thread.threadId} for ${client.name}...`;
-
         // Check for existing opportunity (O(1) set lookup)
         if (existingSet.has(`${thread.threadId}::${client.id}`)) {
           skippedDuplicate++;
@@ -273,7 +272,6 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
         const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
 
-        // ── Step 1: Heuristic pre-filter (free, instant) ──
         const heuristicScore = computeRelevanceScore({
           threadTitle: thread.title,
           threadBody: thread.selftext,
@@ -284,104 +282,143 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           threadMaxAgeDays,
         });
 
-        // Skip clearly irrelevant threads before wasting API calls
         if (heuristicScore < HEURISTIC_PRE_FILTER) {
           skippedHeuristic++;
           continue;
         }
 
-        // ── Step 2: Fetch comments (only for heuristic survivors) ──
-        let topComments = threadCommentsCache.get(thread.threadId) ?? "";
-        if (!threadCommentsCache.has(thread.threadId)) {
-          try {
-            const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
-            topComments = comments
-              .map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`)
-              .join("\n\n");
-          } catch (err) {
-            console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
-          }
-          threadCommentsCache.set(thread.threadId, topComments);
-        }
+        candidates.push({ thread, clientId: client.id, heuristicScore, threadDate, threadAge });
+      }
+    }
 
-        // ── Step 3: AI scoring (expensive, final filter) ──
-        let relevanceScore = heuristicScore;
-        let aiRelevanceNote: string | null = null;
-        if (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL) {
-          try {
-            pipelineStatus.progress = `AI scoring thread ${thread.threadId} for ${client.name} (${aiCalls}/${MAX_AI_CALLS_TOTAL})...`;
-            aiCalls++;
-            const aiResult = await aiScoreRelevance({
-              threadTitle: thread.title,
-              threadBody: thread.selftext,
-              topComments,
-              subreddit: thread.subreddit,
-              clientName: client.name,
-              clientDescription: client.description,
-              clientKeywords: keywords,
-              clientNuance: client.nuance,
-              threshold: relevanceThreshold,
-            });
-            relevanceScore = aiResult.score;
-            aiRelevanceNote = JSON.stringify({
-              note: aiResult.note,
-              factors: aiResult.factors || null,
-            });
-            if (!aiResult.shouldKeep) {
-              skippedLowScore++;
-              continue;
-            }
-          } catch (err) {
-            console.error(`AI scoring failed for ${thread.threadId}/${client.name}, using heuristic:`, err);
-          }
-        } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
-          // AI budget exhausted — fall back to heuristic threshold
-          if (heuristicScore < relevanceThreshold) {
+    // Sort by heuristic score descending — best candidates first
+    candidates.sort((a, b) => b.heuristicScore - a.heuristicScore);
+
+    // Select top N per client
+    const aiCandidatesPerClient = new Map<string, number>();
+    const topCandidates: HeuristicCandidate[] = [];
+    let skippedRankedOut = 0;
+
+    for (const candidate of candidates) {
+      const clientAiCount = aiCandidatesPerClient.get(candidate.clientId) ?? 0;
+      if (clientAiCount >= MAX_AI_CANDIDATES_PER_CLIENT) {
+        skippedRankedOut++;
+        continue;
+      }
+      aiCandidatesPerClient.set(candidate.clientId, clientAiCount + 1);
+      topCandidates.push(candidate);
+    }
+
+    console.log(`[Search] Phase 2A: ${candidates.length} heuristic survivors → top ${topCandidates.length} candidates for AI scoring (${skippedRankedOut} ranked out)`);
+
+    // ── Phase 2B: AI score only top candidates ──────────────────────────────
+    pipelineStatus.phase = "scoring";
+    const threadCommentsCache = new Map<string, string>();
+    const clientMap = new Map(clients.map((c) => [c.id, c]));
+
+    for (const candidate of topCandidates) {
+      if (abortRequested) break;
+      if (totalOpportunities >= MAX_OPPS_TOTAL) { console.log(`[Search] Total opp cap (${MAX_OPPS_TOTAL}) reached, stopping.`); break; }
+
+      const client = clientMap.get(candidate.clientId)!;
+      const { thread, heuristicScore, threadDate, threadAge } = candidate;
+
+      // Per-client opp cap
+      const clientOppCount = oppsPerClient.get(client.id) ?? 0;
+      if (clientOppCount >= MAX_OPPS_PER_CLIENT) { skippedCapped++; continue; }
+
+      const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+
+      // ── Fetch comments (only for AI candidates) ──
+      let topComments = threadCommentsCache.get(thread.threadId) ?? "";
+      if (!threadCommentsCache.has(thread.threadId)) {
+        try {
+          const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
+          topComments = comments
+            .map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`)
+            .join("\n\n");
+        } catch (err) {
+          console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
+        }
+        threadCommentsCache.set(thread.threadId, topComments);
+      }
+
+      // ── AI scoring (expensive, final filter) ──
+      let relevanceScore = heuristicScore;
+      let aiRelevanceNote: string | null = null;
+      if (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL) {
+        try {
+          pipelineStatus.progress = `AI scoring ${thread.threadId} for ${client.name} (${aiCalls + 1}/${topCandidates.length} candidates)...`;
+          aiCalls++;
+          const aiResult = await aiScoreRelevance({
+            threadTitle: thread.title,
+            threadBody: thread.selftext,
+            topComments,
+            subreddit: thread.subreddit,
+            clientName: client.name,
+            clientDescription: client.description,
+            clientKeywords: keywords,
+            clientNuance: client.nuance,
+            threshold: relevanceThreshold,
+          });
+          relevanceScore = aiResult.score;
+          aiRelevanceNote = JSON.stringify({
+            note: aiResult.note,
+            factors: aiResult.factors || null,
+          });
+          if (!aiResult.shouldKeep) {
             skippedLowScore++;
             continue;
           }
-        } else if (heuristicScore < relevanceThreshold) {
+        } catch (err) {
+          console.error(`AI scoring failed for ${thread.threadId}/${client.name}, using heuristic:`, err);
+        }
+      } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
+        if (heuristicScore < relevanceThreshold) {
           skippedLowScore++;
           continue;
         }
-
-        // Match best account for this client
-        const bestAccount = findBestAccount({
-          subreddit: thread.subreddit,
-          clientId: client.id,
-          accounts,
-        });
-
-        await db.opportunity.create({
-          data: {
-            clientId: client.id,
-            accountId: bestAccount?.id || null,
-            threadId: thread.threadId,
-            threadUrl: thread.threadUrl || `https://www.reddit.com${thread.permalink}`,
-            subreddit: thread.subreddit,
-            title: thread.title,
-            bodySnippet: thread.selftext || null,
-            topComments: topComments || null,
-            score: thread.threadScore,
-            commentCount: thread.numComments,
-            threadAge,
-            threadCreatedAt: threadDate,
-            relevanceScore,
-            aiRelevanceNote,
-            status: "new",
-            discoveredVia: thread.discoveredVia,
-          },
-        });
-
-        totalOpportunities++;
-        oppsPerClient.set(client.id, clientOppCount + 1);
-        pipelineStatus.opportunitiesCreated = totalOpportunities;
+      } else if (heuristicScore < relevanceThreshold) {
+        skippedLowScore++;
+        continue;
       }
+
+      // Match best account for this client
+      const bestAccount = findBestAccount({
+        subreddit: thread.subreddit,
+        clientId: client.id,
+        accounts,
+      });
+
+      await db.opportunity.create({
+        data: {
+          clientId: client.id,
+          accountId: bestAccount?.id || null,
+          threadId: thread.threadId,
+          threadUrl: thread.threadUrl || `https://www.reddit.com${thread.permalink}`,
+          subreddit: thread.subreddit,
+          title: thread.title,
+          bodySnippet: thread.selftext || null,
+          topComments: topComments || null,
+          score: thread.threadScore,
+          commentCount: thread.numComments,
+          threadAge,
+          threadCreatedAt: threadDate,
+          relevanceScore,
+          aiRelevanceNote,
+          status: "new",
+          discoveredVia: thread.discoveredVia,
+        },
+      });
+
+      totalOpportunities++;
+      oppsPerClient.set(client.id, clientOppCount + 1);
+      pipelineStatus.opportunitiesCreated = totalOpportunities;
     }
 
     const durationMs = Date.now() - startTime;
     const aborted = abortRequested;
-    console.log(`[Search] ${aborted ? "Aborted" : "Complete"}: ${discoveredThreads.size} threads, ${totalOpportunities} created, ${skippedHeuristic} heuristic-filtered, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} AI-filtered, ${skippedCapped} capped, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
+    console.log(`[Search] ${aborted ? "Aborted" : "Complete"}: ${discoveredThreads.size} threads, ${candidates.length} heuristic survivors, ${topCandidates.length} AI candidates, ${totalOpportunities} created, ${skippedHeuristic} heuristic-filtered, ${skippedRankedOut} ranked-out, ${skippedDuplicate} existing, ${skippedTooOld} too old, ${skippedLowScore} AI-filtered, ${skippedCapped} capped, ${aiCalls} AI calls, ${(durationMs / 1000).toFixed(1)}s`);
 
     const result: SearchResult = {
       message: aborted ? "Search aborted" : "Search complete",
