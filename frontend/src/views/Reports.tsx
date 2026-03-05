@@ -240,40 +240,43 @@ export function Reports() {
         </Box>
       </Box>
 
-      {/* Client Selection */}
+      {/* Filters */}
       <Box
         sx={{
-          px: { xs: 1.5, sm: 2 },
-          py: 1,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          flexWrap: 'wrap',
+          mb: 3,
           bgcolor: 'background.paper',
-          border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+          border: `1px solid ${borderColor}`,
           borderRadius: '12px',
+          overflow: 'hidden',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Building2Icon size={13} color="#64748b" />
-          <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-            Client:
-          </Typography>
-        </Box>
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel>Select Client</InputLabel>
+        <Box
+          sx={{
+            px: { xs: 1.5, sm: 2 },
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            <Building2Icon size={13} color="#64748b" />
+            <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              Client:
+            </Typography>
+          </Box>
           <Select
             value={selectedClientId}
-            label="Select Client"
             onChange={(e) => setSelectedClientId(e.target.value)}
+            size="small"
             disabled={clients.length === 0}
             sx={{
-              '& .MuiOutlinedInput-root': {
-                fontSize: '12px',
-                '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
-                '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
-                '&.Mui-focused fieldset': { borderColor: '#f97316' },
-              },
+              minWidth: 180,
+              fontSize: '13px',
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: borderColor },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#f97316' },
             }}
           >
             {clients.map((client) => (
@@ -282,53 +285,53 @@ export function Reports() {
               </MenuItem>
             ))}
           </Select>
-        </FormControl>
-        <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0' }} />
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <CalendarIcon size={13} color="#64748b" />
-          <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
-            Date Range:
-          </Typography>
+          
+          <Box sx={{ width: '1px', height: 20, bgcolor: borderColor, mx: 0.5 }} />
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <CalendarIcon size={13} color="#64748b" />
+            <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              Date:
+            </Typography>
+          </Box>
+          <TextField
+            type="date"
+            size="small"
+            value={startDate ? startDate.toISOString().split('T')[0] : ''}
+            onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+            inputProps={{ max: endDate ? endDate.toISOString().split('T')[0] : undefined }}
+            sx={{
+              width: 140,
+              '& .MuiOutlinedInput-root': {
+                fontSize: '12px',
+                '& fieldset': { borderColor: borderColor },
+                '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+              '& input': { py: 0.75, px: 1.25 },
+              '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
+            }}
+          />
+          <Typography sx={{ fontSize: '12px', color: 'text.disabled', mx: -0.5 }}>–</Typography>
+          <TextField
+            type="date"
+            size="small"
+            value={endDate ? endDate.toISOString().split('T')[0] : ''}
+            onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+            inputProps={{ min: startDate ? startDate.toISOString().split('T')[0] : undefined }}
+            sx={{
+              width: 140,
+              '& .MuiOutlinedInput-root': {
+                fontSize: '12px',
+                '& fieldset': { borderColor: borderColor },
+                '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+              '& input': { py: 0.75, px: 1.25 },
+              '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
+            }}
+          />
         </Box>
-        <TextField
-          type="date"
-          size="small"
-          label="Start"
-          value={startDate ? startDate.toISOString().split('T')[0] : ''}
-          onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
-          inputProps={{ max: endDate ? endDate.toISOString().split('T')[0] : undefined }}
-          sx={{
-            width: 135,
-            '& .MuiOutlinedInput-root': {
-              fontSize: '12px',
-              '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
-              '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
-              '&.Mui-focused fieldset': { borderColor: '#f97316' },
-            },
-            '& input': { color: 'text.primary', py: 0.5, px: 1 },
-            '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
-          }}
-        />
-        <Typography sx={{ fontSize: '12px', color: 'text.disabled' }}>–</Typography>
-        <TextField
-          type="date"
-          size="small"
-          label="End"
-          value={endDate ? endDate.toISOString().split('T')[0] : ''}
-          onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
-          inputProps={{ min: startDate ? startDate.toISOString().split('T')[0] : undefined }}
-          sx={{
-            width: 135,
-            '& .MuiOutlinedInput-root': {
-              fontSize: '12px',
-              '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
-              '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
-              '&.Mui-focused fieldset': { borderColor: '#f97316' },
-            },
-            '& input': { color: 'text.primary', py: 0.5, px: 1 },
-            '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
-          }}
-        />
       </Box>
 
       {error && (
