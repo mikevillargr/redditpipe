@@ -25,9 +25,10 @@ import {
   DownloadIcon,
   FileSpreadsheetIcon,
   ExternalLinkIcon,
+  Building2Icon,
+  CalendarIcon,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 
@@ -240,100 +241,95 @@ export function Reports() {
       </Box>
 
       {/* Client Selection */}
-      <Paper
+      <Box
         sx={{
-          p: 2,
-          mb: 3,
+          px: { xs: 1.5, sm: 2 },
+          py: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          flexWrap: 'wrap',
           bgcolor: 'background.paper',
-          border: `1px solid ${borderColor}`,
+          border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
           borderRadius: '12px',
         }}
       >
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <FormControl sx={{ flex: 1, minWidth: 200 }} size="small">
-            <InputLabel>Select Client</InputLabel>
-            <Select
-              value={selectedClientId}
-              label="Select Client"
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              disabled={clients.length === 0}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '& fieldset': {
-                    borderColor: borderColor,
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'text.secondary',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#f97316',
-                  },
-                },
-              }}
-            >
-              {clients.map((client) => (
-                <MenuItem key={client.id} value={client.id}>
-                  {client.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DatePicker
-              label="Start Date"
-              value={startDate}
-              onChange={(newValue) => setStartDate(newValue)}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: {
-                    flex: 1,
-                    minWidth: 200,
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: borderColor,
-                      },
-                      '&:hover fieldset': {
-                        borderColor: 'text.secondary',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#f97316',
-                      },
-                    },
-                  },
-                },
-              }}
-            />
-          </LocalizationProvider>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <DatePicker
-              label="End Date"
-              value={endDate}
-              onChange={(newValue) => setEndDate(newValue)}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: {
-                    flex: 1,
-                    minWidth: 200,
-                    '& .MuiOutlinedInput-root': {
-                      '& fieldset': {
-                        borderColor: borderColor,
-                      },
-                      '&:hover fieldset': {
-                        borderColor: 'text.secondary',
-                      },
-                      '&.Mui-focused fieldset': {
-                        borderColor: '#f97316',
-                      },
-                    },
-                  },
-                },
-              }}
-            />
-          </LocalizationProvider>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <Building2Icon size={13} color="#64748b" />
+          <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            Client:
+          </Typography>
         </Box>
-      </Paper>
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel>Select Client</InputLabel>
+          <Select
+            value={selectedClientId}
+            label="Select Client"
+            onChange={(e) => setSelectedClientId(e.target.value)}
+            disabled={clients.length === 0}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontSize: '12px',
+                '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+                '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+                '&.Mui-focused fieldset': { borderColor: '#f97316' },
+              },
+            }}
+          >
+            {clients.map((client) => (
+              <MenuItem key={client.id} value={client.id}>
+                {client.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0' }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+          <CalendarIcon size={13} color="#64748b" />
+          <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+            Date Range:
+          </Typography>
+        </Box>
+        <TextField
+          type="date"
+          size="small"
+          label="Start"
+          value={startDate ? startDate.toISOString().split('T')[0] : ''}
+          onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : null)}
+          inputProps={{ max: endDate ? endDate.toISOString().split('T')[0] : undefined }}
+          sx={{
+            width: 135,
+            '& .MuiOutlinedInput-root': {
+              fontSize: '12px',
+              '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+              '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+              '&.Mui-focused fieldset': { borderColor: '#f97316' },
+            },
+            '& input': { color: 'text.primary', py: 0.5, px: 1 },
+            '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
+          }}
+        />
+        <Typography sx={{ fontSize: '12px', color: 'text.disabled' }}>–</Typography>
+        <TextField
+          type="date"
+          size="small"
+          label="End"
+          value={endDate ? endDate.toISOString().split('T')[0] : ''}
+          onChange={(e) => setEndDate(e.target.value ? new Date(e.target.value) : null)}
+          inputProps={{ min: startDate ? startDate.toISOString().split('T')[0] : undefined }}
+          sx={{
+            width: 135,
+            '& .MuiOutlinedInput-root': {
+              fontSize: '12px',
+              '& fieldset': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+              '&:hover fieldset': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+              '&.Mui-focused fieldset': { borderColor: '#f97316' },
+            },
+            '& input': { color: 'text.primary', py: 0.5, px: 1 },
+            '& input::-webkit-calendar-picker-indicator': { filter: isDark ? 'invert(0.5)' : 'none', cursor: 'pointer' },
+          }}
+        />
+      </Box>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
