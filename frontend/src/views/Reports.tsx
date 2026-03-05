@@ -19,6 +19,7 @@ import {
   Alert,
   useTheme,
   Tooltip,
+  TextField,
 } from '@mui/material'
 import {
   DownloadIcon,
@@ -26,6 +27,9 @@ import {
   ExternalLinkIcon,
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'
 
 interface Client {
   id: string
@@ -63,10 +67,13 @@ export function Reports() {
   const isDark = theme.palette.mode === 'dark'
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<string>('')
+  const [allOpportunities, setAllOpportunities] = useState<ReportOpportunity[]>([])
   const [opportunities, setOpportunities] = useState<ReportOpportunity[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState<'excel' | null>(null)
+  const [startDate, setStartDate] = useState<Date | null>(null)
+  const [endDate, setEndDate] = useState<Date | null>(null)
 
   const borderColor = isDark ? '#334155' : '#e2e8f0'
   const rowBorder = isDark ? '#1e293b' : '#f1f5f9'
@@ -103,6 +110,7 @@ export function Reports() {
       const res = await fetch(`/api/reports/clients/${clientId}`)
       if (res.ok) {
         const data = await res.json()
+        setAllOpportunities(data.opportunities)
         setOpportunities(data.opportunities)
       } else {
         setError('Failed to load report data')
@@ -113,6 +121,21 @@ export function Reports() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // Filter opportunities based on date range
+    if (startDate || endDate) {
+      const filtered = allOpportunities.filter((opp) => {
+        const oppDate = new Date(opp.createdAt)
+        if (startDate && oppDate < startDate) return false
+        if (endDate && oppDate > endDate) return false
+        return true
+      })
+      setOpportunities(filtered)
+    } else {
+      setOpportunities(allOpportunities)
+    }
+  }, [startDate, endDate, allOpportunities])
 
   const handleExportExcel = async () => {
     setExporting('excel')
@@ -226,34 +249,90 @@ export function Reports() {
           borderRadius: '12px',
         }}
       >
-        <FormControl fullWidth size="small">
-          <InputLabel>Select Client</InputLabel>
-          <Select
-            value={selectedClientId}
-            label="Select Client"
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            disabled={clients.length === 0}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: borderColor,
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <FormControl sx={{ flex: 1, minWidth: 200 }} size="small">
+            <InputLabel>Select Client</InputLabel>
+            <Select
+              value={selectedClientId}
+              label="Select Client"
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              disabled={clients.length === 0}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': {
+                    borderColor: borderColor,
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'text.secondary',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#f97316',
+                  },
                 },
-                '&:hover fieldset': {
-                  borderColor: 'text.secondary',
+              }}
+            >
+              {clients.map((client) => (
+                <MenuItem key={client.id} value={client.id}>
+                  {client.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Start Date"
+              value={startDate}
+              onChange={(newValue) => setStartDate(newValue)}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  sx: {
+                    flex: 1,
+                    minWidth: 200,
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': {
+                        borderColor: borderColor,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'text.secondary',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#f97316',
+                      },
+                    },
+                  },
                 },
-                '&.Mui-focused fieldset': {
-                  borderColor: '#f97316',
+              }}
+            />
+          </LocalizationProvider>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="End Date"
+              value={endDate}
+              onChange={(newValue) => setEndDate(newValue)}
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  sx: {
+                    flex: 1,
+                    minWidth: 200,
+                    '& .MuiOutlinedInput-root': {
+                      '& fieldset': {
+                        borderColor: borderColor,
+                      },
+                      '&:hover fieldset': {
+                        borderColor: 'text.secondary',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#f97316',
+                      },
+                    },
+                  },
                 },
-              },
-            }}
-          >
-            {clients.map((client) => (
-              <MenuItem key={client.id} value={client.id}>
-                {client.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+              }}
+            />
+          </LocalizationProvider>
+        </Box>
       </Paper>
 
       {error && (
