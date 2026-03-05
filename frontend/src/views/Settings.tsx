@@ -246,6 +246,11 @@ export function Settings() {
   const [searchTimezone, setSearchTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
   const [maxResults, setMaxResults] = useState(10)
   const [maxAge, setMaxAge] = useState(2)
+  // Pipeline limits
+  const [maxAiCandidatesPerClient, setMaxAiCandidatesPerClient] = useState(25)
+  const [maxAiCallsTotal, setMaxAiCallsTotal] = useState(200)
+  const [maxOppsPerClient, setMaxOppsPerClient] = useState(20)
+  const [maxOppsTotal, setMaxOppsTotal] = useState(50)
   // AI tuning
   const [relevanceThreshold, setRelevanceThreshold] = useState(0.4)
   const [aiSearchContext, setAiSearchContext] = useState('')
@@ -277,6 +282,10 @@ export function Settings() {
         setSearchTimezone(data.searchTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
         setMaxResults(data.maxResultsPerKeyword ?? 10)
         setMaxAge(data.threadMaxAgeDays ?? 2)
+        setMaxAiCandidatesPerClient(data.maxAiCandidatesPerClient ?? 25)
+        setMaxAiCallsTotal(data.maxAiCallsTotal ?? 200)
+        setMaxOppsPerClient(data.maxOppsPerClient ?? 20)
+        setMaxOppsTotal(data.maxOppsTotal ?? 50)
         setRelevanceThreshold(data.relevanceThreshold ?? 0.4)
         setAiSearchContext(data.aiSearchContext || '')
         setAiModelScoring(data.aiModelScoring || 'claude-haiku-4-5-20251001')
@@ -378,6 +387,10 @@ export function Settings() {
         searchBreadth,
         maxResultsPerKeyword: maxResults,
         threadMaxAgeDays: maxAge,
+        maxAiCandidatesPerClient,
+        maxAiCallsTotal,
+        maxOppsPerClient,
+        maxOppsTotal,
         relevanceThreshold,
         aiSearchContext: aiSearchContext.trim() || null,
         aiModelScoring,
@@ -740,6 +753,66 @@ export function Settings() {
             }}
             sx={inputSx}
           />
+
+          <Divider sx={{ my: 2, borderColor: '#1e293b' }} />
+          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', mb: 1 }}>
+            Pipeline Limits (Scalability)
+          </Typography>
+          <TextField
+            label="Max AI Candidates Per Client"
+            type="number"
+            value={maxAiCandidatesPerClient}
+            onChange={(e) => setMaxAiCandidatesPerClient(Number(e.target.value))}
+            fullWidth
+            size="small"
+            inputProps={{
+              min: 1,
+              max: 100,
+            }}
+            sx={inputSx}
+          />
+          <TextField
+            label="Max AI Calls Total"
+            type="number"
+            value={maxAiCallsTotal}
+            onChange={(e) => setMaxAiCallsTotal(Number(e.target.value))}
+            fullWidth
+            size="small"
+            inputProps={{
+              min: 1,
+              max: 1000,
+            }}
+            sx={inputSx}
+          />
+          <TextField
+            label="Max Opps Per Client"
+            type="number"
+            value={maxOppsPerClient}
+            onChange={(e) => setMaxOppsPerClient(Number(e.target.value))}
+            fullWidth
+            size="small"
+            inputProps={{
+              min: 1,
+              max: 100,
+            }}
+            sx={inputSx}
+          />
+          <TextField
+            label="Max Opps Total"
+            type="number"
+            value={maxOppsTotal}
+            onChange={(e) => setMaxOppsTotal(Number(e.target.value))}
+            fullWidth
+            size="small"
+            inputProps={{
+              min: 1,
+              max: 500,
+            }}
+            sx={inputSx}
+          />
+          <Typography sx={{ fontSize: '11px', color: '#64748b', mt: -1.5 }}>
+            Adjust these as you add more clients. Higher values = more AI cost and processing time.
+          </Typography>
 
           <Tooltip
             title={

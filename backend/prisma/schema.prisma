@@ -103,22 +103,26 @@ model DismissalLog {
 }
 
 model Settings {
-  id                   String @id @default("singleton")
-  redditApiMode        String @default("public_json")
-  redditClientId       String?
-  redditClientSecret   String?
-  redditUsername        String?
-  redditPassword       String?
-  anthropicApiKey      String?
-  searchFrequency      String @default("once_daily")
-  searchScheduleTimes  String @default("09:00")
-  searchTimezone       String @default("UTC")
-  maxResultsPerKeyword  Int    @default(10)
-  threadMaxAgeDays      Int    @default(2)
-  relevanceThreshold    Float  @default(0.4)
-  aiSearchContext       String?
-  aiModelScoring        String @default("claude-haiku-4-5-20251001")
-  aiModelReplies        String @default("claude-sonnet-4-20250514")
-  aiModelDetection      String @default("claude-sonnet-4-20250514")
-  searchBreadth         String @default("balanced")
+  id                      String @id @default("singleton")
+  redditApiMode           String @default("public_json")
+  redditClientId          String?
+  redditClientSecret      String?
+  redditUsername          String?
+  redditPassword          String?
+  anthropicApiKey         String?
+  searchFrequency         String @default("once_daily")
+  searchScheduleTimes     String @default("09:00")
+  searchTimezone          String @default("UTC")
+  maxResultsPerKeyword    Int    @default(10)
+  threadMaxAgeDays        Int    @default(2)
+  relevanceThreshold      Float  @default(0.4)
+  aiSearchContext         String?
+  aiModelScoring          String @default("claude-haiku-4-5-20251001")
+  aiModelReplies          String @default("claude-sonnet-4-20250514")
+  aiModelDetection        String @default("claude-sonnet-4-20250514")
+  searchBreadth           String @default("balanced")
+  maxAiCandidatesPerClient Int    @default(25)
+  maxAiCallsTotal         Int    @default(200)
+  maxOppsPerClient        Int    @default(20)
+  maxOppsTotal            Int    @default(50)
 }

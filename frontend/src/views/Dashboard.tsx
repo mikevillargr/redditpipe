@@ -291,6 +291,10 @@ export function Dashboard() {
   const [dismissingId, setDismissingId] = useState<string | null>(null)
   const [showSingleDismissDialog, setShowSingleDismissDialog] = useState(false)
   const [singleDismissReason, setSingleDismissReason] = useState('')
+  // Mark published permalink dialog
+  const [publishingId, setPublishingId] = useState<string | null>(null)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [publishPermalink, setPublishPermalink] = useState('')
   // Thread preview
   const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
   // Lazy load / infinite scroll
@@ -423,22 +427,17 @@ export function Dashboard() {
       return n
     })
   }
-  const handleMarkPublished = async (id: string) => {
-    setVerifyingCards((prev) => new Set(prev).add(id))
-    try {
-      const res = await fetch(`/api/opportunities/${id}/verify`, { method: 'POST' })
-      const data = await res.json()
-      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
-      if (data.status === 'published') {
-        setSnackbar({ open: true, message: 'Published ✓ Comment verified on Reddit', severity: 'success' })
-      } else {
-        setSnackbar({ open: true, message: 'Unverified — comment not found on Reddit', severity: 'warning' })
-      }
-      fetchOpportunities()
-    } catch {
-      setVerifyingCards((prev) => { const n = new Set(prev); n.delete(id); return n })
-      setSnackbar({ open: true, message: 'Verification failed', severity: 'warning' })
-    }
+  const handleMarkPublished = (id: string) => {
+    setPublishingId(id)
+    setPublishPermalink('')
+    setShowPublishDialog(true)
+  }
+  const handleConfirmPublish = async () => {
+    if (!publishingId || !publishPermalink.trim()) return
+    await handleManualVerify(publishingId, publishPermalink)
+    setShowPublishDialog(false)
+    setPublishingId(null)
+    setPublishPermalink('')
   }
   const handleManualVerify = async (id: string, permalink: string) => {
     if (!permalink.trim()) return
@@ -1552,6 +1551,63 @@ export function Dashboard() {
             sx={{ bgcolor: '#ef4444', textTransform: 'none', '&:hover': { bgcolor: '#dc2626' } }}
           >
             Dismiss
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Mark as Published - Permalink Dialog */}
+      <Dialog
+        open={showPublishDialog}
+        onClose={() => { setShowPublishDialog(false); setPublishingId(null); setPublishPermalink('') }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: '1px solid #334155',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px' }}>
+          Mark as Published
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
+            Enter the comment permalink from Reddit to verify and mark this opportunity as published.
+          </Typography>
+          <TextField
+            label="Comment Permalink"
+            value={publishPermalink}
+            onChange={(e) => setPublishPermalink(e.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+            placeholder="https://www.reddit.com/r/subreddit/comments/abc123/comment/xyz456/"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: '#334155' },
+                '&.Mui-focused fieldset': { borderColor: '#10b981' },
+              },
+              '& .MuiInputLabel-root.Mui-focused': { color: '#10b981' },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button
+            size="small"
+            onClick={() => { setShowPublishDialog(false); setPublishingId(null); setPublishPermalink('') }}
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!publishPermalink.trim()}
+            onClick={handleConfirmPublish}
+            sx={{ bgcolor: '#10b981', textTransform: 'none', '&:hover': { bgcolor: '#059669' } }}
+          >
+            Verify & Publish
           </Button>
         </DialogActions>
       </Dialog>

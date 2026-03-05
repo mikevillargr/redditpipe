@@ -75,12 +75,6 @@ interface DiscoveredThread {
 }
 
 // ── Safety caps ──────────────────────────────────────────────────────────────
-const MAX_AI_CANDIDATES_PER_CLIENT = 25; // only top N heuristic-ranked threads get AI-scored per client
-const MAX_AI_CALLS_TOTAL = 200;   // hard cap on AI calls per run (safety net)
-const MAX_OPPS_PER_CLIENT = 20;   // max opps created per client per run
-const MAX_OPPS_TOTAL = 50;        // max opps created total per run
-const HEURISTIC_PRE_FILTER = 0.25; // threads below this skip AI entirely
-
 export async function runSearchPipeline(): Promise<SearchResult> {
   const startTime = Date.now();
   abortRequested = false;
@@ -103,6 +97,13 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const threadMaxAgeDays = settings?.threadMaxAgeDays ?? 2;
     const relevanceThreshold = settings?.relevanceThreshold ?? 0.4;
     const hasAiKey = !!(settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY);
+
+    // ── Configurable pipeline limits ─────────────────────────────────────────────
+    const MAX_AI_CANDIDATES_PER_CLIENT = settings?.maxAiCandidatesPerClient ?? 25;
+    const MAX_AI_CALLS_TOTAL = settings?.maxAiCallsTotal ?? 200;
+    const MAX_OPPS_PER_CLIENT = settings?.maxOppsPerClient ?? 20;
+    const MAX_OPPS_TOTAL = settings?.maxOppsTotal ?? 50;
+    const HEURISTIC_PRE_FILTER = 0.25; // threads below this skip AI entirely
 
     clearConfigCache();
     const redditConfig = await getRedditConfig();
