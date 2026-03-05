@@ -166,7 +166,8 @@ export function Dashboard() {
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
   const [aiScoreFilter, setAiScoreFilter] = useState<AiScoreFilter>('all')
   const today = new Date().toISOString().split('T')[0]
-  const [dateStart, setDateStart] = useState(today)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  const [dateStart, setDateStart] = useState(sevenDaysAgo)
   const [dateEnd, setDateEnd] = useState(today)
   const applyPreset = (preset: string) => {
     const end = new Date().toISOString().split('T')[0]
