@@ -15,13 +15,14 @@ import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
 import { Insights } from './views/Insights'
 import { KarmaFarming } from './views/KarmaFarming'
+import { Reports } from './views/Reports'
 import { LoginScreen } from './components/LoginScreen'
 
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
 
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming'
+export type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming' | 'reports'
 
 function useAppTheme(mode: 'light' | 'dark') {
   return useMemo(() => createTheme({
@@ -93,6 +94,7 @@ export default function App() {
       case 'settings': return <Settings />
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarming />
+      case 'reports': return <Reports />
       default: return <Dashboard />
     }
   }

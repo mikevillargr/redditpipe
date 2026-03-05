@@ -24,9 +24,10 @@ import {
   LogOutIcon,
   BarChart3Icon,
   FlameIcon,
+  FileTextIcon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
-type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming'
+import type { Page } from '../App'
 interface SidebarProps {
   activePage: Page
   onNavigate: (page: Page) => void
@@ -61,6 +62,11 @@ const navItems = [
     id: 'karma-farming' as Page,
     label: 'Karma Farming',
     icon: FlameIcon,
+  },
+  {
+    id: 'reports' as Page,
+    label: 'Reports',
+    icon: FileTextIcon,
   },
   {
     id: 'insights' as Page,

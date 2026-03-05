@@ -10,6 +10,7 @@ import settingsRoutes from "./routes/settings.js";
 import searchRoutes from "./routes/search.js";
 import authRoutes from "./routes/auth.js";
 import warmingRoutes from "./routes/warming.js";
+import reportsRoutes from "./routes/reports.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -34,6 +35,7 @@ app.route("/api/settings", settingsRoutes);
 app.route("/api/search", searchRoutes);
 app.route("/api/auth", authRoutes);
 app.route("/api/warming", warmingRoutes);
+app.route("/api/reports", reportsRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);
