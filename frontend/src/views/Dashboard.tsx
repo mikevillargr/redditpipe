@@ -81,6 +81,9 @@ interface Opportunity {
   platform: 'reddit'
   permalinkUrl?: string
   discoveredVia?: string
+  opportunityType?: string
+  parentOpportunityId?: string
+  pileOnEligibleAt?: string
 }
 function getTimeAgo(date: Date): string {
   const ms = Date.now() - date.getTime()
@@ -166,6 +169,7 @@ export function Dashboard() {
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
   const [aiScoreFilter, setAiScoreFilter] = useState<AiScoreFilter>('all')
+  const [showPileOnOnly, setShowPileOnOnly] = useState(false)
   const today = new Date().toISOString().split('T')[0]
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const [dateStart, setDateStart] = useState(sevenDaysAgo)
@@ -580,6 +584,7 @@ export function Dashboard() {
     const hasRealAiScore = !!o.aiRelevanceNote && !o.aiRelevanceNote.includes('AI scoring unavailable')
     if (aiScoreFilter === 'has_ai' && !hasRealAiScore) return false
     if (aiScoreFilter === 'no_ai' && hasRealAiScore) return false
+    if (showPileOnOnly && o.opportunityType !== 'pile_on') return false
     return true
   })
 
@@ -587,7 +592,7 @@ export function Dashboard() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
     setSelectedIds(new Set())
-  }, [clientFilter, statusFilter, scoreFilter, aiScoreFilter, dateStart, dateEnd])
+  }, [clientFilter, statusFilter, scoreFilter, aiScoreFilter, dateStart, dateEnd, showPileOnOnly])
 
   const visibleOpportunities = useMemo(
     () => filteredOpportunities.slice(0, visibleCount),
@@ -881,6 +886,28 @@ export function Dashboard() {
               <ToggleButton value="has_ai">AI Scored</ToggleButton>
               <ToggleButton value="no_ai">No AI</ToggleButton>
             </ToggleButtonGroup>
+          </Box>
+          <Box sx={{ width: '1px', height: 18, bgcolor: isDark ? '#334155' : '#e2e8f0' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Chip
+              label="Pile-On"
+              size="small"
+              onClick={() => setShowPileOnOnly(!showPileOnOnly)}
+              sx={{
+                height: 24,
+                fontSize: '11px',
+                fontWeight: 600,
+                bgcolor: showPileOnOnly ? 'rgba(168,85,247,0.15)' : 'transparent',
+                color: showPileOnOnly ? '#a855f7' : 'text.secondary',
+                border: `1px solid ${showPileOnOnly ? '#a855f7' : isDark ? '#334155' : '#e2e8f0'}`,
+                cursor: 'pointer',
+                '&:hover': { 
+                  bgcolor: 'rgba(168,85,247,0.1)',
+                  borderColor: '#a855f7',
+                  color: '#a855f7',
+                },
+              }}
+            />
           </Box>
         </Box>
 
@@ -1707,6 +1734,7 @@ function OpportunityCard({
   const isPublished = opp.status === 'published'
   const isUnverified = opp.status === 'unverified'
   const isNew = opp.status === 'new'
+  const isPileOn = opp.opportunityType === 'pile_on'
   const handleCopy = () => {
     navigator.clipboard.writeText(opp.accountPassword)
     setCopied(true)
@@ -1759,7 +1787,9 @@ function OpportunityCard({
     setEditText(opp.draftReply)
     setIsEditing(false)
   }
-  const statusConfig = isPublished
+  const statusConfig = isPileOn
+    ? { borderLeft: '4px solid #a855f7', border: '1px solid rgba(168,85,247,0.3)', bg: isDark ? 'rgba(168,85,247,0.03)' : 'rgba(168,85,247,0.03)', opacity: 1 }
+    : isPublished
     ? { borderLeft: '4px solid #10b981', border: '1px solid rgba(16,185,129,0.3)', bg: isDark ? 'rgba(16,185,129,0.04)' : 'rgba(16,185,129,0.03)', opacity: 1 }
     : isUnverified
       ? { borderLeft: '4px solid #f59e0b', border: '1px solid rgba(245,158,11,0.3)', bg: isDark ? 'rgba(245,158,11,0.04)' : 'rgba(245,158,11,0.03)', opacity: 1 }
@@ -1908,6 +1938,20 @@ function OpportunityCard({
                     bgcolor: 'rgba(59,130,246,0.12)',
                     color: '#3b82f6',
                     border: '1px solid rgba(59,130,246,0.3)',
+                  }}
+                />
+              )}
+              {isPileOn && (
+                <Chip
+                  label="PILE-ON"
+                  size="small"
+                  sx={{
+                    height: 22,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    bgcolor: 'rgba(168,85,247,0.15)',
+                    color: '#a855f7',
+                    border: '1px solid rgba(168,85,247,0.35)',
                   }}
                 />
               )}
