@@ -731,7 +731,7 @@ export function Settings() {
             label="Max Results Per Keyword"
             type="number"
             value={maxResults}
-            onChange={(e) => setMaxResults(Number(e.target.value))}
+            onChange={(e) => setMaxResults(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Max Reddit threads fetched per keyword. Higher = more threads but slower searches."
@@ -746,7 +746,7 @@ export function Settings() {
             label="Thread Max Age (days)"
             type="number"
             value={maxAge}
-            onChange={(e) => setMaxAge(Number(e.target.value))}
+            onChange={(e) => setMaxAge(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Ignore threads older than this. Older threads = less engagement. Recommended: 2-7 days."
@@ -766,7 +766,7 @@ export function Settings() {
             label="Max AI Candidates Per Client"
             type="number"
             value={maxAiCandidatesPerClient}
-            onChange={(e) => setMaxAiCandidatesPerClient(Number(e.target.value))}
+            onChange={(e) => setMaxAiCandidatesPerClient(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Max threads per client sent to AI for scoring. Higher = more AI calls."
@@ -781,7 +781,7 @@ export function Settings() {
             label="Max AI Calls Total"
             type="number"
             value={maxAiCallsTotal}
-            onChange={(e) => setMaxAiCallsTotal(Number(e.target.value))}
+            onChange={(e) => setMaxAiCallsTotal(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Total AI calls per search run across all clients. Prevents runaway costs."
@@ -796,7 +796,7 @@ export function Settings() {
             label="Max Opps Per Client"
             type="number"
             value={maxOppsPerClient}
-            onChange={(e) => setMaxOppsPerClient(Number(e.target.value))}
+            onChange={(e) => setMaxOppsPerClient(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Max opportunities created per client per run. Limits drip to avoid overwhelm."
@@ -811,7 +811,7 @@ export function Settings() {
             label="Max Opps Total"
             type="number"
             value={maxOppsTotal}
-            onChange={(e) => setMaxOppsTotal(Number(e.target.value))}
+            onChange={(e) => setMaxOppsTotal(e.target.value === '' ? 0 : parseInt(e.target.value, 10))}
             fullWidth
             size="small"
             helperText="Total opportunities per run across all clients. Final safety cap."
