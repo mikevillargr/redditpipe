@@ -727,32 +727,44 @@ export function Settings() {
             </Typography>
           </Box>
 
-          <TextField
-            label="Max Results Per Keyword"
-            type="number"
-            value={maxResults}
-            onChange={(e) => setMaxResults(Number(e.target.value))}
-            fullWidth
-            size="small"
-            inputProps={{
-              min: 1,
-              max: 100,
-            }}
-            sx={inputSx}
-          />
-          <TextField
-            label="Thread Max Age (days)"
-            type="number"
-            value={maxAge}
-            onChange={(e) => setMaxAge(Number(e.target.value))}
-            fullWidth
-            size="small"
-            inputProps={{
-              min: 1,
-              max: 30,
-            }}
-            sx={inputSx}
-          />
+          <Tooltip
+            title="Maximum number of Reddit threads to fetch per keyword search. Higher values = more threads discovered but slower searches."
+            arrow
+            placement="right"
+          >
+            <TextField
+              label="Max Results Per Keyword"
+              type="number"
+              value={maxResults}
+              onChange={(e) => setMaxResults(Number(e.target.value))}
+              fullWidth
+              size="small"
+              inputProps={{
+                min: 1,
+                max: 100,
+              }}
+              sx={inputSx}
+            />
+          </Tooltip>
+          <Tooltip
+            title="Ignore threads older than this many days. Older threads have less engagement potential. Recommended: 2-7 days."
+            arrow
+            placement="right"
+          >
+            <TextField
+              label="Thread Max Age (days)"
+              type="number"
+              value={maxAge}
+              onChange={(e) => setMaxAge(Number(e.target.value))}
+              fullWidth
+              size="small"
+              inputProps={{
+                min: 1,
+                max: 30,
+              }}
+              sx={inputSx}
+            />
+          </Tooltip>
 
           <Divider sx={{ my: 2, borderColor: '#1e293b' }} />
           <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', mb: 1 }}>
