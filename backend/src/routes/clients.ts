@@ -93,6 +93,28 @@ app.delete("/:id", async (c) => {
 });
 
 // ── helpers for deep site scraping ───────────────────────────────────────────
+function filterMarketingFluff(keywords: string[]): string[] {
+  const buzzwords = [
+    'peace of mind',
+    'seamless',
+    'world-class',
+    'premium experience',
+    'cutting-edge',
+    'state-of-the-art',
+    'industry-leading',
+    'best-in-class',
+    'unparalleled',
+    'revolutionary',
+    'game-changing',
+    'next-level',
+  ];
+  
+  return keywords.filter(keyword => {
+    const lower = keyword.toLowerCase();
+    return !buzzwords.some(buzz => lower.includes(buzz));
+  });
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -106,28 +128,69 @@ function stripHtml(html: string): string {
 }
 
 function extractInternalLinks(html: string, baseUrl: string): string[] {
-  const links: string[] = [];
+  const links: { url: string; priority: number }[] = [];
   const seen = new Set<string>();
-  const regex = /href=["']([^"'#]+)["']/gi;
-  let m: RegExpExecArray | null;
   const origin = new URL(baseUrl).origin;
-  while ((m = regex.exec(html)) !== null) {
+  
+  // Step 1: Extract navigation links (highest priority)
+  const navRegex = /<nav[^>]*>([\s\S]*?)<\/nav>|<header[^>]*>([\s\S]*?)<\/header>|role=["']navigation["'][^>]*>([\s\S]*?)(?=<\/)/gi;
+  let navMatch: RegExpExecArray | null;
+  
+  while ((navMatch = navRegex.exec(html)) !== null) {
+    const navContent = navMatch[0];
+    const linkRegex = /href=["']([^"'#]+)["']/gi;
+    let linkMatch: RegExpExecArray | null;
+    
+    while ((linkMatch = linkRegex.exec(navContent)) !== null) {
+      try {
+        const abs = new URL(linkMatch[1], baseUrl).href;
+        if (abs.startsWith(origin) && !seen.has(abs)) {
+          const path = new URL(abs).pathname.toLowerCase();
+          if (!/\.(png|jpg|jpeg|gif|svg|css|js|pdf|zip|mp4|webm|ico)$/i.test(path)) {
+            seen.add(abs);
+            links.push({ url: abs, priority: 100 }); // Top priority
+          }
+        }
+      } catch { /* skip bad URLs */ }
+    }
+  }
+  
+  // Step 2: Fill remaining slots with depth-based heuristics
+  const allLinkRegex = /href=["']([^"'#]+)["']/gi;
+  let m: RegExpExecArray | null;
+  
+  while ((m = allLinkRegex.exec(html)) !== null) {
     try {
       const abs = new URL(m[1], baseUrl).href;
-      if (!abs.startsWith(origin)) continue;
-      if (seen.has(abs)) continue;
+      if (!abs.startsWith(origin) || seen.has(abs)) continue;
       seen.add(abs);
-      // Prioritise about / services / features / pricing / product pages
+      
       const path = new URL(abs).pathname.toLowerCase();
       if (/\.(png|jpg|jpeg|gif|svg|css|js|pdf|zip|mp4|webm|ico)$/i.test(path)) continue;
-      if (/(about|services|features|pricing|product|solution|how-it-works|why|industries|use-case)/i.test(path)) {
-        links.unshift(abs); // high priority first
-      } else if (path !== "/" && path.split("/").length <= 3) {
-        links.push(abs);
+      
+      const segments = path.split('/').filter(Boolean);
+      const depth = segments.length;
+      
+      let priority = 0;
+      if (/(about|contact|pricing|services|features)/i.test(path)) {
+        priority = 80;
+      } else if (depth <= 2 && /s$/.test(segments[segments.length - 1])) {
+        priority = 60; // Plural nouns (likely categories)
+      } else if (depth <= 2) {
+        priority = 40;
+      }
+      
+      if (priority > 0) {
+        links.push({ url: abs, priority });
       }
     } catch { /* skip bad URLs */ }
   }
-  return links.slice(0, 8); // max 8 sub-pages
+  
+  // Sort by priority and take top 12
+  return links
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 12)
+    .map(l => l.url);
 }
 
 async function fetchPageText(url: string): Promise<string> {
@@ -252,6 +315,10 @@ BAD EXAMPLES — avoid these patterns:
 ✗ "business entity compliance management" (corporate speak)
 ✗ "LLC" (too generic, matches everything)
 ✗ "affordable LLC formation for entrepreneurs" (too long, too SEO)
+✗ "travel insurance peace of mind" (marketing fluff - "peace of mind" isn't searchable)
+✗ "seamless travel experience" (advertising copy, not a search query)
+✗ "premium luxury packages" (too many adjectives, not natural)
+✗ "world-class service" (buzzwords, not searchable)
 
 GENERATE 15-20 KEYWORDS with this MIX:
 * 5-6 BROAD (2-3 words): Discovery-phase searches. E.g. "starting business", "need lawyer", "restaurant Manila"
@@ -265,6 +332,16 @@ IMPORTANT PRINCIPLES:
 4. Focus on USER INTENT — what are they trying to accomplish or learn?
 5. Avoid JARGON — use everyday language, not industry terminology
 6. Geographic terms OK if relevant — "Manila", "Philippines", "LA", etc.
+7. Extract SPECIFIC OFFERINGS — if the business serves specific locations, destinations, or specialties, include those in keywords
+   Example: Travel agency → "Fiji holidays", "Tahiti packages", "Maldives resorts"
+   Example: Restaurant → "Italian food [city]", "sushi [neighborhood]"
+   Example: Law firm → "personal injury lawyer [city]"
+
+AVOID MARKETING FLUFF:
+- Do NOT extract marketing buzzwords: "peace of mind", "seamless", "world-class", "premium experience"
+- Focus on CONCRETE NOUNS and ACTIONS: "travel insurance", "holiday packages", "book flights"
+- If it sounds like advertising copy, skip it
+- Test: Would someone TYPE this into Reddit search? If no, don't use it.
 
 These queries will discover threads where users are actively discussing problems this business can solve. The heuristic filter and AI scoring will handle quality control.`,
         messages: [{
@@ -290,10 +367,14 @@ These queries will discover threads where users are actively discussing problems
         mentionTerms: string[];
         nuance: string | null;
       };
+      
+      // Filter out marketing fluff from keywords
+      const filteredKeywords = filterMarketingFluff(parsed.keywords || []);
+      
       return c.json({
         name: parsed.name || title.split(/[|\-–—]/)[0]?.trim() || "",
         description: parsed.description || metaDesc || ogDesc || "",
-        keywords: parsed.keywords || [],
+        keywords: filteredKeywords,
         mentionTerms: parsed.mentionTerms || [],
         nuance: parsed.nuance || null,
         websiteUrl: url,

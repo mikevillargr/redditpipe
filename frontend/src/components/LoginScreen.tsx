@@ -79,14 +79,18 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               alignItems: 'center',
               justifyContent: 'center',
               mb: 1.5,
+              p: 0.75,
             }}
           >
-            <Box
-              component="span"
-              sx={{ color: '#fff', fontWeight: 800, fontSize: '16px' }}
-            >
-              RP
-            </Box>
+            <img
+              src="/favicon.svg"
+              alt="RedditPipe"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+              }}
+            />
           </Box>
           <Typography
             sx={{
