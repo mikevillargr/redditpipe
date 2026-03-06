@@ -165,6 +165,7 @@ function CountBadge({
 export function Dashboard() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [clientList, setClientList] = useState<{ id: string; name: string }[]>([])
+  const [accountList, setAccountList] = useState<{ id: string; username: string; status: string }[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('new')
   const [clientFilter, setClientFilter] = useState('all')
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
@@ -281,9 +282,26 @@ export function Dashboard() {
     }
   }, [])
 
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/accounts')
+      if (res.ok) {
+        const data = await res.json()
+        setAccountList(data.map((a: { id: string; username: string; status: string }) => ({ 
+          id: a.id, 
+          username: a.username,
+          status: a.status 
+        })))
+      }
+    } catch (err) {
+      console.error('Failed to fetch accounts:', err)
+    }
+  }, [])
+
   useEffect(() => {
     fetchClients()
-  }, [fetchClients])
+    fetchAccounts()
+  }, [fetchClients, fetchAccounts])
 
   useEffect(() => {
     fetchOpportunities()
@@ -457,6 +475,24 @@ export function Dashboard() {
   const handlePileOnSuccess = () => {
     setSnackbar({ open: true, message: 'Pile-on comment published successfully ✓', severity: 'success' })
     fetchOpportunities()
+  }
+  const handleAssignAccount = async (opportunityId: string, accountId: string) => {
+    try {
+      const res = await fetch(`/api/opportunities/${opportunityId}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId }),
+      })
+      if (res.ok) {
+        setSnackbar({ open: true, message: 'Account assigned successfully ✓', severity: 'success' })
+        fetchOpportunities()
+      } else {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.error || 'Failed to assign account', severity: 'warning' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to assign account', severity: 'warning' })
+    }
   }
   const handleManualVerify = async (id: string, permalink: string) => {
     if (!permalink.trim()) return
@@ -1273,6 +1309,8 @@ export function Dashboard() {
             onUpdateDraft={(text) => handleUpdateDraft(opp.id, text)}
             onPileOn={() => handlePileOn(opp.id, opp.title)}
             onPreview={() => setPreviewOpp(opp)}
+            onAssignAccount={(accountId) => handleAssignAccount(opp.id, accountId)}
+            availableAccounts={accountList}
           />
         ))}
 
@@ -1693,6 +1731,8 @@ interface OpportunityCardProps {
   onUpdateDraft: (text: string) => void
   onPileOn: () => void
   onPreview: () => void
+  onAssignAccount: (accountId: string) => void
+  availableAccounts: { id: string; username: string; status: string }[]
 }
 function OpportunityCard({
   opportunity: opp,
@@ -1707,6 +1747,8 @@ function OpportunityCard({
   onUpdateDraft,
   onPileOn,
   onPreview,
+  onAssignAccount,
+  availableAccounts,
 }: OpportunityCardProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -2609,69 +2651,105 @@ function OpportunityCard({
         >
           {/* Row 1: Account info + Actions */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {/* Account badge with password */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.75,
-                px: 1.25,
-                py: 0.5,
-                borderRadius: '6px',
-                bgcolor: isDark ? 'rgba(148,163,184,0.06)' : 'rgba(100,116,139,0.06)',
-                border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-              }}
-            >
-              <Box
+            {/* Account assignment or badge */}
+            {!opp.account || opp.account === 'Unassigned' ? (
+              <Select
+                size="small"
+                value=""
+                onChange={(e) => onAssignAccount(e.target.value)}
+                displayEmpty
                 sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  bgcolor: opp.accountActive ? '#10b981' : '#64748b',
-                  flexShrink: 0,
-                }}
-              />
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap' }}>
-                {opp.account}
-              </Typography>
-              <Box
-                sx={{
-                  width: '1px',
-                  height: 14,
-                  bgcolor: isDark ? '#334155' : '#e2e8f0',
-                  mx: 0.25,
-                }}
-              />
-              <Typography
-                sx={{
-                  fontSize: '11px',
-                  color: 'text.disabled',
-                  fontFamily: 'monospace',
-                  letterSpacing: showPassword ? 'normal' : '0.06em',
-                  whiteSpace: 'nowrap',
+                  fontSize: '12px',
+                  minWidth: 150,
+                  height: 28,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#f97316',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#ea6c0a',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#f97316',
+                  },
                 }}
               >
-                {showPassword ? opp.accountPassword : '••••••••'}
-              </Typography>
-              <Tooltip title={showPassword ? 'Hide password' : 'Reveal password'} arrow placement="top">
-                <IconButton
-                  size="small"
-                  onClick={() => setShowPassword((v) => !v)}
-                  sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}
+                <MenuItem value="" disabled>
+                  <Typography sx={{ fontSize: '12px', color: '#f97316', fontWeight: 600 }}>
+                    Assign Account...
+                  </Typography>
+                </MenuItem>
+                {availableAccounts.filter(a => a.status === 'active').map((account) => (
+                  <MenuItem key={account.id} value={account.id}>
+                    <Typography sx={{ fontSize: '12px' }}>
+                      {account.username}
+                    </Typography>
+                  </MenuItem>
+                ))}
+              </Select>
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  px: 1.25,
+                  py: 0.5,
+                  borderRadius: '6px',
+                  bgcolor: isDark ? 'rgba(148,163,184,0.06)' : 'rgba(100,116,139,0.06)',
+                  border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: opp.accountActive ? '#10b981' : '#64748b',
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                  {opp.account}
+                </Typography>
+                <Box
+                  sx={{
+                    width: '1px',
+                    height: 14,
+                    bgcolor: isDark ? '#334155' : '#e2e8f0',
+                    mx: 0.25,
+                  }}
+                />
+                <Typography
+                  sx={{
+                    fontSize: '11px',
+                    color: 'text.disabled',
+                    fontFamily: 'monospace',
+                    letterSpacing: showPassword ? 'normal' : '0.06em',
+                    whiteSpace: 'nowrap',
+                  }}
                 >
-                  {showPassword ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={copied ? 'Copied!' : 'Copy password'} arrow placement="top">
-                <IconButton
-                  size="small"
-                  onClick={handleCopy}
-                  sx={{ p: 0.25, color: copied ? '#10b981' : 'text.disabled', '&:hover': { color: copied ? '#10b981' : 'text.secondary' } }}
-                >
-                  {copied ? <CheckIcon size={12} /> : <ClipboardIcon size={12} />}
-                </IconButton>
-              </Tooltip>
-            </Box>
+                  {showPassword ? opp.accountPassword : '••••••••'}
+                </Typography>
+                <Tooltip title={showPassword ? 'Hide password' : 'Reveal password'} arrow placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={() => setShowPassword((v) => !v)}
+                    sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'text.secondary' } }}
+                  >
+                    {showPassword ? <EyeOffIcon size={12} /> : <EyeIcon size={12} />}
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={copied ? 'Copied!' : 'Copy password'} arrow placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={handleCopy}
+                    sx={{ p: 0.25, color: copied ? '#10b981' : 'text.disabled', '&:hover': { color: copied ? '#10b981' : 'text.secondary' } }}
+                  >
+                    {copied ? <CheckIcon size={12} /> : <ClipboardIcon size={12} />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
 
             {/* Posts today */}
             <Box

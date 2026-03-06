@@ -12,7 +12,7 @@ app.get("/", async (c) => {
     const where: Record<string, unknown> = {};
     if (username) where.username = username;
 
-    const accounts = await prisma.redditAccount.findMany({
+    let accounts = await prisma.redditAccount.findMany({
       where,
       orderBy: { createdAt: "desc" },
       include: {
@@ -20,6 +20,21 @@ app.get("/", async (c) => {
         _count: { select: { opportunities: true } },
       },
     });
+
+    // Fallback: case-insensitive match if exact match returned nothing
+    if (username && accounts.length === 0) {
+      const all = await prisma.redditAccount.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+          accountAssignments: { include: { client: { select: { id: true, name: true } } } },
+          _count: { select: { opportunities: true } },
+        },
+      });
+      accounts = all.filter(
+        (a) => a.username.toLowerCase() === username.toLowerCase()
+      );
+    }
+
     return c.json(accounts);
   } catch (error) {
     console.error("GET /api/accounts error:", error);

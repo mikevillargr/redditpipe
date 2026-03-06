@@ -98,6 +98,48 @@ app.get("/:id", async (c) => {
   }
 });
 
+// POST /api/opportunities/:id/assign - Assign opportunity to account
+app.post("/:id/assign", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const { accountId } = body;
+
+    if (!accountId) {
+      return c.json({ error: "accountId is required" }, 400);
+    }
+
+    // Verify account exists
+    const account = await prisma.redditAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      return c.json({ error: "Account not found" }, 404);
+    }
+
+    const updated = await prisma.opportunity.update({
+      where: { id },
+      data: { accountId },
+      include: {
+        client: { select: { id: true, name: true } },
+        account: {
+          select: {
+            id: true, username: true, password: true, status: true,
+            postsTodayCount: true, maxPostsPerDay: true,
+            organicPostsWeek: true, citationPostsWeek: true,
+          },
+        },
+      },
+    });
+
+    return c.json(updated);
+  } catch (error) {
+    console.error("POST /api/opportunities/:id/assign error:", error);
+    return c.json({ error: "Failed to assign opportunity" }, 500);
+  }
+});
+
 // PATCH /api/opportunities/:id
 app.patch("/:id", async (c) => {
   try {
