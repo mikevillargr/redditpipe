@@ -127,7 +127,7 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
       }
     } catch { /* skip bad URLs */ }
   }
-  return links.slice(0, 5); // max 5 sub-pages
+  return links.slice(0, 8); // max 8 sub-pages
 }
 
 async function fetchPageText(url: string): Promise<string> {
@@ -170,14 +170,14 @@ app.post("/detect", async (c) => {
 
     // ── Step 2: Deep scrape — fetch about/services/product pages ──
     const subLinks = extractInternalLinks(homepageHtml, url);
-    const homepageText = stripHtml(homepageHtml).slice(0, 4000);
+    const homepageText = stripHtml(homepageHtml).slice(0, 8000);
 
     // Fetch sub-pages in parallel (max 5)
     const subTexts = await Promise.all(subLinks.map(fetchPageText));
-    const deepContent = subTexts.map((t) => t.slice(0, 2000)).join("\n\n");
+    const deepContent = subTexts.map((t) => t.slice(0, 4000)).join("\n\n");
 
-    // Combine all content for AI analysis (cap at 8000 chars)
-    const combinedContent = `HOMEPAGE:\n${homepageText}\n\nSUB-PAGES:\n${deepContent}`.slice(0, 8000);
+    // Combine all content for AI analysis (cap at 20000 chars)
+    const combinedContent = `HOMEPAGE:\n${homepageText}\n\nSUB-PAGES:\n${deepContent}`.slice(0, 20000);
 
     // ── Step 3: AI extraction (required for quality) ──
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
@@ -204,58 +204,76 @@ app.post("/detect", async (c) => {
       ai.messages.create({
         model: getValidModel((settings as Record<string, unknown>)?.aiModelDetection as string | undefined),
         max_tokens: 1024,
-        system: `You are an expert at understanding businesses and finding relevant Reddit discussions where those businesses could be mentioned.
+        system: `You are an expert at understanding businesses and extracting search queries that will discover relevant Reddit discussions.
 
-Given website content, deeply understand what the company does, who their customers are, and what problems they solve. Then generate search queries that would FIND REDDIT THREADS where this company's product/service would be relevant as a recommendation.
+Your task: Analyze the website content to deeply understand what the company does, who their customers are, and what problems they solve. Then generate search queries that would CAPTURE REDDIT THREADS where users are discussing problems, asking questions, or seeking recommendations related to this business.
 
-CRITICAL DISTINCTION: You are NOT generating SEO keywords or marketing terms. You are generating REDDIT SEARCH QUERIES — the exact phrases someone would type into Reddit's search bar when they have a problem this company can solve.
+CRITICAL: You are generating REDDIT SEARCH QUERIES — the exact phrases people type into Reddit's search bar when they have a need this company addresses. NOT SEO keywords, NOT marketing copy.
 
 Return ONLY a valid JSON object:
 {
   "name": "<company or product name — clean brand name only>",
   "description": "<2-3 sentences explaining what the company does, their core offering, and who it's for. Write this as context that would help an AI understand the business when drafting Reddit replies>",
-  "keywords": [<array of 8-12 Reddit search queries>],
+  "keywords": [<array of 15-20 Reddit search queries>],
   "mentionTerms": [<array: brand name, domain, product names people would recognise>],
   "nuance": "<special context for filtering: geographic focus, target market, industries, exclusions, or anything that would help filter irrelevant Reddit threads. null if broadly applicable>"
 }
 
-KEYWORD GUIDELINES — this is the most critical part:
+KEYWORD GENERATION STRATEGY:
 
-STEP 1: Identify the PROBLEMS and SITUATIONS where someone would need this product/service.
-STEP 2: Think about what a frustrated/curious Reddit user would actually SEARCH FOR when experiencing those problems.
-STEP 3: Write those searches as keywords.
+GOAL: Cast a WIDE NET to capture all relevant threads. These queries will be heuristically filtered and AI-scored later, so prioritize RECALL (capturing relevant threads) over PRECISION (avoiding irrelevant ones).
 
-The mental model: A person sits down at Reddit, has a problem, and types a search. What do they type?
+STEP 1: Identify the PROBLEMS, QUESTIONS, and SITUATIONS where someone would need this product/service.
+STEP 2: Extract what people would actually TYPE into Reddit's search bar when they have those problems.
+STEP 3: Generate queries across the full spectrum from broad discovery to specific intent.
 
-GOOD keyword examples (for an LLC formation service):
-- "how to start an LLC" (someone figuring out the process)
-- "best LLC service" (someone looking for a provider)
-- "recommend LLC formation" (asking for recommendations)
-- "LLC vs sole proprietorship" (comparing options)
-- "need registered agent" (specific need)
-- "starting a business" (broad discovery)
-- "small business legal structure" (researching)
+MENTAL MODEL: What would someone search on Reddit when they:
+- Have a problem this business solves?
+- Are researching options in this space?
+- Are asking for recommendations?
+- Are comparing alternatives?
+- Are seeking advice or guidance?
 
-BAD keyword examples — DO NOT generate these:
-- "LLC formation services" (SEO keyword, not how people search Reddit)
-- "professional registered agent solutions" (marketing speak)
-- "business entity compliance management" (jargon, nobody searches this)
-- "affordable LLC formation for entrepreneurs" (too long and too SEO)
-- "LLC" (too generic, matches everything)
+GOOD EXAMPLES (for an LLC formation service):
+✓ "starting business" (broad discovery)
+✓ "how to start LLC" (specific how-to)
+✓ "need registered agent" (specific need)
+✓ "LLC vs sole proprietorship" (comparison)
+✓ "best LLC service" (seeking recommendations)
+✓ "forming company" (broad intent)
+✓ "business legal structure" (research phase)
+✓ "incorporate business" (action-oriented)
+✓ "small business setup" (broad discovery)
+✓ "registered agent service" (specific solution)
 
-Generate a MIX:
-* 4-5 SHORT (2-3 words): broad problem/topic terms. E.g. "starting business", "need accountant"
-* 4-5 MEDIUM (3-4 words): natural question fragments. E.g. "best LLC service", "how to incorporate"
-* 2-3 LONG (4-6 words): specific intent queries. E.g. "how to start an LLC", "looking for registered agent"
+BAD EXAMPLES — avoid these patterns:
+✗ "LLC formation services" (SEO keyword, too formal)
+✗ "professional registered agent solutions" (marketing jargon)
+✗ "business entity compliance management" (corporate speak)
+✗ "LLC" (too generic, matches everything)
+✗ "affordable LLC formation for entrepreneurs" (too long, too SEO)
 
-Focus on DISCOVERY — these queries should find threads where the company could naturally be recommended, not threads already about the company.`,
+GENERATE 15-20 KEYWORDS with this MIX:
+* 5-6 BROAD (2-3 words): Discovery-phase searches. E.g. "starting business", "need lawyer", "restaurant Manila"
+* 6-8 MEDIUM (3-5 words): Natural questions/intents. E.g. "how to start LLC", "best injury lawyer", "where to eat"
+* 4-6 SPECIFIC (5-7 words): Long-tail intent queries. E.g. "looking for registered agent service", "need lawyer after car accident"
+
+IMPORTANT PRINCIPLES:
+1. Use NATURAL LANGUAGE — how real people type searches, not how marketers write copy
+2. Include QUESTION FRAGMENTS — "how to", "where to", "best", "need", "looking for"
+3. Mix BROAD + SPECIFIC — cast a wide net, let filtering handle precision
+4. Focus on USER INTENT — what are they trying to accomplish or learn?
+5. Avoid JARGON — use everyday language, not industry terminology
+6. Geographic terms OK if relevant — "Manila", "Philippines", "LA", etc.
+
+These queries will discover threads where users are actively discussing problems this business can solve. The heuristic filter and AI scoring will handle quality control.`,
         messages: [{
           role: "user",
           content: `Analyze this website and generate Reddit-optimized search terms.\n\nURL: ${url}\nTitle: ${title}\nMeta description: ${metaDesc || ogDesc}\n\n--- WEBSITE CONTENT ---\n${combinedContent}`,
         }],
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("AI detection timed out")), 30_000)
+        setTimeout(() => reject(new Error("AI detection timed out")), 90_000)
       ),
     ]);
 

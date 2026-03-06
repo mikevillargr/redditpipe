@@ -129,18 +129,18 @@ export function Sidebar({
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            p: 0.5,
           }}
         >
-          <Typography
-            sx={{
-              color: '#fff',
-              fontWeight: 800,
-              fontSize: '13px',
-              letterSpacing: '-0.5px',
+          <img
+            src="/favicon.svg"
+            alt="RedditPipe"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
             }}
-          >
-            RP
-          </Typography>
+          />
         </Box>
         {!effectiveCollapsed && (
           <Box>

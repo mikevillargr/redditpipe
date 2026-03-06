@@ -67,6 +67,9 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
   const [nuance, setNuance] = useState(client?.nuance ?? '')
   const [detecting, setDetecting] = useState(false)
   const [detectError, setDetectError] = useState<string | null>(null)
+  const [detectProgress, setDetectProgress] = useState<string>('')
+  const [detectStartTime, setDetectStartTime] = useState<number>(0)
+  const [detectSuccess, setDetectSuccess] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
     if (open) {
@@ -79,12 +82,35 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
       setKeywordMode('comma')
       setCsvFileName(null)
       setDetectError(null)
+      setDetectProgress('')
+      setDetectSuccess(null)
     }
   }, [open, client])
   const handleAutoDetect = async () => {
     if (!website.trim()) return
     setDetecting(true)
     setDetectError(null)
+    setDetectProgress('Fetching homepage...')
+    setDetectSuccess(null)
+    const startTime = Date.now()
+    setDetectStartTime(startTime)
+    
+    // Progress updater
+    const progressInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      if (elapsed < 10) {
+        setDetectProgress(`Fetching homepage... ${elapsed}s`)
+      } else if (elapsed < 20) {
+        setDetectProgress(`Crawling sub-pages... ${elapsed}s`)
+      } else if (elapsed < 40) {
+        setDetectProgress(`Analyzing business model... ${elapsed}s`)
+      } else if (elapsed < 70) {
+        setDetectProgress(`Generating search queries... ${elapsed}s`)
+      } else {
+        setDetectProgress(`Finalizing keywords... ${elapsed}s`)
+      }
+    }, 1000)
+    
     try {
       const res = await fetch('/api/clients/detect', {
         method: 'POST',
@@ -92,10 +118,19 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
         body: JSON.stringify({ url: website.trim() }),
       })
       const data = await res.json()
+      clearInterval(progressInterval)
+      
       if (!res.ok) {
         setDetectError(data.error || 'Detection failed')
+        setDetectProgress('')
         return
       }
+      
+      const keywordCount = data.keywords?.length || 0
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      setDetectSuccess(`✓ Generated ${keywordCount} keywords in ${elapsed}s`)
+      setDetectProgress('')
+      
       if (data.name && !name) setName(data.name)
       if (data.description) setDescription(data.description)
       if (data.keywords?.length) {
@@ -105,7 +140,9 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
       if (data.mentionTerms?.length) setMentionTerms(data.mentionTerms.join(', '))
       if (data.nuance) setNuance(data.nuance)
     } catch (err) {
+      clearInterval(progressInterval)
       setDetectError(err instanceof Error ? err.message : 'Network error')
+      setDetectProgress('')
     } finally {
       setDetecting(false)
     }
@@ -254,6 +291,16 @@ function ClientModal({ open, client, onClose, onSave }: ClientModalProps) {
             {detecting ? 'Detecting...' : 'Auto Detect'}
           </Button>
         </Box>
+        {detectProgress && (
+          <Alert severity="info" sx={{ py: 0.5, fontSize: '12px' }}>
+            {detectProgress}
+          </Alert>
+        )}
+        {detectSuccess && (
+          <Alert severity="success" sx={{ py: 0.5, fontSize: '12px' }}>
+            {detectSuccess}
+          </Alert>
+        )}
         {detectError && (
           <Alert severity="error" sx={{ py: 0.25, fontSize: '12px' }}>
             {detectError}
