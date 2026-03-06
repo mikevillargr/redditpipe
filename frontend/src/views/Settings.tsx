@@ -257,6 +257,14 @@ export function Settings() {
   const [aiModelScoring, setAiModelScoring] = useState('claude-haiku-4-5-20251001')
   const [aiModelReplies, setAiModelReplies] = useState('claude-sonnet-4-20250514')
   const [aiModelDetection, setAiModelDetection] = useState('claude-sonnet-4-20250514')
+  // Pile-on settings
+  const [pileOnEnabled, setPileOnEnabled] = useState(false)
+  const [pileOnAutoCreate, setPileOnAutoCreate] = useState(true)
+  const [pileOnMaxPerPrimary, setPileOnMaxPerPrimary] = useState(2)
+  const [pileOnDelayMinHours, setPileOnDelayMinHours] = useState(2)
+  const [pileOnDelayMaxHours, setPileOnDelayMaxHours] = useState(6)
+  const [pileOnMaxPerOpportunity, setPileOnMaxPerOpportunity] = useState(2)
+  const [pileOnCooldownDays, setPileOnCooldownDays] = useState(14)
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -292,6 +300,13 @@ export function Settings() {
         setAiModelReplies(data.aiModelReplies || 'claude-sonnet-4-20250514')
         setAiModelDetection(data.aiModelDetection || 'claude-sonnet-4-20250514')
         setSearchBreadth(data.searchBreadth || 'balanced')
+        setPileOnEnabled(data.pileOnEnabled ?? false)
+        setPileOnAutoCreate(data.pileOnAutoCreate ?? true)
+        setPileOnMaxPerPrimary(data.pileOnMaxPerPrimary ?? 2)
+        setPileOnDelayMinHours(data.pileOnDelayMinHours ?? 2)
+        setPileOnDelayMaxHours(data.pileOnDelayMaxHours ?? 6)
+        setPileOnMaxPerOpportunity(data.pileOnMaxPerOpportunity ?? 2)
+        setPileOnCooldownDays(data.pileOnCooldownDays ?? 14)
       }
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -396,6 +411,13 @@ export function Settings() {
         aiModelScoring,
         aiModelReplies,
         aiModelDetection,
+        pileOnEnabled,
+        pileOnAutoCreate,
+        pileOnMaxPerPrimary,
+        pileOnDelayMinHours,
+        pileOnDelayMaxHours,
+        pileOnMaxPerOpportunity,
+        pileOnCooldownDays,
       }
       // Only include non-masked values
       if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
@@ -1090,6 +1112,114 @@ export function Settings() {
             helperText="General rules injected into the AI scoring prompt. These apply across all clients to filter out irrelevant results. Use the Insights page to auto-apply learned patterns."
             sx={inputSx}
           />
+        </Box>
+      </SectionCard>
+
+      {/* Pile-On Settings */}
+      <SectionCard title="Pile-On Settings">
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <Typography sx={{ fontSize: '12px', color: '#64748b', mb: 1 }}>
+            Configure automatic pile-on comment generation. When a primary comment is verified as published, the system can automatically create pile-on opportunities for secondary accounts to reinforce the message.
+          </Typography>
+
+          <FormControl size="small" fullWidth sx={inputSx}>
+            <InputLabel>Pile-On Feature</InputLabel>
+            <Select
+              value={pileOnEnabled ? 'enabled' : 'disabled'}
+              onChange={(e) => setPileOnEnabled(e.target.value === 'enabled')}
+              label="Pile-On Feature"
+            >
+              <MenuItem value="disabled">Disabled</MenuItem>
+              <MenuItem value="enabled">Enabled</MenuItem>
+            </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Enable or disable the pile-on feature globally
+            </Typography>
+          </FormControl>
+
+          {pileOnEnabled && (
+            <>
+              <FormControl size="small" fullWidth sx={inputSx}>
+                <InputLabel>Auto-Create Pile-Ons</InputLabel>
+                <Select
+                  value={pileOnAutoCreate ? 'yes' : 'no'}
+                  onChange={(e) => setPileOnAutoCreate(e.target.value === 'yes')}
+                  label="Auto-Create Pile-Ons"
+                >
+                  <MenuItem value="no">No - Manual Only</MenuItem>
+                  <MenuItem value="yes">Yes - Automatic</MenuItem>
+                </Select>
+                <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+                  Automatically create pile-on opportunities when primary comments are verified
+                </Typography>
+              </FormControl>
+
+              <TextField
+                label="Max Pile-Ons Per Primary"
+                type="number"
+                value={pileOnMaxPerPrimary}
+                onChange={(e) => setPileOnMaxPerPrimary(Number(e.target.value))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 5 }}
+                helperText="Number of pile-on opportunities to create per verified primary comment (1-5)"
+                sx={inputSx}
+              />
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <TextField
+                  label="Min Delay (hours)"
+                  type="number"
+                  value={pileOnDelayMinHours}
+                  onChange={(e) => setPileOnDelayMinHours(Number(e.target.value))}
+                  size="small"
+                  inputProps={{ min: 1, max: 48 }}
+                  helperText="Minimum hours before pile-on"
+                  sx={inputSx}
+                />
+                <TextField
+                  label="Max Delay (hours)"
+                  type="number"
+                  value={pileOnDelayMaxHours}
+                  onChange={(e) => setPileOnDelayMaxHours(Number(e.target.value))}
+                  size="small"
+                  inputProps={{ min: 1, max: 72 }}
+                  helperText="Maximum hours for pile-on"
+                  sx={inputSx}
+                />
+              </Box>
+
+              <TextField
+                label="Max Pile-Ons Per Opportunity (Legacy)"
+                type="number"
+                value={pileOnMaxPerOpportunity}
+                onChange={(e) => setPileOnMaxPerOpportunity(Number(e.target.value))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 5 }}
+                helperText="Legacy setting for manual pile-on button (1-5)"
+                sx={inputSx}
+              />
+
+              <TextField
+                label="Cooldown Period (days)"
+                type="number"
+                value={pileOnCooldownDays}
+                onChange={(e) => setPileOnCooldownDays(Number(e.target.value))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 90 }}
+                helperText="Days before same accounts can interact again (prevents suspicious patterns)"
+                sx={inputSx}
+              />
+            </>
+          )}
         </Box>
       </SectionCard>
 
