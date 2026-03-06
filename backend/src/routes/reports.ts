@@ -23,6 +23,9 @@ interface ReportOpportunity {
   subreddit: string;
   threadCreatedAt: Date | null;
   createdAt: Date;
+  opportunityType: string;
+  parentOpportunityId: string | null;
+  parentThreadTitle: string | null;
 }
 
 reports.get("/clients/:clientId", async (c) => {
@@ -33,6 +36,11 @@ reports.get("/clients/:clientId", async (c) => {
     const opportunities = await db.opportunity.findMany({
       where: { clientId },
       orderBy: { createdAt: "desc" },
+      include: {
+        parentOpportunity: {
+          select: { title: true },
+        },
+      },
     });
 
     const reportData: ReportOpportunity[] = opportunities.map((opp) => {
@@ -79,6 +87,9 @@ reports.get("/clients/:clientId", async (c) => {
         subreddit: opp.subreddit,
         threadCreatedAt: opp.threadCreatedAt || null,
         createdAt: opp.createdAt,
+        opportunityType: opp.opportunityType || "primary",
+        parentOpportunityId: opp.parentOpportunityId || null,
+        parentThreadTitle: (opp as any).parentOpportunity?.title || null,
       };
     });
 
