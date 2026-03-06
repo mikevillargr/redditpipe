@@ -38,6 +38,7 @@ const ALLOWED_FIELDS = new Set([
   "anthropicApiKey", "searchFrequency", "searchScheduleTimes", "searchTimezone",
   "maxResultsPerKeyword", "threadMaxAgeDays", "relevanceThreshold", "aiSearchContext",
   "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
+  "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",
 ]);
 
 app.put("/", async (c) => {
