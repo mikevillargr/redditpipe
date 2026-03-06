@@ -1348,33 +1348,38 @@ export function Dashboard() {
               <Typography sx={{ fontWeight: 700, fontSize: '17px', color: 'text.primary', lineHeight: 1.4 }}>
                 {previewOpp.title}
               </Typography>
-              {previewOpp.aiRelevanceNote && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 1,
-                    mt: 1,
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: '8px',
-                    bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
-                    border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
-                  }}
-                >
-                  <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
-                  <Typography
+              {previewOpp.aiRelevanceNote && (() => {
+                let parsed: { note?: string; factors?: { subredditRelevance?: number; topicMatch?: number; intent?: number; naturalFit?: number } } | null = null
+                try { parsed = JSON.parse(previewOpp.aiRelevanceNote) } catch { parsed = { note: previewOpp.aiRelevanceNote } }
+                const note = parsed?.note || previewOpp.aiRelevanceNote
+                return (
+                  <Box
                     sx={{
-                      fontSize: '13px',
-                      color: isDark ? '#a5b4fc' : '#4f46e5',
-                      lineHeight: 1.5,
-                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 1,
+                      mt: 1,
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: '8px',
+                      bgcolor: isDark ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)',
+                      border: `1px solid ${isDark ? 'rgba(99,102,241,0.2)' : 'rgba(99,102,241,0.15)'}`,
                     }}
                   >
-                    {previewOpp.aiRelevanceNote}
-                  </Typography>
-                </Box>
-              )}
+                    <SparklesIcon size={14} style={{ color: '#6366f1', marginTop: 2, flexShrink: 0 }} />
+                    <Typography
+                      sx={{
+                        fontSize: '13px',
+                        color: isDark ? '#a5b4fc' : '#4f46e5',
+                        lineHeight: 1.5,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {note}
+                    </Typography>
+                  </Box>
+                )
+              })()}
             </DialogTitle>
             <DialogContent dividers sx={{ borderColor: isDark ? '#1e293b' : '#e2e8f0' }}>
               {previewOpp.snippet && (
@@ -1875,18 +1880,44 @@ function OpportunityCard({
                 />
               )}
               {isPublished && (
-                <Chip
-                  label="✓ Published"
-                  size="small"
-                  sx={{
-                    height: 22,
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    bgcolor: 'rgba(16,185,129,0.15)',
-                    color: '#10b981',
-                    border: '1px solid rgba(16,185,129,0.35)',
-                  }}
-                />
+                <>
+                  <Chip
+                    label="✓ Published"
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      bgcolor: 'rgba(16,185,129,0.15)',
+                      color: '#10b981',
+                      border: '1px solid rgba(16,185,129,0.35)',
+                    }}
+                  />
+                  {opp.permalinkUrl && (
+                    <Tooltip title="View published comment on Reddit" arrow>
+                      <Chip
+                        label="View Comment"
+                        size="small"
+                        icon={<ExternalLinkIcon size={12} />}
+                        component="a"
+                        href={opp.permalinkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        clickable
+                        sx={{
+                          height: 22,
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          bgcolor: 'rgba(59,130,246,0.1)',
+                          color: '#3b82f6',
+                          border: '1px solid rgba(59,130,246,0.3)',
+                          '&:hover': { bgcolor: 'rgba(59,130,246,0.15)' },
+                          textDecoration: 'none',
+                        }}
+                      />
+                    </Tooltip>
+                  )}
+                </>
               )}
               {isUnverified && (
                 <Chip

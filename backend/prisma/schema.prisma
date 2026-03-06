@@ -46,6 +46,7 @@ model RedditAccount {
 
   opportunities      Opportunity[]
   accountAssignments AccountClientAssignment[]
+  pileOnComments     PileOnComment[]
 }
 
 model AccountClientAssignment {
@@ -84,8 +85,9 @@ model Opportunity {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  account RedditAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  account      RedditAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  pileOnComments PileOnComment[]
 
   @@unique([threadId, clientId])
 }
@@ -100,6 +102,37 @@ model DismissalLog {
   relevanceScore Float?
   reason         String
   createdAt      DateTime @default(now())
+}
+
+model PileOnComment {
+  id                String    @id @default(cuid())
+  opportunityId     String
+  primaryCommentId  String
+  pileOnAccountId   String
+  pileOnCommentId   String?
+  aiDraftReply      String
+  status            String    @default("draft")
+  postedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  opportunity   Opportunity   @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  pileOnAccount RedditAccount @relation(fields: [pileOnAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityId, pileOnAccountId])
+}
+
+model AccountInteractionLog {
+  id              String   @id @default(cuid())
+  account1Id      String
+  account2Id      String
+  interactionType String
+  threadId        String
+  subreddit       String
+  createdAt       DateTime @default(now())
+
+  @@index([account1Id, account2Id])
+  @@index([threadId])
 }
 
 model Settings {
@@ -125,4 +158,9 @@ model Settings {
   maxAiCallsTotal         Int    @default(200)
   maxOppsPerClient        Int    @default(20)
   maxOppsTotal            Int    @default(50)
+  pileOnEnabled           Boolean @default(false)
+  pileOnDelayMinHours     Int     @default(2)
+  pileOnDelayMaxHours     Int     @default(6)
+  pileOnMaxPerOpportunity Int     @default(2)
+  pileOnCooldownDays      Int     @default(14)
 }
