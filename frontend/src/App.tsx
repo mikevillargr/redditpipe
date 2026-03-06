@@ -56,7 +56,7 @@ function useAppTheme(mode: 'light' | 'dark') {
 export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [activePage, setActivePage] = useState<Page>('dashboard')
-  const [collapsed, setCollapsed] = useState(true)
+  const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [mode, setMode] = useState<'light' | 'dark'>('dark')

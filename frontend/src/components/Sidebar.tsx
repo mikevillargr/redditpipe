@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Drawer,
@@ -12,6 +12,11 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material'
 import {
   LayoutDashboardIcon,
@@ -25,6 +30,9 @@ import {
   BarChart3Icon,
   FlameIcon,
   FileTextIcon,
+  DownloadIcon,
+  PuzzleIcon,
+  ExternalLinkIcon,
 } from 'lucide-react'
 import { RedditIcon } from './RedditIcon'
 import type { Page } from '../App'
@@ -85,6 +93,7 @@ export function Sidebar({
   onMobileClose,
   onLogout,
 }: SidebarProps) {
+  const [extensionDialogOpen, setExtensionDialogOpen] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isDark = mode === 'dark'
@@ -342,6 +351,50 @@ export function Sidebar({
           </Tooltip>
         </List>
 
+        {/* Chrome Extension Download */}
+        <List sx={{ px: 1, py: 0 }} disablePadding>
+          <Tooltip
+            title={effectiveCollapsed ? 'Chrome Extension' : ''}
+            placement="right"
+            arrow
+          >
+            <ListItemButton
+              onClick={() => setExtensionDialogOpen(true)}
+              sx={{
+                borderRadius: '8px',
+                mb: 0.5,
+                px: 1.5,
+                py: 1,
+                minHeight: 40,
+                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                borderLeft: '3px solid transparent',
+                '&:hover': { bgcolor: hoverBg },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: effectiveCollapsed ? 0 : 36,
+                  color: inactiveIconColor,
+                  justifyContent: 'center',
+                }}
+              >
+                <PuzzleIcon size={18} />
+              </ListItemIcon>
+              {!effectiveCollapsed && (
+                <ListItemText
+                  primary="Chrome Extension"
+                  primaryTypographyProps={{
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    color: '#94a3b8',
+                    whiteSpace: 'nowrap',
+                  }}
+                />
+              )}
+            </ListItemButton>
+          </Tooltip>
+        </List>
+
         {/* Dark/Light Mode Toggle */}
         <Box
           sx={{
@@ -445,8 +498,123 @@ export function Sidebar({
       </Box>
     </Box>
   )
+  const extensionDialog = (
+    <Dialog
+      open={extensionDialogOpen}
+      onClose={() => setExtensionDialogOpen(false)}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: 'background.paper',
+          backgroundImage: 'none',
+          borderRadius: '12px',
+        },
+      }}
+    >
+      <DialogTitle sx={{ pb: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: '8px',
+              bgcolor: '#f97316',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <PuzzleIcon size={20} color="#fff" />
+          </Box>
+          <Typography sx={{ fontWeight: 700, fontSize: '18px' }}>
+            RedditPipe Chrome Extension
+          </Typography>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        <Typography sx={{ color: 'text.secondary', fontSize: '14px', mb: 2 }}>
+          Post and verify comments directly from Reddit. The extension detects your
+          logged-in account, shows pending opportunities, and lets you mark comments
+          as published with one click.
+        </Typography>
+
+        <Box
+          sx={{
+            bgcolor: isDark ? '#0f172a' : '#f8fafc',
+            border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`,
+            borderRadius: '8px',
+            p: 2,
+            mb: 1,
+          }}
+        >
+          <Typography sx={{ fontWeight: 600, fontSize: '14px', mb: 1.5 }}>
+            Installation Steps
+          </Typography>
+          {[
+            'Click the Download button below to get the .zip file',
+            'Unzip the downloaded file',
+            'Open Chrome and go to chrome://extensions',
+            'Enable "Developer mode" (top-right toggle)',
+            'Click "Load unpacked" and select the unzipped redditpipe-extension folder',
+            'The RedditPipe icon will appear in your toolbar — pin it for easy access',
+          ].map((step, i) => (
+            <Box key={i} sx={{ display: 'flex', gap: 1.5, mb: 1, alignItems: 'flex-start' }}>
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  bgcolor: '#f97316',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  mt: '1px',
+                }}
+              >
+                {i + 1}
+              </Box>
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', lineHeight: 1.6 }}>
+                {step}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+        <Button
+          onClick={() => setExtensionDialogOpen(false)}
+          sx={{ color: 'text.secondary' }}
+        >
+          Close
+        </Button>
+        <Button
+          variant="contained"
+          href="/redditpipe-extension.zip"
+          download
+          startIcon={<DownloadIcon size={16} />}
+          sx={{
+            bgcolor: '#f97316',
+            '&:hover': { bgcolor: '#ea580c' },
+            textTransform: 'none',
+            fontWeight: 600,
+          }}
+        >
+          Download Extension
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+
   return (
     <>
+      {extensionDialog}
+
       {/* Mobile: temporary drawer */}
       <Drawer
         variant="temporary"
