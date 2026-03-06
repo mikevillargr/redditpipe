@@ -2620,7 +2620,15 @@ function OpportunityCard({
                   >
                     Edit Draft
                   </Button>
-                  <Tooltip title={copiedDraft ? 'Copied!' : 'Copy draft'} arrow placement="top">
+                  <Tooltip 
+                    title={
+                      copiedDraft 
+                        ? 'Copied! Paste in Reddit markdown mode' 
+                        : 'Copy draft (use Reddit markdown mode for links)'
+                    } 
+                    arrow 
+                    placement="top"
+                  >
                     <IconButton
                       size="small"
                       onClick={() => {
@@ -2639,6 +2647,9 @@ function OpportunityCard({
                       {copiedDraft ? <CheckIcon size={14} /> : <ClipboardIcon size={14} />}
                     </IconButton>
                   </Tooltip>
+                  <Typography sx={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                    Use markdown mode in Reddit for links
+                  </Typography>
                 </Box>
               </Box>
             )}
