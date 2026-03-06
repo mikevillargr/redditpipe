@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react'
+import { copyToClipboard } from '../utils/clipboard'
 import {
   Box,
   Typography,
@@ -133,28 +134,12 @@ function TopicCard({
     setGenerating(null)
   }
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const handleCopy = async (text: string) => {
+    const success = await copyToClipboard(text)
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy:', err)
-      // Fallback for older browsers or non-HTTPS
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      textArea.style.position = 'fixed'
-      textArea.style.opacity = '0'
-      document.body.appendChild(textArea)
-      textArea.select()
-      try {
-        document.execCommand('copy')
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      } catch (e) {
-        console.error('Fallback copy failed:', e)
-      }
-      document.body.removeChild(textArea)
-    })
+    }
   }
 
   return (
@@ -538,30 +523,14 @@ function IdeaCard({ idea, isDark }: { idea: ThreadIdea; isDark: boolean }) {
     setGenerating(false)
   }
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (genPost) {
       const text = `${genPost.title}\n\n${genPost.body}`
-      navigator.clipboard.writeText(text).then(() => {
+      const success = await copyToClipboard(text)
+      if (success) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      }).catch(err => {
-        console.error('Failed to copy:', err)
-        // Fallback for older browsers or non-HTTPS
-        const textArea = document.createElement('textarea')
-        textArea.value = text
-        textArea.style.position = 'fixed'
-        textArea.style.opacity = '0'
-        document.body.appendChild(textArea)
-        textArea.select()
-        try {
-          document.execCommand('copy')
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2000)
-        } catch (e) {
-          console.error('Fallback copy failed:', e)
-        }
-        document.body.removeChild(textArea)
-      })
+      }
     }
   }
 

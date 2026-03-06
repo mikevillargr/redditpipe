@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { copyToClipboard } from '../utils/clipboard'
 import {
   Box,
   Card,
@@ -1777,23 +1778,21 @@ function OpportunityCard({
   const isUnverified = opp.status === 'unverified'
   const isNew = opp.status === 'new'
   const isPileOn = opp.opportunityType === 'pile_on'
-  const handleCopy = () => {
-    navigator.clipboard.writeText(opp.accountPassword).then(() => {
+  const handleCopy = async () => {
+    const success = await copyToClipboard(opp.accountPassword)
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy:', err)
-    })
+    }
   }
-  const handleCopyDraft = () => {
+  const handleCopyDraft = async () => {
     const textToCopy = editText || opp.draftReply || ''
     if (textToCopy) {
-      navigator.clipboard.writeText(textToCopy).then(() => {
+      const success = await copyToClipboard(textToCopy)
+      if (success) {
         setCopiedDraft(true)
         setTimeout(() => setCopiedDraft(false), 2000)
-      }).catch(err => {
-        console.error('Failed to copy:', err)
-      })
+      }
     }
   }
   const [aiError, setAiError] = useState<string | null>(null)
@@ -2634,15 +2633,14 @@ function OpportunityCard({
                   >
                     <IconButton
                       size="small"
-                      onClick={() => {
+                      onClick={async () => {
                         const textToCopy = opp.draftReply || editText || ''
                         if (textToCopy) {
-                          navigator.clipboard.writeText(textToCopy).then(() => {
+                          const success = await copyToClipboard(textToCopy)
+                          if (success) {
                             setCopiedDraft(true)
                             setTimeout(() => setCopiedDraft(false), 2000)
-                          }).catch(err => {
-                            console.error('Failed to copy:', err)
-                          })
+                          }
                         }
                       }}
                       sx={{ color: copiedDraft ? '#10b981' : 'text.disabled', '&:hover': { color: copiedDraft ? '#10b981' : 'text.secondary' } }}

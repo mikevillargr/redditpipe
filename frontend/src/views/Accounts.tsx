@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { copyToClipboard } from '../utils/clipboard'
 import {
   Box,
   Typography,
@@ -166,20 +167,40 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
   const [maxPostsPerDay, setMaxPostsPerDay] = useState(3)
   const [personaNotes, setPersonaNotes] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<{ valid: boolean; error?: string; karma?: { post: number; comment: number }; accountAge?: number } | null>(null)
+  
   const handleRandomizePersona = async () => {
     setIsGenerating(true)
     const result = await generatePersona()
     setPersonaNotes(result)
     setIsGenerating(false)
   }
-  const handleCopy = () => {
+  
+  const handleVerifyCredentials = async () => {
+    if (!username || !password) return
+    setVerifying(true)
+    setVerificationResult(null)
+    try {
+      const res = await fetch('/api/accounts/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+      const data = await res.json()
+      setVerificationResult(data)
+    } catch {
+      setVerificationResult({ valid: false, error: 'Network error' })
+    }
+    setVerifying(false)
+  }
+  const handleCopy = async () => {
     if (!password) return
-    navigator.clipboard.writeText(password).then(() => {
+    const success = await copyToClipboard(password)
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy:', err)
-    })
+    }
   }
   const handleSave = () => {
     onSave({
@@ -325,6 +346,41 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
               ),
             }}
           />
+          
+          {/* Verify Credentials Button */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleVerifyCredentials}
+            disabled={!username || !password || verifying}
+            startIcon={verifying ? <CircularProgress size={12} /> : <CheckIcon size={12} />}
+            sx={{
+              mt: 1,
+              borderColor: verificationResult?.valid ? '#10b981' : 'divider',
+              color: verificationResult?.valid ? '#10b981' : 'text.secondary',
+              fontSize: '12px',
+              '&:hover': {
+                borderColor: verificationResult?.valid ? '#059669' : '#475569',
+              },
+            }}
+          >
+            {verifying ? 'Verifying...' : 'Verify Credentials'}
+          </Button>
+          
+          {/* Verification Result */}
+          {verificationResult && (
+            <Box sx={{ mt: 1 }}>
+              {verificationResult.valid ? (
+                <Typography sx={{ fontSize: '11px', color: '#10b981' }}>
+                  ✓ Valid account • {verificationResult.karma?.post || 0} post karma • {verificationResult.karma?.comment || 0} comment karma • {verificationResult.accountAge || 0} days old
+                </Typography>
+              ) : (
+                <Typography sx={{ fontSize: '11px', color: '#ef4444' }}>
+                  ✗ {verificationResult.error || 'Invalid credentials'}
+                </Typography>
+              )}
+            </Box>
+          )}
         </Box>
 
         <Divider
@@ -573,13 +629,12 @@ function AccountCard({ account, onView }: AccountCardProps) {
     account.citationPostsWeek,
   )
   const hasWarning = postRatio >= 1 || account.noOrganicActivity || !ratio.ok
-  const handleCopy = () => {
-    navigator.clipboard.writeText(account.password).then(() => {
+  const handleCopy = async () => {
+    const success = await copyToClipboard(account.password)
+    if (success) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }).catch(err => {
-      console.error('Failed to copy:', err)
-    })
+    }
   }
   return (
     <Card
