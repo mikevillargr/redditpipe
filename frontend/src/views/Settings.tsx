@@ -727,125 +727,101 @@ export function Settings() {
             </Typography>
           </Box>
 
-          <Tooltip
-            title="Maximum number of Reddit threads to fetch per keyword search. Higher values = more threads discovered but slower searches."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Max Results Per Keyword"
-              type="number"
-              value={maxResults}
-              onChange={(e) => setMaxResults(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 100,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
-          <Tooltip
-            title="Ignore threads older than this many days. Older threads have less engagement potential. Recommended: 2-7 days."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Thread Max Age (days)"
-              type="number"
-              value={maxAge}
-              onChange={(e) => setMaxAge(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 30,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
+          <TextField
+            label="Max Results Per Keyword"
+            type="number"
+            value={maxResults}
+            onChange={(e) => setMaxResults(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Max Reddit threads fetched per keyword. Higher = more threads but slower searches."
+            inputProps={{
+              min: 1,
+              max: 100,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
+          <TextField
+            label="Thread Max Age (days)"
+            type="number"
+            value={maxAge}
+            onChange={(e) => setMaxAge(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Ignore threads older than this. Older threads = less engagement. Recommended: 2-7 days."
+            inputProps={{
+              min: 1,
+              max: 30,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
 
           <Divider sx={{ my: 2, borderColor: '#1e293b' }} />
           <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8', mb: 1 }}>
             Pipeline Limits (Scalability)
           </Typography>
-          <Tooltip
-            title="Maximum number of threads per client that pass heuristic filtering and are sent to AI for scoring. Higher = more AI calls per client."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Max AI Candidates Per Client"
-              type="number"
-              value={maxAiCandidatesPerClient}
-              onChange={(e) => setMaxAiCandidatesPerClient(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 100,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
-          <Tooltip
-            title="Total AI scoring calls allowed per search run across all clients. Prevents runaway costs if many threads match."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Max AI Calls Total"
-              type="number"
-              value={maxAiCallsTotal}
-              onChange={(e) => setMaxAiCallsTotal(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 1000,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
-          <Tooltip
-            title="Maximum opportunities created per client per search run. Limits the drip of new opportunities to avoid overwhelming your team."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Max Opps Per Client"
-              type="number"
-              value={maxOppsPerClient}
-              onChange={(e) => setMaxOppsPerClient(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 100,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
-          <Tooltip
-            title="Total opportunities created per search run across all clients. Final safety cap to prevent database bloat."
-            arrow
-            placement="right"
-          >
-            <TextField
-              label="Max Opps Total"
-              type="number"
-              value={maxOppsTotal}
-              onChange={(e) => setMaxOppsTotal(Number(e.target.value))}
-              fullWidth
-              size="small"
-              inputProps={{
-                min: 1,
-                max: 500,
-              }}
-              sx={inputSx}
-            />
-          </Tooltip>
+          <TextField
+            label="Max AI Candidates Per Client"
+            type="number"
+            value={maxAiCandidatesPerClient}
+            onChange={(e) => setMaxAiCandidatesPerClient(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Max threads per client sent to AI for scoring. Higher = more AI calls."
+            inputProps={{
+              min: 1,
+              max: 100,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
+          <TextField
+            label="Max AI Calls Total"
+            type="number"
+            value={maxAiCallsTotal}
+            onChange={(e) => setMaxAiCallsTotal(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Total AI calls per search run across all clients. Prevents runaway costs."
+            inputProps={{
+              min: 1,
+              max: 1000,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
+          <TextField
+            label="Max Opps Per Client"
+            type="number"
+            value={maxOppsPerClient}
+            onChange={(e) => setMaxOppsPerClient(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Max opportunities created per client per run. Limits drip to avoid overwhelm."
+            inputProps={{
+              min: 1,
+              max: 100,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
+          <TextField
+            label="Max Opps Total"
+            type="number"
+            value={maxOppsTotal}
+            onChange={(e) => setMaxOppsTotal(Number(e.target.value))}
+            fullWidth
+            size="small"
+            helperText="Total opportunities per run across all clients. Final safety cap."
+            inputProps={{
+              min: 1,
+              max: 500,
+            }}
+            sx={inputSx}
+            FormHelperTextProps={{ sx: { fontSize: '10px', color: '#64748b', mt: 0.5 } }}
+          />
           <Typography sx={{ fontSize: '11px', color: '#64748b', mt: -1.5 }}>
             Adjust these as you add more clients. Higher values = more AI cost and processing time.
           </Typography>
