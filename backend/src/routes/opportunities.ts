@@ -10,13 +10,17 @@ const app = new Hono();
 app.get("/", async (c) => {
   try {
     const clientId = c.req.query("clientId");
+    const accountId = c.req.query("accountId");
     const status = c.req.query("status");
     const minScore = c.req.query("minScore");
     const startDate = c.req.query("startDate");
     const endDate = c.req.query("endDate");
+    const threadId = c.req.query("threadId");
 
     const where: Record<string, unknown> = {};
     if (clientId && clientId !== "all") where.clientId = clientId;
+    if (accountId) where.accountId = accountId;
+    if (threadId) where.threadId = threadId;
     if (status && status !== "all") where.status = status;
     if (minScore) where.relevanceScore = { gte: parseFloat(minScore) };
     if (startDate || endDate) {

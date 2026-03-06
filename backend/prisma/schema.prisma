@@ -62,32 +62,37 @@ model AccountClientAssignment {
 }
 
 model Opportunity {
-  id              String    @id @default(cuid())
-  clientId        String
-  accountId       String?
-  threadId        String
-  threadUrl       String
-  subreddit       String
-  title           String
-  bodySnippet     String?
-  topComments     String?
-  score           Int?
-  commentCount    Int?
-  threadAge       String?
-  threadCreatedAt DateTime?
-  relevanceScore  Float?
-  aiDraftReply    String?
-  status          String    @default("new")
-  permalinkUrl    String?
-  discoveredVia   String?
-  dismissReason   String?
-  aiRelevanceNote String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  clientId            String
+  accountId           String?
+  threadId            String
+  threadUrl           String
+  subreddit           String
+  title               String
+  bodySnippet         String?
+  topComments         String?
+  score               Int?
+  commentCount        Int?
+  threadAge           String?
+  threadCreatedAt     DateTime?
+  relevanceScore      Float?
+  aiDraftReply        String?
+  status              String    @default("new")
+  permalinkUrl        String?
+  discoveredVia       String?
+  dismissReason       String?
+  aiRelevanceNote     String?
+  opportunityType     String    @default("primary")
+  parentOpportunityId String?
+  pileOnEligibleAt    DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  client       Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  account      RedditAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  pileOnComments PileOnComment[]
+  client            Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  account           RedditAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  pileOnComments    PileOnComment[]
+  parentOpportunity Opportunity?     @relation("PileOnRelation", fields: [parentOpportunityId], references: [id], onDelete: Cascade)
+  childPileOns      Opportunity[]    @relation("PileOnRelation")
 
   @@unique([threadId, clientId])
 }
@@ -163,4 +168,6 @@ model Settings {
   pileOnDelayMaxHours     Int     @default(6)
   pileOnMaxPerOpportunity Int     @default(2)
   pileOnCooldownDays      Int     @default(14)
+  pileOnAutoCreate        Boolean @default(true)
+  pileOnMaxPerPrimary     Int     @default(2)
 }

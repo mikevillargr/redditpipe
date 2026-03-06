@@ -7,7 +7,12 @@ const app = new Hono();
 // GET /api/accounts
 app.get("/", async (c) => {
   try {
+    const username = c.req.query("username");
+    const where: Record<string, unknown> = {};
+    if (username) where.username = username;
+
     const accounts = await prisma.redditAccount.findMany({
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         accountAssignments: { include: { client: { select: { id: true, name: true } } } },
@@ -150,6 +155,28 @@ app.post("/:id/analyze", async (c) => {
   } catch (error) {
     console.error("POST /api/accounts/:id/analyze error:", error);
     return c.json({ error: "Analysis failed", details: error instanceof Error ? error.message : "Unknown" }, 500);
+  }
+});
+
+// POST /api/accounts/:id/log-organic — Chrome extension: increment organic post count
+app.post("/:id/log-organic", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const account = await prisma.redditAccount.findUnique({ where: { id } });
+    if (!account) return c.json({ error: "Not found" }, 404);
+
+    const updated = await prisma.redditAccount.update({
+      where: { id },
+      data: { organicPostsWeek: { increment: 1 } },
+      select: {
+        id: true, username: true, organicPostsWeek: true,
+        citationPostsWeek: true, postsTodayCount: true, maxPostsPerDay: true,
+      },
+    });
+    return c.json(updated);
+  } catch (error) {
+    console.error("POST /api/accounts/:id/log-organic error:", error);
+    return c.json({ error: "Failed to log organic post" }, 500);
   }
 });
 

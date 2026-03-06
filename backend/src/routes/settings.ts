@@ -40,6 +40,7 @@ const ALLOWED_FIELDS = new Set([
   "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
   "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",
   "pileOnEnabled", "pileOnDelayMinHours", "pileOnDelayMaxHours", "pileOnMaxPerOpportunity", "pileOnCooldownDays",
+  "pileOnAutoCreate", "pileOnMaxPerPrimary",
 ]);
 
 app.put("/", async (c) => {

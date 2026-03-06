@@ -1,5 +1,6 @@
 import { verifyCommentOnThread } from "./reddit.js";
 import { prisma } from "./prisma.js";
+import { createPileOnOpportunities } from "./pile-on-creation.js";
 
 interface VerifyResult {
   verified: boolean;
@@ -53,6 +54,14 @@ export async function markAsPublished(
         lastPostAt: new Date(),
       },
     });
+    
+    // Auto-create pile-on opportunities
+    try {
+      await createPileOnOpportunities(opportunityId);
+    } catch (error) {
+      console.error("[Verification] Failed to create pile-on opportunities:", error);
+    }
+    
     return { status: "published", permalinkUrl: result.permalinkUrl };
   } else {
     await prisma.opportunity.update({
@@ -88,6 +97,13 @@ export async function submitPermalink(
         lastPostAt: new Date(),
       },
     });
+  }
+
+  // Auto-create pile-on opportunities
+  try {
+    await createPileOnOpportunities(opportunityId);
+  } catch (error) {
+    console.error("[Verification] Failed to create pile-on opportunities:", error);
   }
 
   return { status: "published", permalinkUrl: result.permalinkUrl! };

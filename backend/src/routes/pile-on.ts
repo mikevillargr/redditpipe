@@ -3,119 +3,32 @@ import { createPrismaClient } from "../lib/prisma.js";
 import { selectPileOnAccount } from "../lib/pile-on-matching.js";
 import { generatePileOnComment } from "../lib/ai-pile-on.js";
 import { postComment } from "../lib/reddit.js";
+import { createManualPileOn } from "../lib/pile-on-creation.js";
 
 const app = new Hono();
 
 /**
  * POST /api/opportunities/:id/pile-on
- * Generate a pile-on comment draft for an opportunity
+ * Manually create a pile-on opportunity (fallback button)
  */
 app.post("/:id/pile-on", async (c) => {
   const opportunityId = c.req.param("id");
-  const db = createPrismaClient();
-
+  
   try {
-    // Check if pile-on is enabled
-    const settings = await db.settings.findUnique({ where: { id: "singleton" } });
-    if (!settings?.pileOnEnabled) {
-      return c.json({ error: "Pile-on feature is not enabled" }, 400);
+    const result = await createManualPileOn(opportunityId);
+    
+    if (!result.success) {
+      return c.json({ error: result.error }, 400);
     }
-
-    // Get the opportunity
-    const opportunity = await db.opportunity.findUnique({
-      where: { id: opportunityId },
-      include: {
-        client: true,
-        account: true,
-      },
-    });
-
-    if (!opportunity) {
-      return c.json({ error: "Opportunity not found" }, 404);
-    }
-
-    if (opportunity.status !== "published") {
-      return c.json({ error: "Can only pile-on to published opportunities" }, 400);
-    }
-
-    if (!opportunity.accountId || !opportunity.permalinkUrl) {
-      return c.json({ error: "Opportunity missing account or permalink" }, 400);
-    }
-
-    // Check if max pile-ons reached
-    const existingPileOns = await db.pileOnComment.count({
-      where: { opportunityId },
-    });
-
-    if (existingPileOns >= (settings.pileOnMaxPerOpportunity || 2)) {
-      return c.json({ error: "Maximum pile-ons reached for this opportunity" }, 400);
-    }
-
-    // Check if enough time has passed since primary comment
-    if (opportunity.updatedAt) {
-      const minDelayMs = (settings.pileOnDelayMinHours || 2) * 60 * 60 * 1000;
-      const timeSincePost = Date.now() - opportunity.updatedAt.getTime();
-      
-      if (timeSincePost < minDelayMs) {
-        const hoursRemaining = Math.ceil((minDelayMs - timeSincePost) / (60 * 60 * 1000));
-        return c.json({ 
-          error: `Must wait at least ${settings.pileOnDelayMinHours} hours before pile-on. ${hoursRemaining}h remaining.` 
-        }, 400);
-      }
-    }
-
-    // Select best pile-on account
-    const pileOnAccount = await selectPileOnAccount(
-      opportunityId,
-      opportunity.accountId,
-      opportunity.clientId
-    );
-
-    if (!pileOnAccount) {
-      return c.json({ error: "No suitable pile-on account available" }, 400);
-    }
-
-    // Generate pile-on comment
-    const aiDraftReply = await generatePileOnComment({
-      primaryComment: opportunity.aiDraftReply || "",
-      threadTitle: opportunity.title,
-      threadBody: opportunity.bodySnippet || "",
-      clientName: opportunity.client.name,
-      clientDescription: opportunity.client.description,
-      pileOnAccountPersonality: pileOnAccount.personalitySummary,
-      pileOnAccountWritingStyle: pileOnAccount.writingStyleNotes,
-    });
-
-    // Extract comment ID from permalink (e.g., /r/subreddit/comments/threadid/title/commentid)
-    const permalinkParts = opportunity.permalinkUrl.split("/");
-    const primaryCommentId = permalinkParts[permalinkParts.length - 1] || "";
-
-    // Create draft pile-on comment
-    const pileOn = await db.pileOnComment.create({
-      data: {
-        opportunityId,
-        primaryCommentId,
-        pileOnAccountId: pileOnAccount.id,
-        aiDraftReply,
-        status: "draft",
-      },
-    });
 
     return c.json({
-      id: pileOn.id,
-      aiDraftReply,
-      pileOnAccount: {
-        id: pileOnAccount.id,
-        username: pileOnAccount.username,
-        commentKarma: pileOnAccount.commentKarma,
-      },
-      status: "draft",
+      success: true,
+      opportunityId: result.opportunityId,
+      message: "Pile-on opportunity created successfully",
     });
   } catch (error) {
-    console.error("Error generating pile-on:", error);
-    return c.json({ error: error instanceof Error ? error.message : "Failed to generate pile-on" }, 500);
-  } finally {
-    await db.$disconnect();
+    console.error("Error creating manual pile-on:", error);
+    return c.json({ error: error instanceof Error ? error.message : "Failed to create pile-on" }, 500);
   }
 });
 
