@@ -1783,9 +1783,15 @@ function OpportunityCard({
     setTimeout(() => setCopied(false), 2000)
   }
   const handleCopyDraft = () => {
-    navigator.clipboard.writeText(editText)
-    setCopiedDraft(true)
-    setTimeout(() => setCopiedDraft(false), 2000)
+    const textToCopy = editText || opp.draftReply || ''
+    if (textToCopy) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        setCopiedDraft(true)
+        setTimeout(() => setCopiedDraft(false), 2000)
+      }).catch(err => {
+        console.error('Failed to copy:', err)
+      })
+    }
   }
   const [aiError, setAiError] = useState<string | null>(null)
   const [aiPrompt, setAiPrompt] = useState('')
@@ -2618,9 +2624,15 @@ function OpportunityCard({
                     <IconButton
                       size="small"
                       onClick={() => {
-                        navigator.clipboard.writeText(opp.draftReply)
-                        setCopiedDraft(true)
-                        setTimeout(() => setCopiedDraft(false), 2000)
+                        const textToCopy = opp.draftReply || editText || ''
+                        if (textToCopy) {
+                          navigator.clipboard.writeText(textToCopy).then(() => {
+                            setCopiedDraft(true)
+                            setTimeout(() => setCopiedDraft(false), 2000)
+                          }).catch(err => {
+                            console.error('Failed to copy:', err)
+                          })
+                        }
                       }}
                       sx={{ color: copiedDraft ? '#10b981' : 'text.disabled', '&:hover': { color: copiedDraft ? '#10b981' : 'text.secondary' } }}
                     >
@@ -2678,11 +2690,21 @@ function OpportunityCard({
                     Assign Account...
                   </Typography>
                 </MenuItem>
-                {availableAccounts.filter(a => a.status === 'active').map((account) => (
+                {availableAccounts.map((account) => (
                   <MenuItem key={account.id} value={account.id}>
-                    <Typography sx={{ fontSize: '12px' }}>
-                      {account.username}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          bgcolor: account.status === 'active' ? '#10b981' : '#64748b',
+                        }}
+                      />
+                      <Typography sx={{ fontSize: '12px' }}>
+                        {account.username}
+                      </Typography>
+                    </Box>
                   </MenuItem>
                 ))}
               </Select>
