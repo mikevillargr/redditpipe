@@ -1778,9 +1778,12 @@ function OpportunityCard({
   const isNew = opp.status === 'new'
   const isPileOn = opp.opportunityType === 'pile_on'
   const handleCopy = () => {
-    navigator.clipboard.writeText(opp.accountPassword)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(opp.accountPassword).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
   }
   const handleCopyDraft = () => {
     const textToCopy = editText || opp.draftReply || ''

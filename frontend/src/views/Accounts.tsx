@@ -174,9 +174,12 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
   }
   const handleCopy = () => {
     if (!password) return
-    navigator.clipboard.writeText(password)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(password).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
   }
   const handleSave = () => {
     onSave({
@@ -571,9 +574,12 @@ function AccountCard({ account, onView }: AccountCardProps) {
   )
   const hasWarning = postRatio >= 1 || account.noOrganicActivity || !ratio.ok
   const handleCopy = () => {
-    navigator.clipboard.writeText(account.password)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(account.password).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+    })
   }
   return (
     <Card

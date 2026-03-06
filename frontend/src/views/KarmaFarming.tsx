@@ -134,9 +134,27 @@ function TopicCard({
   }
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(err => {
+      console.error('Failed to copy:', err)
+      // Fallback for older browsers or non-HTTPS
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      textArea.style.position = 'fixed'
+      textArea.style.opacity = '0'
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (e) {
+        console.error('Fallback copy failed:', e)
+      }
+      document.body.removeChild(textArea)
+    })
   }
 
   return (
@@ -522,9 +540,28 @@ function IdeaCard({ idea, isDark }: { idea: ThreadIdea; isDark: boolean }) {
 
   const handleCopy = () => {
     if (genPost) {
-      navigator.clipboard.writeText(`${genPost.title}\n\n${genPost.body}`)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      const text = `${genPost.title}\n\n${genPost.body}`
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(err => {
+        console.error('Failed to copy:', err)
+        // Fallback for older browsers or non-HTTPS
+        const textArea = document.createElement('textarea')
+        textArea.value = text
+        textArea.style.position = 'fixed'
+        textArea.style.opacity = '0'
+        document.body.appendChild(textArea)
+        textArea.select()
+        try {
+          document.execCommand('copy')
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        } catch (e) {
+          console.error('Fallback copy failed:', e)
+        }
+        document.body.removeChild(textArea)
+      })
     }
   }
 
