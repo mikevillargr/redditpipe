@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -69,12 +69,19 @@ function TopicCard({
   topic: TrendingTopic
   isDark: boolean
 }) {
+  const storageKey = `topic_${topic.url.replace(/[^a-zA-Z0-9]/g, '_')}`
   const [expanded, setExpanded] = useState(false)
-  const [content, setContent] = useState<string | null>(null)
+  const [content, setContent] = useState<string | null>(() => {
+    const stored = localStorage.getItem(`${storageKey}_reply`)
+    return stored || null
+  })
   const [contentType, setContentType] = useState<'reply' | 'post'>('reply')
   const [generating, setGenerating] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const [genPost, setGenPost] = useState<ThreadPost | null>(null)
+  const [genPost, setGenPost] = useState<ThreadPost | null>(() => {
+    const stored = localStorage.getItem(`${storageKey}_post`)
+    return stored ? JSON.parse(stored) : null
+  })
   const [error, setError] = useState<string | null>(null)
   const cat = categoryConfig[topic.category] || categoryConfig.trending
   const CatIcon = cat.icon
@@ -95,6 +102,7 @@ function TopicCard({
       if (res.ok && data.reply) {
         setContent(data.reply)
         setContentType('reply')
+        localStorage.setItem(`${storageKey}_reply`, data.reply)
       } else {
         setError(data.error || 'Failed to generate reply')
       }
@@ -117,6 +125,7 @@ function TopicCard({
       if (res.ok && data.post) {
         setGenPost(data.post)
         setContentType('post')
+        localStorage.setItem(`${storageKey}_post`, JSON.stringify(data.post))
       } else {
         setError(data.error || 'Failed to generate post')
       }
@@ -265,15 +274,27 @@ function TopicCard({
   )
 }
 
+const STORAGE_KEY_TOPICS = 'karma_farming_topics'
+const STORAGE_KEY_IDEAS = 'karma_farming_ideas'
+const STORAGE_KEY_LAST_FETCH = 'karma_farming_last_fetch'
+
 export function KarmaFarming() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
 
   const [activeTab, setActiveTab] = useState(0)
-  const [topics, setTopics] = useState<TrendingTopic[]>([])
+  const [topics, setTopics] = useState<TrendingTopic[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY_TOPICS)
+    return stored ? JSON.parse(stored) : []
+  })
   const [loading, setLoading] = useState(false)
-  const [lastFetched, setLastFetched] = useState<string | null>(null)
-  const [threadIdeas, setThreadIdeas] = useState<ThreadIdea[]>([])
+  const [lastFetched, setLastFetched] = useState<string | null>(() => {
+    return localStorage.getItem(STORAGE_KEY_LAST_FETCH)
+  })
+  const [threadIdeas, setThreadIdeas] = useState<ThreadIdea[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY_IDEAS)
+    return stored ? JSON.parse(stored) : []
+  })
   const [ideasLoading, setIdeasLoading] = useState(false)
   const [ideasError, setIdeasError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'question' | 'discussion' | 'trending' | 'news'>('all')
@@ -286,6 +307,8 @@ export function KarmaFarming() {
         const data = await res.json()
         setTopics(data.topics)
         setLastFetched(data.generatedAt)
+        localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(data.topics))
+        localStorage.setItem(STORAGE_KEY_LAST_FETCH, data.generatedAt)
       }
     } catch { /* ignore */ }
     setLoading(false)
@@ -305,6 +328,7 @@ export function KarmaFarming() {
       const data = await res.json()
       if (res.ok && data.ideas) {
         setThreadIdeas(data.ideas)
+        localStorage.setItem(STORAGE_KEY_IDEAS, JSON.stringify(data.ideas))
       } else {
         setIdeasError(data.error || 'Failed to generate ideas')
       }
@@ -354,13 +378,14 @@ export function KarmaFarming() {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
               Generate original thread ideas inspired by trending news and topics. Post these to build karma.
+              {threadIdeas.length > 0 && <span style={{ color: '#10b981', marginLeft: '8px' }}>✓ {threadIdeas.length} ideas cached</span>}
             </Typography>
             <Button size="small" variant="contained"
               startIcon={ideasLoading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <SparklesIcon size={12} />}
               disabled={ideasLoading} onClick={generateIdeas}
               sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
             >
-              {ideasLoading ? 'Generating...' : 'Generate Ideas'}
+              {ideasLoading ? 'Generating...' : threadIdeas.length > 0 ? 'Refresh Ideas' : 'Generate Ideas'}
             </Button>
           </Box>
 
@@ -464,7 +489,11 @@ export function KarmaFarming() {
 }
 
 function IdeaCard({ idea, isDark }: { idea: ThreadIdea; isDark: boolean }) {
-  const [genPost, setGenPost] = useState<ThreadPost | null>(null)
+  const storageKey = `idea_${idea.title.replace(/[^a-zA-Z0-9]/g, '_')}_${idea.subreddit}`
+  const [genPost, setGenPost] = useState<ThreadPost | null>(() => {
+    const stored = localStorage.getItem(storageKey)
+    return stored ? JSON.parse(stored) : null
+  })
   const [generating, setGenerating] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -483,6 +512,7 @@ function IdeaCard({ idea, isDark }: { idea: ThreadIdea; isDark: boolean }) {
       const data = await res.json()
       if (res.ok && data.post) {
         setGenPost(data.post)
+        localStorage.setItem(storageKey, JSON.stringify(data.post))
       } else {
         setError(data.error || 'Failed to generate post')
       }
