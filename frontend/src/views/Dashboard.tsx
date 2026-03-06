@@ -27,6 +27,7 @@ import {
   Checkbox,
   useTheme,
 } from '@mui/material'
+import { PileOnDialog } from '../components/PileOnDialog'
 import {
   TrendingUpIcon,
   CheckCircleIcon,
@@ -296,6 +297,10 @@ export function Dashboard() {
   const [publishingId, setPublishingId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [publishPermalink, setPublishPermalink] = useState('')
+  // Pile-on dialog
+  const [pileOnOppId, setPileOnOppId] = useState<string | null>(null)
+  const [pileOnOppTitle, setPileOnOppTitle] = useState('')
+  const [showPileOnDialog, setShowPileOnDialog] = useState(false)
   // Thread preview
   const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
   // Lazy load / infinite scroll
@@ -439,6 +444,15 @@ export function Dashboard() {
     setShowPublishDialog(false)
     setPublishingId(null)
     setPublishPermalink('')
+  }
+  const handlePileOn = (id: string, title: string) => {
+    setPileOnOppId(id)
+    setPileOnOppTitle(title)
+    setShowPileOnDialog(true)
+  }
+  const handlePileOnSuccess = () => {
+    setSnackbar({ open: true, message: 'Pile-on comment published successfully ✓', severity: 'success' })
+    fetchOpportunities()
   }
   const handleManualVerify = async (id: string, permalink: string) => {
     if (!permalink.trim()) return
@@ -1230,6 +1244,7 @@ export function Dashboard() {
             }
             onDismiss={() => handleDismiss(opp.id)}
             onUpdateDraft={(text) => handleUpdateDraft(opp.id, text)}
+            onPileOn={() => handlePileOn(opp.id, opp.title)}
             onPreview={() => setPreviewOpp(opp)}
           />
         ))}
@@ -1617,6 +1632,21 @@ export function Dashboard() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Pile-On Dialog */}
+      {pileOnOppId && (
+        <PileOnDialog
+          open={showPileOnDialog}
+          onClose={() => {
+            setShowPileOnDialog(false)
+            setPileOnOppId(null)
+            setPileOnOppTitle('')
+          }}
+          opportunityId={pileOnOppId}
+          opportunityTitle={pileOnOppTitle}
+          onSuccess={handlePileOnSuccess}
+        />
+      )}
     </Box>
   )
 }
@@ -1634,6 +1664,7 @@ interface OpportunityCardProps {
   onManualVerify: (permalink: string) => void
   onDismiss: () => void
   onUpdateDraft: (text: string) => void
+  onPileOn: () => void
   onPreview: () => void
 }
 function OpportunityCard({
@@ -1647,6 +1678,7 @@ function OpportunityCard({
   onManualVerify,
   onDismiss,
   onUpdateDraft,
+  onPileOn,
   onPreview,
 }: OpportunityCardProps) {
   const [showPassword, setShowPassword] = useState(false)
@@ -1917,6 +1949,23 @@ function OpportunityCard({
                       />
                     </Tooltip>
                   )}
+                  <Tooltip title="Add pile-on comment from secondary account" arrow>
+                    <Chip
+                      label="Pile On"
+                      size="small"
+                      onClick={onPileOn}
+                      clickable
+                      sx={{
+                        height: 22,
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        bgcolor: 'rgba(168,85,247,0.1)',
+                        color: '#a855f7',
+                        border: '1px solid rgba(168,85,247,0.3)',
+                        '&:hover': { bgcolor: 'rgba(168,85,247,0.15)' },
+                      }}
+                    />
+                  </Tooltip>
                 </>
               )}
               {isUnverified && (
