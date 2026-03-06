@@ -39,6 +39,7 @@ const ALLOWED_FIELDS = new Set([
   "maxResultsPerKeyword", "threadMaxAgeDays", "relevanceThreshold", "aiSearchContext",
   "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
   "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",
+  "pileOnEnabled", "pileOnDelayMinHours", "pileOnDelayMaxHours", "pileOnMaxPerOpportunity", "pileOnCooldownDays",
 ]);
 
 app.put("/", async (c) => {

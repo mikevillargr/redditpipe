@@ -11,6 +11,7 @@ import searchRoutes from "./routes/search.js";
 import authRoutes from "./routes/auth.js";
 import warmingRoutes from "./routes/warming.js";
 import reportsRoutes from "./routes/reports.js";
+import pileOnRoutes from "./routes/pile-on.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -29,6 +30,7 @@ app.get("/api/health", (c) => c.json({ status: "ok", timestamp: new Date().toISO
 
 // Routes
 app.route("/api/opportunities", opportunitiesRoutes);
+app.route("/api/opportunities", pileOnRoutes);
 app.route("/api/clients", clientsRoutes);
 app.route("/api/accounts", accountsRoutes);
 app.route("/api/settings", settingsRoutes);

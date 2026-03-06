@@ -363,3 +363,90 @@ export async function verifyCommentOnThread(
     return { found: false };
   }
 }
+
+/**
+ * Post a comment on Reddit (reply to a comment or post)
+ * @param parentId - Full thing ID (e.g., t1_abc123 for comment, t3_xyz789 for post)
+ * @param text - Comment text
+ * @param username - Reddit username (optional, for logging)
+ * @param password - Reddit password (optional, for future OAuth implementation)
+ * @returns Success status, comment ID, and permalink
+ */
+export async function postComment(
+  parentId: string,
+  text: string,
+  username?: string,
+  password?: string
+): Promise<{ success: boolean; commentId?: string; permalinkUrl?: string; error?: string }> {
+  try {
+    const config = await getRedditConfig();
+    
+    if (config.mode === "public_json") {
+      return {
+        success: false,
+        error: "Cannot post comments with public_json mode. OAuth required.",
+      };
+    }
+
+    // Get OAuth credentials from settings
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    if (!settings?.redditClientId || !settings?.redditClientSecret || !settings?.redditUsername || !settings?.redditPassword) {
+      return {
+        success: false,
+        error: "Reddit OAuth credentials not configured in settings",
+      };
+    }
+
+    // Get OAuth token
+    const token = await getRedditAccessToken(
+      settings.redditClientId,
+      settings.redditClientSecret,
+      settings.redditUsername,
+      settings.redditPassword
+    );
+
+    // Post comment via Reddit API
+    const response = await redditFetch("https://oauth.reddit.com/api/comment", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "RedditPipe/2.0",
+      },
+      body: new URLSearchParams({
+        api_type: "json",
+        text,
+        thing_id: parentId,
+      }).toString(),
+    });
+
+    const data = await response.json();
+
+    if (data.json?.errors && data.json.errors.length > 0) {
+      return {
+        success: false,
+        error: data.json.errors[0][1] || "Reddit API error",
+      };
+    }
+
+    if (data.json?.data?.things && data.json.data.things.length > 0) {
+      const comment = data.json.data.things[0].data;
+      return {
+        success: true,
+        commentId: comment.id,
+        permalinkUrl: `https://www.reddit.com${comment.permalink}`,
+      };
+    }
+
+    return {
+      success: false,
+      error: "Unexpected API response format",
+    };
+  } catch (error) {
+    console.error("Error posting comment:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to post comment",
+    };
+  }
+}
