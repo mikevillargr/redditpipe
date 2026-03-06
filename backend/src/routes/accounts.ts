@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { prisma } from "../lib/prisma.js";
 import { getUserProfile, getUserComments } from "../lib/reddit.js";
+import { processAssignmentQueue } from "../lib/assignment-queue.js";
 
 const app = new Hono();
 
@@ -54,6 +55,11 @@ app.post("/", async (c) => {
       }
     }
 
+    // Trigger assignment queue to assign this account to unassigned opportunities
+    processAssignmentQueue().catch((err) => 
+      console.error("[Accounts] Failed to process assignment queue:", err)
+    );
+
     return c.json(account, 201);
   } catch (error) {
     console.error("POST /api/accounts error:", error);
@@ -101,6 +107,13 @@ app.put("/:id", async (c) => {
           data: { accountId: id, clientId },
         });
       }
+    }
+
+    // Trigger assignment queue if account status changed to active
+    if (accountData.status === "active") {
+      processAssignmentQueue().catch((err) => 
+        console.error("[Accounts] Failed to process assignment queue:", err)
+      );
     }
 
     return c.json(account);
