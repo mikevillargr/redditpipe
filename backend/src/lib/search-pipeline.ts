@@ -9,6 +9,7 @@ import {
 import { computeRelevanceScore } from "./scoring.js";
 import { findBestAccount } from "./matching.js";
 import { aiScoreRelevance, warmAiConfig } from "./ai-scoring.js";
+import { processAssignmentQueue } from "./assignment-queue.js";
 
 // ── Pipeline abort signal ────────────────────────────────────────────────────
 let abortRequested = false;
@@ -405,6 +406,15 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
     pipelineStatus = { running: false, phase: aborted ? "aborted" : "idle", progress: aborted ? "Stopped by user" : "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: totalOpportunities };
     abortRequested = false;
+    
+    // Auto-assign accounts to newly created opportunities
+    if (totalOpportunities > 0 && !aborted) {
+      console.log(`[Search] Auto-assigning accounts to ${totalOpportunities} new opportunities...`);
+      processAssignmentQueue().catch((err) => 
+        console.error("[Search] Auto-assignment failed:", err)
+      );
+    }
+    
     return result;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

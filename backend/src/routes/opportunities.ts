@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { generateReplyDraft, rewriteReply } from "../lib/ai.js";
 import { markAsPublished, submitPermalink } from "../lib/verification.js";
 import { analyzeDismissals } from "../lib/ai-scoring.js";
+import { assignAccountToOpportunity, processAssignmentQueue } from "../lib/assignment-queue.js";
 
 const app = new Hono();
 
@@ -355,6 +356,50 @@ app.post("/bulk-dismiss", async (c) => {
   } catch (error) {
     console.error("POST /api/opportunities/bulk-dismiss error:", error);
     return c.json({ error: "Failed to bulk dismiss" }, 500);
+  }
+});
+
+// POST /api/opportunities/bulk-assign
+app.post("/bulk-assign", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { opportunityIds } = body as { opportunityIds: string[] };
+
+    if (!opportunityIds || opportunityIds.length === 0) {
+      return c.json({ error: "No opportunity IDs provided" }, 400);
+    }
+
+    let assigned = 0;
+    let failed = 0;
+
+    for (const oppId of opportunityIds) {
+      const result = await assignAccountToOpportunity(oppId);
+      if (result.success) {
+        assigned++;
+      } else {
+        failed++;
+      }
+    }
+
+    return c.json({ assigned, failed, total: opportunityIds.length });
+  } catch (error) {
+    console.error("POST /api/opportunities/bulk-assign error:", error);
+    return c.json({ error: "Failed to bulk assign" }, 500);
+  }
+});
+
+// POST /api/opportunities/auto-assign-all
+app.post("/auto-assign-all", async (c) => {
+  try {
+    const result = await processAssignmentQueue();
+    return c.json({ 
+      assigned: result.assigned, 
+      failed: result.failed,
+      errors: result.errors 
+    });
+  } catch (error) {
+    console.error("POST /api/opportunities/auto-assign-all error:", error);
+    return c.json({ error: "Failed to auto-assign" }, 500);
   }
 });
 

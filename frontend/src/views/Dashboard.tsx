@@ -609,6 +609,65 @@ export function Dashboard() {
     }
   }
 
+  const handleBulkAssign = async () => {
+    const unassignedSelected = Array.from(selectedIds).filter(id => {
+      const opp = opportunities.find(o => o.id === id)
+      return opp && !opp.account
+    })
+    
+    if (unassignedSelected.length === 0) {
+      setSnackbar({ open: true, message: 'No unassigned opportunities selected', severity: 'warning' })
+      return
+    }
+
+    try {
+      const res = await fetch('/api/opportunities/bulk-assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opportunityIds: unassignedSelected }),
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setSnackbar({ 
+          open: true, 
+          message: `Assigned ${data.assigned} of ${unassignedSelected.length} opportunities`, 
+          severity: 'success' 
+        })
+        setSelectedIds(new Set())
+        fetchOpportunities()
+      } else {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.error || 'Bulk assign failed', severity: 'warning' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Bulk assign failed', severity: 'warning' })
+    }
+  }
+
+  const handleAutoAssignAll = async () => {
+    try {
+      const res = await fetch('/api/opportunities/auto-assign-all', {
+        method: 'POST',
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setSnackbar({ 
+          open: true, 
+          message: `Auto-assigned ${data.assigned} opportunities`, 
+          severity: 'success' 
+        })
+        fetchOpportunities()
+      } else {
+        const data = await res.json()
+        setSnackbar({ open: true, message: data.error || 'Auto-assign failed', severity: 'warning' })
+      }
+    } catch {
+      setSnackbar({ open: true, message: 'Auto-assign failed', severity: 'warning' })
+    }
+  }
+
   const clientFilteredOpps =
     clientFilter === 'all'
       ? opportunities
@@ -1266,6 +1325,14 @@ export function Dashboard() {
             {selectedIds.size} selected
           </Typography>
           <Box sx={{ flex: 1 }} />
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleBulkAssign}
+            sx={{ fontSize: '12px', bgcolor: '#3b82f6', color: '#fff', '&:hover': { bgcolor: '#2563eb' }, whiteSpace: 'nowrap' }}
+          >
+            Auto-Assign
+          </Button>
           <Button
             size="small"
             variant="contained"
