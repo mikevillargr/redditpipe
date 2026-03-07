@@ -183,7 +183,7 @@ app.post("/generate", async (c) => {
   try {
     const body = await c.req.json();
     const { type, topic, subreddit, newsContext } = body as {
-      type: "thread_ideas" | "reply_draft" | "thread_post";
+      type: "thread_ideas" | "reply_draft" | "thread_post" | "persona" | "writing_style";
       topic?: string;
       subreddit?: string;
       newsContext?: string;
@@ -280,6 +280,48 @@ GUIDELINES:
         let json = text.text.trim();
         if (json.startsWith("```")) json = json.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
         return c.json({ post: JSON.parse(json) });
+      }
+      return c.json({ error: "AI returned empty response" }, 500);
+    }
+
+    if (type === "persona") {
+      const res = await ai.messages.create({
+        model,
+        max_tokens: 400,
+        system: `You generate realistic Reddit user personas for account warming.
+Create a brief personality summary (2-3 sentences) that describes a believable Reddit user.
+Include: interests, tone, expertise areas, and general vibe.
+Make it natural and authentic — not promotional.`,
+        messages: [{
+          role: "user",
+          content: "Generate a unique Reddit user personality summary.",
+        }],
+      });
+
+      const text = res.content.find((b) => b.type === "text");
+      if (text && text.type === "text") {
+        return c.json({ persona: text.text.trim() });
+      }
+      return c.json({ error: "AI returned empty response" }, 500);
+    }
+
+    if (type === "writing_style") {
+      const res = await ai.messages.create({
+        model,
+        max_tokens: 300,
+        system: `You generate writing style guidelines for Reddit accounts.
+Create brief notes (2-3 sentences) describing a natural writing style.
+Include: tone, sentence structure, use of emojis/slang, formality level.
+Make it realistic and varied — not robotic.`,
+        messages: [{
+          role: "user",
+          content: "Generate writing style notes for a Reddit account.",
+        }],
+      });
+
+      const text = res.content.find((b) => b.type === "text");
+      if (text && text.type === "text") {
+        return c.json({ style: text.text.trim() });
       }
       return c.json({ error: "AI returned empty response" }, 500);
     }

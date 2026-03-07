@@ -69,6 +69,10 @@ interface Account {
   location: string
   organicPostsWeek: number
   citationPostsWeek: number
+  personaNotes?: string
+  personalitySummary?: string
+  writingStyleNotes?: string
+  sampleComments?: string
 }
 const statusConfig = {
   active: {
@@ -213,6 +217,7 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
       location: '',
       organicPostsWeek: 0,
       citationPostsWeek: 0,
+      personaNotes,
     })
     setUsername('')
     setPassword('')
@@ -222,6 +227,7 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
     setMaxPostsPerDay(3)
     setPersonaNotes('')
     setIsGenerating(false)
+    setVerificationResult(null)
     onClose()
   }
   return (
@@ -1222,6 +1228,7 @@ export function Accounts({ onViewAccount }: AccountsProps) {
           activeSubreddits: string | null; lastPostAt: string | null;
           postsTodayCount: number; maxPostsPerDay: number; location: string | null;
           organicPostsWeek: number; citationPostsWeek: number;
+          personalitySummary: string | null; writingStyleNotes: string | null; sampleComments: string | null;
           accountAssignments: { client: { id: string; name: string } }[];
         }) => {
           let subs: string[] = []
@@ -1248,6 +1255,9 @@ export function Accounts({ onViewAccount }: AccountsProps) {
             location: a.location || '',
             organicPostsWeek: a.organicPostsWeek,
             citationPostsWeek: a.citationPostsWeek,
+            personalitySummary: a.personalitySummary || '',
+            writingStyleNotes: a.writingStyleNotes || '',
+            sampleComments: a.sampleComments || '',
           }
         }))
       }
@@ -1288,6 +1298,10 @@ export function Accounts({ onViewAccount }: AccountsProps) {
           status: data.status,
           maxPostsPerDay: data.maxPostsPerDay,
           location: data.location || null,
+          personaNotes: data.personaNotes || null,
+          personalitySummary: data.personalitySummary || null,
+          writingStyleNotes: data.writingStyleNotes || null,
+          sampleComments: data.sampleComments || null,
         }),
       })
       fetchAccounts()

@@ -31,6 +31,7 @@ import {
   Trash2Icon,
   SaveIcon,
   XIcon,
+  SparklesIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
 interface AccountDetailProps {
@@ -75,7 +76,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
   const [writingStyle, setWritingStyle] = useState('')
   const [maxPostsPerDay, setMaxPostsPerDay] = useState(3)
   const [minHoursBetween, setMinHoursBetween] = useState(4)
-  const [page, setPage] = useState(0)
+  const [loading, setLoading] = useState(true)
   const [savedPersonality, setSavedPersonality] = useState(false)
   const [savedStyle, setSavedStyle] = useState(false)
   const [savedSafety, setSavedSafety] = useState(false)
@@ -83,6 +84,9 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
   const [activeSubreddits, setActiveSubreddits] = useState<string[]>([])
   const [activityLog, setActivityLog] = useState<ActivityRow[]>([])
   const [analyzing, setAnalyzing] = useState(false)
+  const [generatingPersonality, setGeneratingPersonality] = useState(false)
+  const [generatingStyle, setGeneratingStyle] = useState(false)
+  const [page, setPage] = useState(0)
 
   const fetchAccount = useCallback(async () => {
     if (!accountId) return
@@ -216,6 +220,46 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
       console.error('Failed to analyze:', err)
     } finally {
       setAnalyzing(false)
+    }
+  }
+
+  const handleGeneratePersonality = async () => {
+    if (!accountId) return
+    setGeneratingPersonality(true)
+    try {
+      const res = await fetch('/api/warming/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'persona' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.persona) {
+        setPersonalitySummary(data.persona)
+      }
+    } catch (err) {
+      console.error('Failed to generate personality:', err)
+    } finally {
+      setGeneratingPersonality(false)
+    }
+  }
+
+  const handleGenerateWritingStyle = async () => {
+    if (!accountId) return
+    setGeneratingStyle(true)
+    try {
+      const res = await fetch('/api/warming/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'writing_style' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.style) {
+        setWritingStyle(data.style)
+      }
+    } catch (err) {
+      console.error('Failed to generate writing style:', err)
+    } finally {
+      setGeneratingStyle(false)
     }
   }
 
@@ -525,21 +569,40 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                   mb: 1.5,
                 }}
               />
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<SaveIcon size={13} />}
-                onClick={() => handleSave('personality')}
-                sx={{
-                  bgcolor: savedPersonality ? '#10b981' : '#f97316',
-                  '&:hover': {
-                    bgcolor: savedPersonality ? '#059669' : '#ea6c0a',
-                  },
-                  transition: 'background-color 0.2s',
-                }}
-              >
-                {savedPersonality ? 'Saved!' : 'Save'}
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={generatingPersonality ? <RefreshCwIcon size={13} className="spin" /> : <SparklesIcon size={13} />}
+                  onClick={handleGeneratePersonality}
+                  disabled={generatingPersonality}
+                  sx={{
+                    borderColor: '#f97316',
+                    color: '#f97316',
+                    '&:hover': {
+                      borderColor: '#ea6c0a',
+                      bgcolor: 'rgba(249, 115, 22, 0.08)',
+                    },
+                  }}
+                >
+                  {generatingPersonality ? 'Generating...' : 'AI Generate'}
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SaveIcon size={13} />}
+                  onClick={() => handleSave('personality')}
+                  sx={{
+                    bgcolor: savedPersonality ? '#10b981' : '#f97316',
+                    '&:hover': {
+                      bgcolor: savedPersonality ? '#059669' : '#ea6c0a',
+                    },
+                    transition: 'background-color 0.2s',
+                  }}
+                >
+                  {savedPersonality ? 'Saved!' : 'Save'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
 
@@ -580,21 +643,40 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                   mb: 1.5,
                 }}
               />
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<SaveIcon size={13} />}
-                onClick={() => handleSave('style')}
-                sx={{
-                  bgcolor: savedStyle ? '#10b981' : '#f97316',
-                  '&:hover': {
-                    bgcolor: savedStyle ? '#059669' : '#ea6c0a',
-                  },
-                  transition: 'background-color 0.2s',
-                }}
-              >
-                {savedStyle ? 'Saved!' : 'Save'}
-              </Button>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={generatingStyle ? <RefreshCwIcon size={13} className="spin" /> : <SparklesIcon size={13} />}
+                  onClick={handleGenerateWritingStyle}
+                  disabled={generatingStyle}
+                  sx={{
+                    borderColor: '#f97316',
+                    color: '#f97316',
+                    '&:hover': {
+                      borderColor: '#ea6c0a',
+                      bgcolor: 'rgba(249, 115, 22, 0.08)',
+                    },
+                  }}
+                >
+                  {generatingStyle ? 'Generating...' : 'AI Generate'}
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<SaveIcon size={13} />}
+                  onClick={() => handleSave('style')}
+                  sx={{
+                    bgcolor: savedStyle ? '#10b981' : '#f97316',
+                    '&:hover': {
+                      bgcolor: savedStyle ? '#059669' : '#ea6c0a',
+                    },
+                    transition: 'background-color 0.2s',
+                  }}
+                >
+                  {savedStyle ? 'Saved!' : 'Save'}
+                </Button>
+              </Box>
             </CardContent>
           </Card>
 

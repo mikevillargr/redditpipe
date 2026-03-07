@@ -88,7 +88,7 @@ app.get("/", async (c) => {
 app.post("/", async (c) => {
   try {
     const body = await c.req.json();
-    const { username, password, status, activeSubreddits, maxPostsPerDay, minHoursBetweenPosts, clientIds } = body;
+    const { username, password, status, activeSubreddits, maxPostsPerDay, minHoursBetweenPosts, clientIds, personaNotes, personalitySummary, writingStyleNotes, sampleComments } = body;
 
     if (!username) return c.json({ error: "Missing required field: username" }, 400);
 
@@ -100,6 +100,9 @@ app.post("/", async (c) => {
         activeSubreddits: activeSubreddits ? JSON.stringify(activeSubreddits) : null,
         maxPostsPerDay: maxPostsPerDay || 3,
         minHoursBetweenPosts: minHoursBetweenPosts || 4,
+        personalitySummary: personaNotes || personalitySummary || null,
+        writingStyleNotes: writingStyleNotes || null,
+        sampleComments: sampleComments || null,
       },
     });
 
