@@ -44,6 +44,11 @@ app.post("/:id/pile-on/generate", async (c) => {
       return c.json({ error: "No reply found for this opportunity" }, 400);
     }
 
+    // Prevent pile-on from same account
+    if (opportunity.accountId === accountId) {
+      return c.json({ error: "Cannot pile-on to your own comment" }, 400);
+    }
+
     // Get the account that will post the pile-on
     const account = await db.redditAccount.findUnique({
       where: { id: accountId },
@@ -51,6 +56,26 @@ app.post("/:id/pile-on/generate", async (c) => {
 
     if (!account) {
       return c.json({ error: "Account not found" }, 404);
+    }
+
+    // Check if pile-on already exists for this account
+    const existing = await db.pileOnComment.findUnique({
+      where: {
+        opportunityId_pileOnAccountId: {
+          opportunityId,
+          pileOnAccountId: accountId,
+        },
+      },
+    });
+
+    if (existing) {
+      // Return existing draft
+      return c.json({
+        success: true,
+        draftReply: existing.aiDraftReply,
+        pileOnId: existing.id,
+        status: existing.status,
+      });
     }
 
     // Generate a +1/agreement response using AI
@@ -64,9 +89,25 @@ app.post("/:id/pile-on/generate", async (c) => {
       pileOnAccountWritingStyle: account.writingStyleNotes,
     });
 
+    // Get the primary comment ID from the opportunity's permalink
+    const primaryCommentId = opportunity.permalinkUrl?.split('/').pop() || "";
+
+    // Create pile-on record
+    const pileOn = await db.pileOnComment.create({
+      data: {
+        opportunityId,
+        pileOnAccountId: accountId,
+        primaryCommentId,
+        aiDraftReply: draftReply,
+        status: "draft",
+      },
+    });
+
     return c.json({
       success: true,
       draftReply,
+      pileOnId: pileOn.id,
+      status: "draft",
     });
   } catch (error) {
     console.error("Error generating pile-on:", error);
@@ -77,12 +118,63 @@ app.post("/:id/pile-on/generate", async (c) => {
 });
 
 /**
+ * PUT /api/opportunities/:id/pile-on/:pileOnId
+ * Update pile-on draft text
+ */
+app.put("/:id/pile-on/:pileOnId", async (c) => {
+  const pileOnId = c.req.param("pileOnId");
+  const body = await c.req.json();
+  const { draftReply } = body;
+  
+  const db = createPrismaClient();
+
+  try {
+    const pileOn = await db.pileOnComment.update({
+      where: { id: pileOnId },
+      data: { aiDraftReply: draftReply },
+    });
+
+    return c.json({ success: true, pileOn });
+  } catch (error) {
+    console.error("Error updating pile-on:", error);
+    return c.json({ error: "Failed to update pile-on" }, 500);
+  } finally {
+    await db.$disconnect();
+  }
+});
+
+/**
+ * DELETE /api/opportunities/:id/pile-on/:pileOnId
+ * Dismiss/delete a pile-on draft
+ */
+app.delete("/:id/pile-on/:pileOnId", async (c) => {
+  const pileOnId = c.req.param("pileOnId");
+  const db = createPrismaClient();
+
+  try {
+    await db.pileOnComment.delete({
+      where: { id: pileOnId },
+    });
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting pile-on:", error);
+    return c.json({ error: "Failed to delete pile-on" }, 500);
+  } finally {
+    await db.$disconnect();
+  }
+});
+
+/**
  * POST /api/opportunities/:id/pile-on/:pileOnId/publish
- * Publish a pile-on comment to Reddit
+ * Mark pile-on as published (manual verification workflow)
  */
 app.post("/:id/pile-on/:pileOnId/publish", async (c) => {
   const opportunityId = c.req.param("id");
   const pileOnId = c.req.param("pileOnId");
+  const body = await c.req.json();
+  const { permalinkUrl } = body;
+  
   const db = createPrismaClient();
 
   try {
@@ -107,24 +199,13 @@ app.post("/:id/pile-on/:pileOnId/publish", async (c) => {
       return c.json({ error: "Pile-on already posted" }, 400);
     }
 
-    // Post comment to Reddit
-    const result = await postComment(
-      pileOn.primaryCommentId,
-      pileOn.aiDraftReply,
-      pileOn.pileOnAccount.username,
-      pileOn.pileOnAccount.password || undefined
-    );
-
-    if (!result.success || !result.commentId) {
-      return c.json({ error: result.error || "Failed to post pile-on comment" }, 500);
-    }
-
-    // Update pile-on status
+    // Manual workflow: user provides permalink after posting manually
+    // Update pile-on status to posted
     await db.pileOnComment.update({
       where: { id: pileOnId },
       data: {
         status: "posted",
-        pileOnCommentId: result.commentId,
+        pileOnCommentId: permalinkUrl || "",
         postedAt: new Date(),
       },
     });
@@ -144,8 +225,7 @@ app.post("/:id/pile-on/:pileOnId/publish", async (c) => {
 
     return c.json({
       success: true,
-      commentId: result.commentId,
-      permalinkUrl: result.permalinkUrl,
+      permalinkUrl,
     });
   } catch (error) {
     console.error("Error publishing pile-on:", error);
