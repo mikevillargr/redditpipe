@@ -10,24 +10,17 @@ import {
   Box,
   CircularProgress,
   Alert,
-  Chip,
-  Divider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
-import { RefreshCwIcon, SendIcon, UserIcon } from 'lucide-react';
+import { RefreshCwIcon, CheckIcon, XIcon, LinkIcon } from 'lucide-react';
 
-interface PileOnAccount {
+interface Account {
   id: string;
   username: string;
-  commentKarma: number | null;
-}
-
-interface PileOnComment {
-  id: string;
-  aiDraftReply: string;
-  pileOnAccount: PileOnAccount;
   status: string;
-  postedAt?: string;
-  pileOnCommentId?: string;
 }
 
 interface PileOnDialogProps {
@@ -45,56 +38,38 @@ export function PileOnDialog({
   opportunityTitle,
   onSuccess,
 }: PileOnDialogProps) {
-  const [loading, setLoading] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [draftReply, setDraftReply] = useState('');
+  const [pileOnId, setPileOnId] = useState<string | null>(null);
+  const [permalinkUrl, setPermalinkUrl] = useState('');
   const [generating, setGenerating] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pileOns, setPileOns] = useState<PileOnComment[]>([]);
-  const [draftReply, setDraftReply] = useState('');
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [availableAccounts, setAvailableAccounts] = useState<PileOnAccount[]>([]);
 
   useEffect(() => {
     if (open) {
-      loadAvailableAccounts();
-      loadPileOns();
+      loadAccounts();
+    } else {
+      // Reset state when dialog closes
+      setSelectedAccountId('');
+      setDraftReply('');
+      setPileOnId(null);
+      setPermalinkUrl('');
+      setError(null);
     }
-  }, [open, opportunityId]);
+  }, [open]);
 
-  const loadAvailableAccounts = async () => {
+  const loadAccounts = async () => {
     try {
       const res = await fetch('/api/accounts');
       if (res.ok) {
         const data = await res.json();
-        // Filter to active accounts only
-        const activeAccounts = data.filter((a: any) => a.status === 'active');
-        setAvailableAccounts(activeAccounts.map((a: any) => ({
-          id: a.id,
-          username: a.username,
-          commentKarma: a.commentKarma,
-        })));
+        const activeAccounts = data.filter((a: Account) => a.status === 'active');
+        setAccounts(activeAccounts);
       }
     } catch (err) {
       console.error('Failed to load accounts:', err);
-    }
-  };
-
-  const loadPileOns = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on`);
-      if (res.ok) {
-        const data = await res.json();
-        setPileOns(data);
-      } else {
-        const errData = await res.json();
-        setError(errData.error || 'Failed to load pile-ons');
-      }
-    } catch (err) {
-      setError('Network error loading pile-ons');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -116,6 +91,7 @@ export function PileOnDialog({
       if (res.ok) {
         const data = await res.json();
         setDraftReply(data.draftReply);
+        setPileOnId(data.pileOnId);
       } else {
         const errData = await res.json();
         setError(errData.error || 'Failed to generate pile-on');
@@ -127,51 +103,59 @@ export function PileOnDialog({
     }
   };
 
-  const handlePublish = async () => {
-    if (!draftReply || !selectedAccountId) {
-      setError('Please generate a response first');
+  const handleDismiss = async () => {
+    if (!pileOnId) return;
+
+    try {
+      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on/${pileOnId}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        onSuccess();
+        onClose();
+      } else {
+        setError('Failed to dismiss pile-on');
+      }
+    } catch (err) {
+      setError('Network error');
+    }
+  };
+
+  const handleMarkAsPublished = async () => {
+    if (!pileOnId) return;
+    if (!permalinkUrl.trim()) {
+      setError('Please enter the permalink URL');
       return;
     }
 
     setPublishing(true);
     setError(null);
     try {
-      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on/publish`, {
+      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on/${pileOnId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          accountId: selectedAccountId,
-          draftReply: draftReply,
-        }),
+        body: JSON.stringify({ permalinkUrl }),
       });
 
       if (res.ok) {
-        setDraftReply('');
-        setSelectedAccountId('');
-        await loadPileOns();
         onSuccess();
+        onClose();
       } else {
         const errData = await res.json();
-        setError(errData.error || 'Failed to publish pile-on');
+        setError(errData.error || 'Failed to mark as published');
       }
     } catch (err) {
-      setError('Network error publishing pile-on');
+      setError('Network error');
     } finally {
       setPublishing(false);
     }
   };
 
-  const handleClose = () => {
-    setDraftReply('');
-    setSelectedAccountId('');
-    setError(null);
-    onClose();
-  };
-
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       maxWidth="md"
       fullWidth
       PaperProps={{
@@ -191,11 +175,11 @@ export function PileOnDialog({
           pb: 2,
         }}
       >
-        Pile-On Comments
+        Add Pile-On Comment
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
-        <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
+        <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 3 }}>
           Thread: <strong>{opportunityTitle}</strong>
         </Typography>
 
@@ -205,73 +189,40 @@ export function PileOnDialog({
           </Alert>
         )}
 
-        {/* Existing pile-ons */}
-        {pileOns.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.secondary', mb: 1.5 }}>
-              Existing Pile-Ons ({pileOns.length})
-            </Typography>
-            {pileOns.map((pileOn) => (
-              <Box
-                key={pileOn.id}
-                sx={{
-                  p: 2,
-                  mb: 1.5,
-                  borderRadius: '8px',
-                  bgcolor: pileOn.status === 'posted' ? 'rgba(16,185,129,0.05)' : 'rgba(245,158,11,0.05)',
-                  border: `1px solid ${pileOn.status === 'posted' ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <UserIcon size={14} />
-                  <Typography sx={{ fontSize: '13px', fontWeight: 600 }}>
-                    u/{pileOn.pileOnAccount.username}
-                  </Typography>
-                  <Chip
-                    label={pileOn.status === 'posted' ? '✓ Posted' : 'Draft'}
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '11px',
-                      bgcolor: pileOn.status === 'posted' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                      color: pileOn.status === 'posted' ? '#10b981' : '#f59e0b',
-                    }}
-                  />
-                </Box>
-                <Typography sx={{ fontSize: '13px', color: 'text.primary', lineHeight: 1.6 }}>
-                  {pileOn.aiDraftReply}
-                </Typography>
-              </Box>
-            ))}
-            <Divider sx={{ my: 2, borderColor: '#1e293b' }} />
-          </Box>
+        {/* Account Selection */}
+        {!draftReply && (
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel sx={{ fontSize: '13px' }}>Select Account</InputLabel>
+            <Select
+              value={selectedAccountId}
+              onChange={(e) => setSelectedAccountId(e.target.value)}
+              label="Select Account"
+              sx={{ fontSize: '13px' }}
+            >
+              {accounts.map((account) => (
+                <MenuItem key={account.id} value={account.id} sx={{ fontSize: '13px' }}>
+                  u/{account.username}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         )}
 
-        {/* Current draft */}
-        {currentDraft && (
-          <Box sx={{ mb: 2 }}>
+        {/* Draft Reply */}
+        {draftReply && (
+          <Box sx={{ mb: 3 }}>
             <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.secondary', mb: 1.5 }}>
-              New Pile-On Draft
+              AI-Generated Response
             </Typography>
-            <Box sx={{ mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <UserIcon size={14} />
-                <Typography sx={{ fontSize: '13px', fontWeight: 600 }}>
-                  u/{currentDraft.pileOnAccount.username}
-                </Typography>
-                <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>
-                  ({currentDraft.pileOnAccount.commentKarma || 0} karma)
-                </Typography>
-              </Box>
-            </Box>
             <TextField
               multiline
-              rows={4}
+              rows={6}
               fullWidth
-              value={editedText}
-              onChange={(e) => setEditedText(e.target.value)}
+              value={draftReply}
+              onChange={(e) => setDraftReply(e.target.value)}
               placeholder="Pile-on comment text..."
               sx={{
+                mb: 2,
                 '& .MuiOutlinedInput-root': {
                   '& fieldset': { borderColor: '#334155' },
                   '&:hover fieldset': { borderColor: '#475569' },
@@ -283,27 +234,51 @@ export function PileOnDialog({
                 },
               }}
             />
-          </Box>
-        )}
-
-        {/* Loading state */}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={24} />
+            <TextField
+              fullWidth
+              value={permalinkUrl}
+              onChange={(e) => setPermalinkUrl(e.target.value)}
+              placeholder="Paste permalink URL after posting to Reddit..."
+              label="Permalink URL"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '& fieldset': { borderColor: '#334155' },
+                  '&:hover fieldset': { borderColor: '#475569' },
+                  '&.Mui-focused fieldset': { borderColor: '#f97316' },
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: '13px',
+                },
+              }}
+            />
           </Box>
         )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        <Button onClick={handleClose} sx={{ textTransform: 'none', color: 'text.secondary' }}>
+        <Button onClick={onClose} sx={{ textTransform: 'none', color: 'text.secondary' }}>
           Close
         </Button>
 
-        {!currentDraft && (
+        {draftReply && (
+          <Button
+            onClick={handleDismiss}
+            startIcon={<XIcon size={14} />}
+            sx={{
+              textTransform: 'none',
+              color: '#ef4444',
+              '&:hover': { bgcolor: 'rgba(239,68,68,0.1)' },
+            }}
+          >
+            Dismiss
+          </Button>
+        )}
+
+        {!draftReply && (
           <Button
             variant="contained"
             onClick={handleGenerate}
-            disabled={generating || loading}
+            disabled={generating || !selectedAccountId}
             startIcon={generating ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <RefreshCwIcon size={14} />}
             sx={{
               textTransform: 'none',
@@ -312,16 +287,16 @@ export function PileOnDialog({
               '&:disabled': { bgcolor: '#475569' },
             }}
           >
-            {generating ? 'Generating...' : 'Generate Pile-On'}
+            {generating ? 'Generating...' : 'Generate Response'}
           </Button>
         )}
 
-        {currentDraft && (
+        {draftReply && (
           <Button
             variant="contained"
-            onClick={handlePublish}
-            disabled={publishing || !editedText.trim()}
-            startIcon={publishing ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <SendIcon size={14} />}
+            onClick={handleMarkAsPublished}
+            disabled={publishing || !permalinkUrl.trim()}
+            startIcon={publishing ? <CircularProgress size={14} sx={{ color: '#fff' }} /> : <CheckIcon size={14} />}
             sx={{
               textTransform: 'none',
               bgcolor: '#10b981',
@@ -329,7 +304,7 @@ export function PileOnDialog({
               '&:disabled': { bgcolor: '#475569' },
             }}
           >
-            {publishing ? 'Publishing...' : 'Publish to Reddit'}
+            {publishing ? 'Saving...' : 'Mark as Published'}
           </Button>
         )}
       </DialogActions>

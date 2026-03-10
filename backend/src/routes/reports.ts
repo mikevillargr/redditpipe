@@ -3,6 +3,13 @@ import { createPrismaClient } from "../lib/prisma.js";
 
 const reports = new Hono();
 
+interface PileOnComment {
+  username: string;
+  commentText: string;
+  permalink: string;
+  postedAt: Date;
+}
+
 interface ReportOpportunity {
   id: string;
   threadTitle: string;
@@ -26,6 +33,7 @@ interface ReportOpportunity {
   opportunityType: string;
   parentOpportunityId: string | null;
   parentThreadTitle: string | null;
+  pileOnComments: PileOnComment[];
 }
 
 reports.get("/clients/:clientId", async (c) => {
@@ -39,6 +47,14 @@ reports.get("/clients/:clientId", async (c) => {
       include: {
         parentOpportunity: {
           select: { title: true },
+        },
+        pileOnComments: {
+          where: { status: "posted" },
+          include: {
+            pileOnAccount: {
+              select: { username: true },
+            },
+          },
         },
       },
     });
@@ -72,6 +88,14 @@ reports.get("/clients/:clientId", async (c) => {
         }
       }
 
+      // Map pile-on comments
+      const pileOns: PileOnComment[] = (opp as any).pileOnComments?.map((pc: any) => ({
+        username: pc.pileOnAccount.username,
+        commentText: pc.aiDraftReply,
+        permalink: pc.pileOnCommentId || "",
+        postedAt: pc.postedAt,
+      })) || [];
+
       return {
         id: opp.id,
         threadTitle: opp.title,
@@ -90,6 +114,7 @@ reports.get("/clients/:clientId", async (c) => {
         opportunityType: opp.opportunityType || "primary",
         parentOpportunityId: opp.parentOpportunityId || null,
         parentThreadTitle: (opp as any).parentOpportunity?.title || null,
+        pileOnComments: pileOns,
       };
     });
 
