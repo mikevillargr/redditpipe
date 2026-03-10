@@ -684,7 +684,9 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     const hasRealAiScore = !!o.aiRelevanceNote && !o.aiRelevanceNote.includes('AI scoring unavailable')
     if (aiScoreFilter === 'has_ai' && !hasRealAiScore) return false
     if (aiScoreFilter === 'no_ai' && hasRealAiScore) return false
-    if (showPileOnOnly && o.opportunityType !== 'pile_on') return false
+    // Pile-on filter: show only opportunities where status is 'published' (we already responded)
+    // so other accounts can add supporting comments
+    if (showPileOnOnly && o.status !== 'published') return false
     return true
   })
 

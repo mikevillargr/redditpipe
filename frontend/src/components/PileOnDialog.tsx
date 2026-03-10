@@ -50,14 +50,34 @@ export function PileOnDialog({
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pileOns, setPileOns] = useState<PileOnComment[]>([]);
-  const [currentDraft, setCurrentDraft] = useState<PileOnComment | null>(null);
-  const [editedText, setEditedText] = useState('');
+  const [draftReply, setDraftReply] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [availableAccounts, setAvailableAccounts] = useState<PileOnAccount[]>([]);
 
   useEffect(() => {
     if (open) {
+      loadAvailableAccounts();
       loadPileOns();
     }
   }, [open, opportunityId]);
+
+  const loadAvailableAccounts = async () => {
+    try {
+      const res = await fetch('/api/accounts');
+      if (res.ok) {
+        const data = await res.json();
+        // Filter to active accounts only
+        const activeAccounts = data.filter((a: any) => a.status === 'active');
+        setAvailableAccounts(activeAccounts.map((a: any) => ({
+          id: a.id,
+          username: a.username,
+          commentKarma: a.commentKarma,
+        })));
+      }
+    } catch (err) {
+      console.error('Failed to load accounts:', err);
+    }
+  };
 
   const loadPileOns = async () => {
     setLoading(true);
@@ -79,18 +99,23 @@ export function PileOnDialog({
   };
 
   const handleGenerate = async () => {
+    if (!selectedAccountId) {
+      setError('Please select an account first');
+      return;
+    }
+
     setGenerating(true);
     setError(null);
     try {
-      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on`, {
+      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on/generate`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: selectedAccountId }),
       });
       
       if (res.ok) {
         const data = await res.json();
-        setCurrentDraft(data);
-        setEditedText(data.aiDraftReply);
-        await loadPileOns();
+        setDraftReply(data.draftReply);
       } else {
         const errData = await res.json();
         setError(errData.error || 'Failed to generate pile-on');
@@ -103,33 +128,26 @@ export function PileOnDialog({
   };
 
   const handlePublish = async () => {
-    if (!currentDraft) return;
-
-    // Update draft if text was edited
-    if (editedText !== currentDraft.aiDraftReply) {
-      try {
-        await fetch(`/api/opportunities/${opportunityId}/pile-on/${currentDraft.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ aiDraftReply: editedText }),
-        });
-      } catch (err) {
-        setError('Failed to save edits');
-        return;
-      }
+    if (!draftReply || !selectedAccountId) {
+      setError('Please generate a response first');
+      return;
     }
 
     setPublishing(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/opportunities/${opportunityId}/pile-on/${currentDraft.id}/publish`,
-        { method: 'POST' }
-      );
+      const res = await fetch(`/api/opportunities/${opportunityId}/pile-on/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          accountId: selectedAccountId,
+          draftReply: draftReply,
+        }),
+      });
 
       if (res.ok) {
-        setCurrentDraft(null);
-        setEditedText('');
+        setDraftReply('');
+        setSelectedAccountId('');
         await loadPileOns();
         onSuccess();
       } else {
@@ -144,8 +162,8 @@ export function PileOnDialog({
   };
 
   const handleClose = () => {
-    setCurrentDraft(null);
-    setEditedText('');
+    setDraftReply('');
+    setSelectedAccountId('');
     setError(null);
     onClose();
   };
