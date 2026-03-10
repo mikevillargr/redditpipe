@@ -96,6 +96,78 @@ app.post("/test-ai", async (c) => {
   }
 });
 
+// POST /api/settings/test-special-instructions
+app.post("/test-special-instructions", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { specialInstructions } = body;
+
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const apiKey = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return c.json({ error: "No AI API key configured" }, 400);
+    }
+
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const ai = new Anthropic({ apiKey });
+
+    // Sample scenario for testing
+    const basePrompt = `You are writing a Reddit reply as a helpful community member.
+
+RULES:
+- Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
+- Do NOT use marketing language or superlatives
+- Keep it 2-4 short paragraphs max
+- Sound like a real person sharing genuine experience
+
+REDDIT MARKDOWN FORMAT:
+- Use Reddit markdown syntax: **bold**, *italic*
+- When mentioning any product, tool, or service, ALWAYS include a clickable link: [Product Name](https://example.com)
+- Use line breaks between paragraphs (double newline)`;
+
+    let systemPrompt = basePrompt;
+    if (specialInstructions) {
+      systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+    }
+
+    const userPrompt = `THREAD CONTEXT:
+Subreddit: r/Entrepreneur
+Title: What's the best tool for managing social media content?
+Thread body: I'm running a small business and struggling to keep up with posting on multiple platforms. Looking for recommendations on tools that can help schedule and manage content across different social media channels.
+
+CLIENT TO REFERENCE:
+Name: Buffer
+URL: https://buffer.com
+Description: Social media management platform for scheduling and analytics
+
+Write a Reddit reply now.`;
+
+    const response = await ai.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 500,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    });
+
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      return c.json({ error: "No text response from AI" }, 500);
+    }
+
+    return c.json({
+      success: true,
+      response: textBlock.text,
+      promptUsed: systemPrompt,
+    });
+  } catch (error) {
+    console.error("POST /api/settings/test-special-instructions error:", error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    }, 500);
+  }
+});
+
 // POST /api/settings/test-reddit
 app.post("/test-reddit", async (c) => {
   try {

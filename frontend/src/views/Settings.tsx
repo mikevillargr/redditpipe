@@ -241,6 +241,9 @@ export function Settings() {
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewResponse, setPreviewResponse] = useState('')
+  const [previewError, setPreviewError] = useState('')
   // Search
   const [searchBreadth, setSearchBreadth] = useState('balanced')
   const [searchFrequency, setSearchFrequency] = useState('once_daily')
@@ -644,7 +647,29 @@ export function Settings() {
             <Button
               variant="outlined"
               size="small"
-              onClick={() => setPreviewDialogOpen(true)}
+              onClick={async () => {
+                setPreviewDialogOpen(true)
+                setPreviewLoading(true)
+                setPreviewError('')
+                setPreviewResponse('')
+                try {
+                  const res = await fetch('/api/settings/test-special-instructions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ specialInstructions }),
+                  })
+                  const data = await res.json()
+                  if (data.success) {
+                    setPreviewResponse(data.response)
+                  } else {
+                    setPreviewError(data.error || 'Failed to generate preview')
+                  }
+                } catch (err) {
+                  setPreviewError(err instanceof Error ? err.message : 'Network error')
+                } finally {
+                  setPreviewLoading(false)
+                }
+              }}
               sx={{
                 borderColor: '#334155',
                 color: '#94a3b8',
@@ -656,7 +681,7 @@ export function Settings() {
                 },
               }}
             >
-              Preview
+              Test Preview
             </Button>
           </Box>
         </Box>
@@ -676,111 +701,68 @@ export function Settings() {
         }}
       >
         <DialogTitle sx={{ borderBottom: '1px solid #334155' }}>
-          Special Instructions Preview
+          Test Special Instructions
         </DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
           <Typography sx={{ fontSize: '13px', color: '#64748b', mb: 2 }}>
-            Here's how your special instructions will be appended to AI generation prompts:
+            Testing with sample scenario: "What's the best tool for managing social media content?" on r/Entrepreneur
           </Typography>
-          
-          <Box sx={{ mb: 3 }}>
-            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
-              Base System Prompt (Example):
-            </Typography>
-            <Box
-              sx={{
-                bgcolor: '#0f172a',
-                border: '1px solid #1e293b',
-                borderRadius: '8px',
-                p: 2,
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: '#94a3b8',
-              }}
-            >
-              You are writing a Reddit reply as a helpful community member.
-              <br />
-              <br />
-              RULES:
-              <br />
-              - Be genuinely helpful — answer the question FIRST
-              <br />
-              - Keep it 2-4 short paragraphs max
-              <br />
-              - Sound like a real person sharing genuine experience
-              <br />- Use casual Reddit tone (imo, tbh, fwiw)
-            </Box>
-          </Box>
 
-          {specialInstructions && (
-            <Box sx={{ mb: 3 }}>
-              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
-                + Your Special Instructions:
+          {previewLoading && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
+              <CircularProgress size={20} />
+              <Typography sx={{ fontSize: '13px', color: '#64748b' }}>
+                Generating response with your special instructions...
               </Typography>
-              <Box
-                sx={{
-                  bgcolor: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  p: 2,
-                  fontFamily: 'monospace',
-                  fontSize: '11px',
-                  color: '#10b981',
-                }}
-              >
-                SPECIAL INSTRUCTIONS:
-                <br />
-                {specialInstructions}
-              </Box>
             </Box>
           )}
 
-          <Box>
-            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
-              Final Combined Prompt:
-            </Typography>
-            <Box
-              sx={{
-                bgcolor: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                p: 2,
-                fontFamily: 'monospace',
-                fontSize: '11px',
-                color: '#94a3b8',
-                maxHeight: '200px',
-                overflow: 'auto',
-              }}
-            >
-              You are writing a Reddit reply as a helpful community member.
-              <br />
-              <br />
-              RULES:
-              <br />
-              - Be genuinely helpful — answer the question FIRST
-              <br />
-              - Keep it 2-4 short paragraphs max
-              <br />
-              - Sound like a real person sharing genuine experience
-              <br />
-              - Use casual Reddit tone (imo, tbh, fwiw)
-              {specialInstructions && (
-                <>
-                  <br />
-                  <br />
-                  <span style={{ color: '#10b981' }}>
-                    SPECIAL INSTRUCTIONS:
-                    <br />
-                    {specialInstructions}
-                  </span>
-                </>
-              )}
-            </Box>
-          </Box>
+          {previewError && (
+            <Alert severity="error" sx={{ mb: 2, fontSize: '12px' }}>
+              {previewError}
+            </Alert>
+          )}
 
-          {!specialInstructions && (
-            <Alert severity="info" sx={{ mt: 2, fontSize: '12px' }}>
-              No special instructions set. The base prompt will be used as-is.
+          {previewResponse && !previewLoading && (
+            <>
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
+                  AI-Generated Response:
+                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    p: 2,
+                    fontSize: '13px',
+                    color: '#e2e8f0',
+                    maxHeight: '400px',
+                    overflow: 'auto',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {previewResponse}
+                </Box>
+              </Box>
+
+              {specialInstructions && (
+                <Alert severity="success" sx={{ fontSize: '12px' }}>
+                  ✓ Response generated with your special instructions applied
+                </Alert>
+              )}
+
+              {!specialInstructions && (
+                <Alert severity="info" sx={{ fontSize: '12px' }}>
+                  Response generated without special instructions (base prompt only)
+                </Alert>
+              )}
+            </>
+          )}
+
+          {!previewLoading && !previewResponse && !previewError && (
+            <Alert severity="info" sx={{ fontSize: '12px' }}>
+              Click "Test Preview" to generate a sample response and see how your special instructions affect the output.
             </Alert>
           )}
         </DialogContent>
