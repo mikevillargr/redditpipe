@@ -300,20 +300,27 @@ export function KarmaFarming() {
   })
   const [ideasLoading, setIdeasLoading] = useState(false)
   const [ideasError, setIdeasError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'question' | 'discussion' | 'trending' | 'news'>('all')
 
   const fetchTrending = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const res = await fetch('/api/warming/trending')
+      // Add cache-busting timestamp to force fresh data
+      const res = await fetch(`/api/warming/trending?t=${Date.now()}`)
       if (res.ok) {
         const data = await res.json()
         setTopics(data.topics)
         setLastFetched(data.generatedAt)
         localStorage.setItem(STORAGE_KEY_TOPICS, JSON.stringify(data.topics))
         localStorage.setItem(STORAGE_KEY_LAST_FETCH, data.generatedAt)
+      } else {
+        setError('Failed to fetch trending topics')
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError('Network error')
+    }
     setLoading(false)
   }, [])
 
