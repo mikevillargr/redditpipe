@@ -95,6 +95,9 @@ jobs:
             cd /docker/redditpipe-production 2>/dev/null && docker compose -f docker-compose.production.yml down 2>/dev/null || true
             cd "$REPO_DIR"
 
+            # Clean up any existing containers to avoid name conflicts
+            docker compose -f docker-compose.production.yml down --remove-orphans 2>/dev/null || true
+
             # Build and restart
             docker compose -f docker-compose.production.yml build
             docker compose -f docker-compose.production.yml up -d --remove-orphans
