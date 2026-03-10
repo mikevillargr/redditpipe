@@ -35,7 +35,7 @@ app.get("/", async (c) => {
 // PUT /api/settings
 const ALLOWED_FIELDS = new Set([
   "redditApiMode", "redditClientId", "redditClientSecret", "redditUsername", "redditPassword",
-  "anthropicApiKey", "searchFrequency", "searchScheduleTimes", "searchTimezone",
+  "anthropicApiKey", "specialInstructions", "searchFrequency", "searchScheduleTimes", "searchTimezone",
   "maxResultsPerKeyword", "threadMaxAgeDays", "relevanceThreshold", "aiSearchContext",
   "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
   "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",

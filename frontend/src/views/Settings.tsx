@@ -240,6 +240,7 @@ export function Settings() {
   const [anthropicKey, setAnthropicKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   const [specialInstructions, setSpecialInstructions] = useState('')
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
   // Search
   const [searchBreadth, setSearchBreadth] = useState('balanced')
   const [searchFrequency, setSearchFrequency] = useState('once_daily')
@@ -636,11 +637,168 @@ export function Settings() {
             placeholder="Example: Always use a friendly, conversational tone. Avoid technical jargon unless necessary. Keep responses concise and actionable."
             sx={inputSx}
           />
-          <Typography sx={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
-            💡 Tip: These instructions are added to the system prompt for generation tasks only. Leave empty if you don't need custom instructions.
-          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', flex: 1 }}>
+              💡 Tip: These instructions are added to the system prompt for generation tasks only. Leave empty if you don't need custom instructions.
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPreviewDialogOpen(true)}
+              sx={{
+                borderColor: '#334155',
+                color: '#94a3b8',
+                textTransform: 'none',
+                fontSize: '12px',
+                '&:hover': {
+                  borderColor: '#475569',
+                  bgcolor: '#0f172a',
+                },
+              }}
+            >
+              Preview
+            </Button>
+          </Box>
         </Box>
       </SectionCard>
+
+      {/* Preview Dialog */}
+      <Dialog
+        open={previewDialogOpen}
+        onClose={() => setPreviewDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: '1px solid #334155',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid #334155' }}>
+          Special Instructions Preview
+        </DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography sx={{ fontSize: '13px', color: '#64748b', mb: 2 }}>
+            Here's how your special instructions will be appended to AI generation prompts:
+          </Typography>
+          
+          <Box sx={{ mb: 3 }}>
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
+              Base System Prompt (Example):
+            </Typography>
+            <Box
+              sx={{
+                bgcolor: '#0f172a',
+                border: '1px solid #1e293b',
+                borderRadius: '8px',
+                p: 2,
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: '#94a3b8',
+              }}
+            >
+              You are writing a Reddit reply as a helpful community member.
+              <br />
+              <br />
+              RULES:
+              <br />
+              - Be genuinely helpful — answer the question FIRST
+              <br />
+              - Keep it 2-4 short paragraphs max
+              <br />
+              - Sound like a real person sharing genuine experience
+              <br />- Use casual Reddit tone (imo, tbh, fwiw)
+            </Box>
+          </Box>
+
+          {specialInstructions && (
+            <Box sx={{ mb: 3 }}>
+              <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
+                + Your Special Instructions:
+              </Typography>
+              <Box
+                sx={{
+                  bgcolor: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  p: 2,
+                  fontFamily: 'monospace',
+                  fontSize: '11px',
+                  color: '#10b981',
+                }}
+              >
+                SPECIAL INSTRUCTIONS:
+                <br />
+                {specialInstructions}
+              </Box>
+            </Box>
+          )}
+
+          <Box>
+            <Typography sx={{ fontSize: '12px', fontWeight: 600, color: '#f97316', mb: 1 }}>
+              Final Combined Prompt:
+            </Typography>
+            <Box
+              sx={{
+                bgcolor: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                p: 2,
+                fontFamily: 'monospace',
+                fontSize: '11px',
+                color: '#94a3b8',
+                maxHeight: '200px',
+                overflow: 'auto',
+              }}
+            >
+              You are writing a Reddit reply as a helpful community member.
+              <br />
+              <br />
+              RULES:
+              <br />
+              - Be genuinely helpful — answer the question FIRST
+              <br />
+              - Keep it 2-4 short paragraphs max
+              <br />
+              - Sound like a real person sharing genuine experience
+              <br />
+              - Use casual Reddit tone (imo, tbh, fwiw)
+              {specialInstructions && (
+                <>
+                  <br />
+                  <br />
+                  <span style={{ color: '#10b981' }}>
+                    SPECIAL INSTRUCTIONS:
+                    <br />
+                    {specialInstructions}
+                  </span>
+                </>
+              )}
+            </Box>
+          </Box>
+
+          {!specialInstructions && (
+            <Alert severity="info" sx={{ mt: 2, fontSize: '12px' }}>
+              No special instructions set. The base prompt will be used as-is.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid #334155', p: 2 }}>
+          <Button
+            onClick={() => setPreviewDialogOpen(false)}
+            sx={{
+              color: '#94a3b8',
+              textTransform: 'none',
+              '&:hover': {
+                bgcolor: '#0f172a',
+              },
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Search Settings */}
       <SectionCard title="Search Settings">
