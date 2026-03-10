@@ -239,6 +239,7 @@ export function Settings() {
   // AI
   const [anthropicKey, setAnthropicKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
+  const [specialInstructions, setSpecialInstructions] = useState('')
   // Search
   const [searchBreadth, setSearchBreadth] = useState('balanced')
   const [searchFrequency, setSearchFrequency] = useState('once_daily')
@@ -285,6 +286,7 @@ export function Settings() {
         setRedditUsername(data.redditUsername || '')
         setRedditPassword(data.redditPassword || '')
         setAnthropicKey(data.anthropicApiKey || '')
+        setSpecialInstructions(data.specialInstructions || '')
         setSearchFrequency(data.searchFrequency || 'once_daily')
         setSearchScheduleTimes(data.searchScheduleTimes || '09:00')
         setSearchTimezone(data.searchTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
@@ -418,6 +420,7 @@ export function Settings() {
         pileOnDelayMaxHours,
         pileOnMaxPerOpportunity,
         pileOnCooldownDays,
+        specialInstructions,
       }
       // Only include non-masked values
       if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
@@ -607,6 +610,35 @@ export function Settings() {
             onTest={handleTestAi}
             status={aiStatus}
           />
+        </Box>
+      </SectionCard>
+
+      {/* Special Instructions */}
+      <SectionCard title="Special Instructions for AI Generation">
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <Typography sx={{ fontSize: '13px', color: '#64748b', mb: 1 }}>
+            Add custom instructions that will be appended to all AI generation prompts (replies, threads, rewrites).
+            This does NOT affect scoring or filtering. Use this to fine-tune tone, style, or add specific requirements.
+          </Typography>
+          <TextField
+            label="Special Instructions (Optional)"
+            value={specialInstructions}
+            onChange={(e) => setSpecialInstructions(e.target.value)}
+            multiline
+            rows={6}
+            fullWidth
+            placeholder="Example: Always use a friendly, conversational tone. Avoid technical jargon unless necessary. Keep responses concise and actionable."
+            sx={inputSx}
+          />
+          <Typography sx={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+            💡 Tip: These instructions are added to the system prompt for generation tasks only. Leave empty if you don't need custom instructions.
+          </Typography>
         </Box>
       </SectionCard>
 

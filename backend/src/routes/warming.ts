@@ -4,6 +4,11 @@ import { getValidModel } from "../lib/models.js";
 
 const app = new Hono();
 
+async function getSpecialInstructions(): Promise<string | null> {
+  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+  return settings?.specialInstructions || null;
+}
+
 interface TrendingTopic {
   title: string;
   subreddit: string;
@@ -199,10 +204,7 @@ app.post("/generate", async (c) => {
 
     if (type === "thread_ideas") {
       const newsHint = newsContext ? `\n\nHere are today's trending news topics for inspiration:\n${newsContext}` : "";
-      const res = await ai.messages.create({
-        model,
-        max_tokens: 1000,
-        system: `You help Reddit users come up with engaging thread ideas for account warming.
+      let systemPrompt = `You help Reddit users come up with engaging thread ideas for account warming.
 Generate 6 interesting thread ideas that would get organic engagement.
 Each idea should include a title, the best subreddit to post it in, and a hook.
 Return ONLY a JSON array: [{"title": "...", "subreddit": "...", "hook": "..."}]
@@ -213,7 +215,15 @@ GUIDELINES:
 - Use a variety of popular subreddits (AskReddit, technology, personalfinance, Entrepreneur, etc.)
 - If news topics are provided, create Reddit-appropriate threads inspired by them
 - Titles should be catchy and encourage clicks/engagement
-- Hooks should be 1-2 sentences describing what the post body would contain`,
+- Hooks should be 1-2 sentences describing what the post body would contain`;
+      const specialInstructions = await getSpecialInstructions();
+      if (specialInstructions) {
+        systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+      }
+      const res = await ai.messages.create({
+        model,
+        max_tokens: 1000,
+        system: systemPrompt,
         messages: [{
           role: "user",
           content: subreddit
@@ -232,13 +242,18 @@ GUIDELINES:
     }
 
     if (type === "reply_draft" && topic) {
+      let systemPrompt = `You write helpful, natural Reddit replies for account warming.
+The reply should be genuinely helpful, conversational, and NOT promotional.
+It should sound like a real person sharing their experience or knowledge.
+Keep it 2-4 sentences. Be specific and add value. Match the tone of the subreddit.`;
+      const specialInstructions = await getSpecialInstructions();
+      if (specialInstructions) {
+        systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+      }
       const res = await ai.messages.create({
         model,
         max_tokens: 400,
-        system: `You write helpful, natural Reddit replies for account warming.
-The reply should be genuinely helpful, conversational, and NOT promotional.
-It should sound like a real person sharing their experience or knowledge.
-Keep it 2-4 sentences. Be specific and add value. Match the tone of the subreddit.`,
+        system: systemPrompt,
         messages: [{
           role: "user",
           content: `Write a warm, helpful reply to this Reddit post:\n\nTitle: ${topic}\n${subreddit ? `Subreddit: r/${subreddit}` : ""}`,
@@ -253,10 +268,7 @@ Keep it 2-4 sentences. Be specific and add value. Match the tone of the subreddi
     }
 
     if (type === "thread_post" && topic) {
-      const res = await ai.messages.create({
-        model,
-        max_tokens: 800,
-        system: `You write engaging Reddit thread posts for account warming.
+      let systemPrompt = `You write engaging Reddit thread posts for account warming.
 Given a topic or news headline, write a complete Reddit post (title + body).
 Also recommend the best subreddit to post it in.
 
@@ -268,7 +280,15 @@ GUIDELINES:
 - Add a question at the end to encourage comments
 - tips: 1-sentence posting tip (best time to post, flair to use, etc.)
 - NOT promotional — purely for building karma and engagement
-- Sound like a real person, not a bot`,
+- Sound like a real person, not a bot`;
+      const specialInstructions = await getSpecialInstructions();
+      if (specialInstructions) {
+        systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+      }
+      const res = await ai.messages.create({
+        model,
+        max_tokens: 800,
+        system: systemPrompt,
         messages: [{
           role: "user",
           content: `Create a Reddit post based on this topic:\n\n"${topic}"\n${subreddit ? `Target subreddit: r/${subreddit}` : "Recommend the best subreddit for this topic."}`,
