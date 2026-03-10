@@ -996,7 +996,14 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             <Chip
               label="Pile-On"
               size="small"
-              onClick={() => setShowPileOnOnly(!showPileOnOnly)}
+              onClick={() => {
+                const newValue = !showPileOnOnly
+                setShowPileOnOnly(newValue)
+                // Auto-switch to 'published' or 'all' when pile-on filter is enabled
+                if (newValue && statusFilter === 'new') {
+                  setStatusFilter('published')
+                }
+              }}
               sx={{
                 height: 24,
                 fontSize: '11px',
