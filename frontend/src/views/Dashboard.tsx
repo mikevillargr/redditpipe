@@ -163,7 +163,11 @@ function CountBadge({
     </Box>
   )
 }
-export function Dashboard() {
+interface DashboardProps {
+  userRole?: 'admin' | 'operator'
+}
+
+export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [clientList, setClientList] = useState<{ id: string; name: string }[]>([])
   const [accountList, setAccountList] = useState<{ id: string; username: string; status: string }[]>([])
@@ -234,8 +238,8 @@ export function Dashboard() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setOpportunities(data.map((o: any) => {
           const acct = o.account
-          const totalWeek = (acct?.organicPostsWeek ?? 0) + (acct?.citationPostsWeek ?? 0)
-          const citPct = totalWeek > 0 ? Math.round(((acct?.citationPostsWeek ?? 0) / totalWeek) * 100) : 0
+          const totalPosts = (acct?.organicPostsTotal ?? 0) + (acct?.citationPostsTotal ?? 0)
+          const citPct = totalPosts > 0 ? Math.round(((acct?.citationPostsTotal ?? 0) / totalPosts) * 100) : 0
           return {
             id: o.id,
             clientId: o.client?.id || '',
@@ -798,16 +802,18 @@ export function Dashboard() {
                   : 'No search run yet'}
               </Typography>
             </Box>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleTriggerSearch}
-              disabled={triggeringSearch}
-              startIcon={triggeringSearch ? <CircularProgress size={14} /> : <RefreshCwIcon size={14} />}
-              sx={{ fontSize: '12px', textTransform: 'none', borderColor: isDark ? '#334155' : '#e2e8f0' }}
-            >
-              Run Search
-            </Button>
+            {userRole === 'admin' && (
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={handleTriggerSearch}
+                disabled={triggeringSearch}
+                startIcon={triggeringSearch ? <CircularProgress size={14} /> : <RefreshCwIcon size={14} />}
+                sx={{ fontSize: '12px', textTransform: 'none', borderColor: isDark ? '#334155' : '#e2e8f0' }}
+              >
+                Run Search
+              </Button>
+            )}
           </>
         )}
       </Paper>

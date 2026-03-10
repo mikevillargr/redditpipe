@@ -66,8 +66,8 @@ interface AccountData {
   maxPostsPerDay: number
   minHoursBetweenPosts: number
   postsTodayCount: number
-  organicPostsWeek: number
-  citationPostsWeek: number
+  organicPostsTotal: number
+  citationPostsTotal: number
 }
 export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
   const [account, setAccount] = useState<AccountData | null>(null)
@@ -140,8 +140,8 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
     fetchAccount()
   }, [fetchAccount])
 
-  const organicPostsWeek = account?.organicPostsWeek ?? 0
-  const citationPostsWeek = account?.citationPostsWeek ?? 0
+  const organicPostsTotal = account?.organicPostsTotal ?? 0
+  const citationPostsTotal = account?.citationPostsTotal ?? 0
   const postsToday = account?.postsTodayCount ?? 0
   const postRatio = maxPostsPerDay > 0 ? postsToday / maxPostsPerDay : 0
   const progressColor =
@@ -166,9 +166,9 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
     },
   }
   // Ratio health
-  const totalWeekPosts = organicPostsWeek + citationPostsWeek
+  const totalPosts = organicPostsTotal + citationPostsTotal
   const citationPct =
-    totalWeekPosts > 0 ? (citationPostsWeek / totalWeekPosts) * 100 : 0
+    totalPosts > 0 ? (citationPostsTotal / totalPosts) * 100 : 0
   const ratioColor =
     citationPct <= 25 ? '#10b981' : citationPct <= 40 ? '#f59e0b' : '#ef4444'
   const ratioStatus =
@@ -955,7 +955,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                           color: '#10b981',
                         }}
                       >
-                        {organicPostsWeek}
+                        {organicPostsTotal}
                       </Typography>
                       <Typography
                         sx={{
@@ -996,7 +996,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                           color: ratioColor,
                         }}
                       >
-                        {citationPostsWeek}
+                        {citationPostsTotal}
                       </Typography>
                       <Typography
                         sx={{

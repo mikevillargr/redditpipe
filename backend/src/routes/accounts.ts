@@ -240,10 +240,10 @@ app.post("/:id/log-organic", async (c) => {
 
     const updated = await prisma.redditAccount.update({
       where: { id },
-      data: { organicPostsWeek: { increment: 1 } },
+      data: { organicPostsTotal: { increment: 1 } },
       select: {
-        id: true, username: true, organicPostsWeek: true,
-        citationPostsWeek: true, postsTodayCount: true, maxPostsPerDay: true,
+        id: true, username: true, organicPostsTotal: true,
+        citationPostsTotal: true, postsTodayCount: true, maxPostsPerDay: true,
       },
     });
     return c.json(updated);

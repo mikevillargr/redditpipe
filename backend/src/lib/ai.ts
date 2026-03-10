@@ -4,6 +4,7 @@ import { getValidModel } from "./models.js";
 
 let cachedApiKey: string | null = null;
 let cachedReplyModel: string | null = null;
+let cachedSpecialInstructions: string | null = null;
 
 async function getApiKey(): Promise<string> {
   if (cachedApiKey) return cachedApiKey;
@@ -12,7 +13,15 @@ async function getApiKey(): Promise<string> {
   if (!key) throw new Error("Anthropic API key not configured. Set it in Settings or ANTHROPIC_API_KEY env var.");
   cachedApiKey = key;
   cachedReplyModel = getValidModel((settings as Record<string, unknown>)?.aiModelReplies as string | undefined);
+  cachedSpecialInstructions = settings?.specialInstructions || null;
   return key;
+}
+
+async function getSpecialInstructions(): Promise<string | null> {
+  if (cachedSpecialInstructions !== null) return cachedSpecialInstructions;
+  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+  cachedSpecialInstructions = settings?.specialInstructions || null;
+  return cachedSpecialInstructions;
 }
 
 function getReplyModel(): string {
@@ -26,6 +35,7 @@ function getClient(apiKey: string): Anthropic {
 export function clearApiKeyCache(): void {
   cachedApiKey = null;
   cachedReplyModel = null;
+  cachedSpecialInstructions = null;
 }
 
 interface GenerateReplyParams {
@@ -108,6 +118,11 @@ REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
 - Do NOT use HTML tags — Reddit uses its own markdown`;
   }
 
+  const specialInstructions = await getSpecialInstructions();
+  if (specialInstructions) {
+    systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+  }
+
   const userPrompt = `THREAD CONTEXT:
 Subreddit: r/${params.subreddit}
 Title: ${params.threadTitle}
@@ -161,10 +176,17 @@ export async function rewriteReply(
     ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${context.userPrompt}`
     : "";
 
+  let systemPrompt = "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.";
+  
+  const specialInstructions = await getSpecialInstructions();
+  if (specialInstructions) {
+    systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
+  }
+
   const response = await client.messages.create({
     model: getReplyModel(),
     max_tokens: 1024,
-    system: "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.",
+    system: systemPrompt,
     messages: [{ role: "user", content: `${actionPrompts[action]}${userInstruction}\n\nCurrent reply:\n${currentDraft}` }],
   });
 

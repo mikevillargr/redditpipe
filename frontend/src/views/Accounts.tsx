@@ -67,8 +67,8 @@ interface Account {
   lastActivity: string
   noOrganicActivity: boolean
   location: string
-  organicPostsWeek: number
-  citationPostsWeek: number
+  organicPostsTotal: number
+  citationPostsTotal: number
   personaNotes?: string
   personalitySummary?: string
   writingStyleNotes?: string
@@ -215,8 +215,8 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
       postsToday: 0,
       maxPostsPerDay,
       location: '',
-      organicPostsWeek: 0,
-      citationPostsWeek: 0,
+      organicPostsTotal: 0,
+      citationPostsTotal: 0,
       personaNotes,
     })
     setUsername('')
@@ -631,8 +631,8 @@ function AccountCard({ account, onView }: AccountCardProps) {
   const progressColor =
     postRatio >= 1 ? '#ef4444' : postRatio >= 0.5 ? '#f59e0b' : '#10b981'
   const ratio = getRatioHealth(
-    account.organicPostsWeek,
-    account.citationPostsWeek,
+    account.organicPostsTotal,
+    account.citationPostsTotal,
   )
   const hasWarning = postRatio >= 1 || account.noOrganicActivity || !ratio.ok
   const handleCopy = async () => {
@@ -1227,7 +1227,7 @@ export function Accounts({ onViewAccount }: AccountsProps) {
           accountAgeDays: number | null; postKarma: number | null; commentKarma: number | null;
           activeSubreddits: string | null; lastPostAt: string | null;
           postsTodayCount: number; maxPostsPerDay: number; location: string | null;
-          organicPostsWeek: number; citationPostsWeek: number;
+          organicPostsTotal: number; citationPostsTotal: number;
           personalitySummary: string | null; writingStyleNotes: string | null; sampleComments: string | null;
           accountAssignments: { client: { id: string; name: string } }[];
         }) => {
@@ -1251,10 +1251,10 @@ export function Accounts({ onViewAccount }: AccountsProps) {
             postsToday: a.postsTodayCount,
             maxPostsPerDay: a.maxPostsPerDay,
             lastActivity: a.lastPostAt ? getTimeAgo(new Date(a.lastPostAt)) : 'Never',
-            noOrganicActivity: a.organicPostsWeek === 0,
+            noOrganicActivity: a.organicPostsTotal === 0,
             location: a.location || '',
-            organicPostsWeek: a.organicPostsWeek,
-            citationPostsWeek: a.citationPostsWeek,
+            organicPostsTotal: a.organicPostsTotal,
+            citationPostsTotal: a.citationPostsTotal,
             personalitySummary: a.personalitySummary || '',
             writingStyleNotes: a.writingStyleNotes || '',
             sampleComments: a.sampleComments || '',

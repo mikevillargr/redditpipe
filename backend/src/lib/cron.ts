@@ -112,19 +112,6 @@ export async function initCronJobs() {
     }
   });
 
-  // Reset Weekly Counts — Monday Midnight UTC
-  cron.schedule("0 0 * * 1", async () => {
-    const db = createPrismaClient();
-    try {
-      await db.redditAccount.updateMany({ data: { organicPostsWeek: 0, citationPostsWeek: 0 } });
-      console.log("[Cron] Weekly counts reset.");
-    } catch (error) {
-      console.error("[Cron] Weekly count reset failed:", error);
-    } finally {
-      await db.$disconnect().catch(() => {});
-    }
-  });
-
   // Cooldown Check — Every 30 minutes
   cron.schedule("*/30 * * * *", async () => {
     const db = createPrismaClient();

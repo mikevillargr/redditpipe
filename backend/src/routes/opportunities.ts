@@ -39,7 +39,7 @@ app.get("/", async (c) => {
           select: {
             id: true, username: true, password: true, status: true,
             postsTodayCount: true, maxPostsPerDay: true,
-            organicPostsWeek: true, citationPostsWeek: true,
+            organicPostsTotal: true, citationPostsTotal: true,
           },
         },
       },
@@ -128,7 +128,7 @@ app.post("/:id/assign", async (c) => {
           select: {
             id: true, username: true, password: true, status: true,
             postsTodayCount: true, maxPostsPerDay: true,
-            organicPostsWeek: true, citationPostsWeek: true,
+            organicPostsTotal: true, citationPostsTotal: true,
           },
         },
       },
@@ -181,7 +181,7 @@ app.patch("/:id", async (c) => {
           select: {
             id: true, username: true, password: true, status: true,
             postsTodayCount: true, maxPostsPerDay: true,
-            organicPostsWeek: true, citationPostsWeek: true,
+            organicPostsTotal: true, citationPostsTotal: true,
           },
         },
       },

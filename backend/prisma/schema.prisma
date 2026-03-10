@@ -39,8 +39,8 @@ model RedditAccount {
   minHoursBetweenPosts Int       @default(4)
   lastPostAt           DateTime?
   postsTodayCount      Int       @default(0)
-  organicPostsWeek     Int       @default(0)
-  citationPostsWeek    Int       @default(0)
+  organicPostsTotal    Int       @default(0)
+  citationPostsTotal   Int       @default(0)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -170,4 +170,5 @@ model Settings {
   pileOnCooldownDays      Int     @default(14)
   pileOnAutoCreate        Boolean @default(true)
   pileOnMaxPerPrimary     Int     @default(2)
+  specialInstructions     String?
 }

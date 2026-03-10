@@ -87,8 +87,8 @@ async function selectBestAccountForOpportunity(opportunity: {
         minHoursBetweenPosts: true,
         lastPostAt: true,
         postsTodayCount: true,
-        citationPostsWeek: true,
-        organicPostsWeek: true,
+        citationPostsTotal: true,
+        organicPostsTotal: true,
       },
     });
 
@@ -129,8 +129,8 @@ async function selectBestAccountForOpportunity(opportunity: {
         const reasons: string[] = [];
 
         // 1. Citation ratio (35% weight) - prefer lower ratio
-        const totalPosts = account.citationPostsWeek + account.organicPostsWeek;
-        const citationRatio = totalPosts > 0 ? account.citationPostsWeek / totalPosts : 0;
+        const totalPosts = account.citationPostsTotal + account.organicPostsTotal;
+        const citationRatio = totalPosts > 0 ? account.citationPostsTotal / totalPosts : 0;
         const citationScore = (1 - citationRatio) * 0.35;
         score += citationScore;
         reasons.push(`citation:${citationRatio.toFixed(2)}`);

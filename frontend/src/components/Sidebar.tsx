@@ -46,6 +46,7 @@ interface SidebarProps {
   mobileOpen: boolean
   onMobileClose: () => void
   onLogout?: () => void
+  userRole?: 'admin' | 'operator'
 }
 const COLLAPSED_WIDTH = 64
 const EXPANDED_WIDTH = 240
@@ -92,6 +93,7 @@ export function Sidebar({
   mobileOpen,
   onMobileClose,
   onLogout,
+  userRole = 'admin',
 }: SidebarProps) {
   const [extensionDialogOpen, setExtensionDialogOpen] = useState(false)
   const theme = useTheme()
@@ -293,63 +295,67 @@ export function Sidebar({
             mx: 1,
           }}
         />
-        <List
-          sx={{
-            px: 1,
-            py: 1,
-          }}
-          disablePadding
-        >
-          <Tooltip
-            title={effectiveCollapsed ? 'Settings' : ''}
-            placement="right"
-            arrow
+
+        {/* Settings - Admin Only */}
+        {userRole === 'admin' && (
+          <List
+            sx={{
+              px: 1,
+              py: 1,
+            }}
+            disablePadding
           >
-            <ListItemButton
-              onClick={() => onNavigate('settings')}
-              sx={{
-                borderRadius: '8px',
-                mb: 0.5,
-                px: 1.5,
-                py: 1,
-                minHeight: 40,
-                justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
-                borderLeft: isActive('settings')
-                  ? '3px solid #f97316'
-                  : '3px solid transparent',
-                bgcolor: isActive('settings') ? activeBg : 'transparent',
-                '&:hover': {
-                  bgcolor: isActive('settings')
-                    ? 'rgba(249, 115, 22, 0.12)'
-                    : hoverBg,
-                },
-              }}
+            <Tooltip
+              title={effectiveCollapsed ? 'Settings' : ''}
+              placement="right"
+              arrow
             >
-              <ListItemIcon
+              <ListItemButton
+                onClick={() => onNavigate('settings')}
                 sx={{
-                  minWidth: effectiveCollapsed ? 0 : 36,
-                  color: isActive('settings')
-                    ? activeIconColor
-                    : inactiveIconColor,
-                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  mb: 0.5,
+                  px: 1.5,
+                  py: 1,
+                  minHeight: 40,
+                  justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+                  borderLeft: isActive('settings')
+                    ? '3px solid #f97316'
+                    : '3px solid transparent',
+                  bgcolor: isActive('settings') ? activeBg : 'transparent',
+                  '&:hover': {
+                    bgcolor: isActive('settings')
+                      ? 'rgba(249, 115, 22, 0.12)'
+                      : hoverBg,
+                  },
                 }}
               >
-                <SettingsIcon size={18} />
-              </ListItemIcon>
-              {!effectiveCollapsed && (
-                <ListItemText
-                  primary="Settings"
-                  primaryTypographyProps={{
-                    fontSize: '14px',
-                    fontWeight: isActive('settings') ? 600 : 400,
-                    color: isActive('settings') ? activeIconColor : '#94a3b8',
-                    whiteSpace: 'nowrap',
+                <ListItemIcon
+                  sx={{
+                    minWidth: effectiveCollapsed ? 0 : 36,
+                    color: isActive('settings')
+                      ? activeIconColor
+                      : inactiveIconColor,
+                    justifyContent: 'center',
                   }}
-                />
-              )}
-            </ListItemButton>
-          </Tooltip>
-        </List>
+                >
+                  <SettingsIcon size={18} />
+                </ListItemIcon>
+                {!effectiveCollapsed && (
+                  <ListItemText
+                    primary="Settings"
+                    primaryTypographyProps={{
+                      fontSize: '14px',
+                      fontWeight: isActive('settings') ? 600 : 400,
+                      color: isActive('settings') ? activeIconColor : '#94a3b8',
+                      whiteSpace: 'nowrap',
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Tooltip>
+          </List>
+        )}
 
         {/* Chrome Extension Download */}
         <List sx={{ px: 1, py: 0 }} disablePadding>

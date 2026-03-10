@@ -49,7 +49,7 @@ export async function markAsPublished(
     await prisma.redditAccount.update({
       where: { id: opportunity.account.id },
       data: {
-        citationPostsWeek: { increment: 1 },
+        citationPostsTotal: { increment: 1 },
         postsTodayCount: { increment: 1 },
         lastPostAt: new Date(),
       },
@@ -92,7 +92,7 @@ export async function submitPermalink(
     await prisma.redditAccount.update({
       where: { id: opportunity.account.id },
       data: {
-        citationPostsWeek: { increment: 1 },
+        citationPostsTotal: { increment: 1 },
         postsTodayCount: { increment: 1 },
         lastPostAt: new Date(),
       },

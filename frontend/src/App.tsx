@@ -55,6 +55,7 @@ function useAppTheme(mode: 'light' | 'dark') {
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+  const [userRole, setUserRole] = useState<'admin' | 'operator'>('admin')
   const [activePage, setActivePage] = useState<Page>('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -69,7 +70,13 @@ export default function App() {
   const checkAuth = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/check')
-      setAuthenticated(res.ok)
+      if (res.ok) {
+        const data = await res.json()
+        setAuthenticated(true)
+        setUserRole(data.role || 'admin')
+      } else {
+        setAuthenticated(false)
+      }
     } catch {
       setAuthenticated(false)
     }
@@ -87,15 +94,15 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard />
+      case 'dashboard': return <Dashboard userRole={userRole} />
       case 'clients': return <Clients />
       case 'accounts': return <Accounts onViewAccount={handleViewAccount} />
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
-      case 'settings': return <Settings />
+      case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarming />
       case 'reports': return <Reports />
-      default: return <Dashboard />
+      default: return <Dashboard userRole={userRole} />
     }
   }
 
@@ -115,6 +122,7 @@ export default function App() {
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
           onLogout={handleLogout}
+          userRole={userRole}
         />
         <Box component="main" sx={{ flexGrow: 1, minWidth: 0, minHeight: '100vh', bgcolor: 'background.default' }}>
           <Box sx={{
