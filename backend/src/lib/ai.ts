@@ -57,6 +57,14 @@ export async function generateReplyDraft(params: GenerateReplyParams): Promise<s
   const apiKey = await getApiKey();
   const client = getClient(apiKey);
 
+  // Get special instructions first to integrate them properly
+  const specialInstructions = await getSpecialInstructions();
+  if (specialInstructions) {
+    console.log("[AI] Special instructions applied:", specialInstructions);
+  } else {
+    console.log("[AI] No special instructions found");
+  }
+
   let systemPrompt: string;
 
   if (params.accountUsername) {
@@ -71,7 +79,8 @@ ${params.accountStyleNotes || "No style notes available."}
 SAMPLE COMMENTS BY THIS USER (match this voice exactly):
 ${params.accountSampleComments || "No sample comments available."}
 
-RULES:
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}\n` : ''}
+CORE RULES:
 - Match this user's writing style EXACTLY — sentence length, punctuation, casualness, vocabulary
 - Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
 - Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
@@ -98,7 +107,8 @@ ANTI-DETECTION RULES (critical):
   } else {
     systemPrompt = `You are writing a Reddit reply as a helpful community member.
 
-RULES:
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}\n` : ''}
+CORE RULES:
 - Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
 - Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
 - Do NOT make it the only recommendation — mention 1-2 other options
@@ -116,11 +126,6 @@ REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
 - Use line breaks between paragraphs (double newline)
 - Use bullet points with "- " when listing multiple options
 - Do NOT use HTML tags — Reddit uses its own markdown`;
-  }
-
-  const specialInstructions = await getSpecialInstructions();
-  if (specialInstructions) {
-    systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
   }
 
   const userPrompt = `THREAD CONTEXT:
@@ -165,6 +170,12 @@ export async function rewriteReply(
   const apiKey = await getApiKey();
   const client = getClient(apiKey);
 
+  // Get special instructions first
+  const specialInstructions = await getSpecialInstructions();
+  if (specialInstructions) {
+    console.log("[AI] Special instructions applied to rewrite:", specialInstructions);
+  }
+
   const actionPrompts: Record<RewriteAction, string> = {
     regenerate: `Completely rewrite this Reddit reply while keeping the same intent and client mention. Make it sound natural and different from the original.${context?.accountPersonality ? ` Match this persona: ${context.accountPersonality}` : ""}`,
     shorter: "Make this Reddit reply significantly shorter — condense to fewer sentences while keeping the key message and client mention.",
@@ -176,12 +187,9 @@ export async function rewriteReply(
     ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${context.userPrompt}`
     : "";
 
-  let systemPrompt = "You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.";
-  
-  const specialInstructions = await getSpecialInstructions();
-  if (specialInstructions) {
-    systemPrompt += `\n\nSPECIAL INSTRUCTIONS:\n${specialInstructions}`;
-  }
+  let systemPrompt = `You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with "- ". Include clickable URLs for any product/service mentioned.
+
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}` : ''}`;
 
   const response = await client.messages.create({
     model: getReplyModel(),
