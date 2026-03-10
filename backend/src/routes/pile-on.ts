@@ -8,27 +8,71 @@ import { createManualPileOn } from "../lib/pile-on-creation.js";
 const app = new Hono();
 
 /**
- * POST /api/opportunities/:id/pile-on
- * Manually create a pile-on opportunity (fallback button)
+ * POST /api/opportunities/:id/pile-on/generate
+ * Generate a +1/agreement response for a published opportunity
  */
-app.post("/:id/pile-on", async (c) => {
+app.post("/:id/pile-on/generate", async (c) => {
   const opportunityId = c.req.param("id");
+  const body = await c.req.json();
+  const { accountId } = body;
   
+  if (!accountId) {
+    return c.json({ error: "Account ID required" }, 400);
+  }
+
+  const db = createPrismaClient();
+
   try {
-    const result = await createManualPileOn(opportunityId);
-    
-    if (!result.success) {
-      return c.json({ error: result.error }, 400);
+    // Get the opportunity with its published reply
+    const opportunity = await db.opportunity.findUnique({
+      where: { id: opportunityId },
+      include: {
+        client: true,
+        account: true,
+      },
+    });
+
+    if (!opportunity) {
+      return c.json({ error: "Opportunity not found" }, 404);
     }
+
+    if (opportunity.status !== "published") {
+      return c.json({ error: "Can only pile-on to published opportunities" }, 400);
+    }
+
+    if (!opportunity.aiDraftReply) {
+      return c.json({ error: "No reply found for this opportunity" }, 400);
+    }
+
+    // Get the account that will post the pile-on
+    const account = await db.redditAccount.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      return c.json({ error: "Account not found" }, 404);
+    }
+
+    // Generate a +1/agreement response using AI
+    const draftReply = await generatePileOnComment({
+      primaryComment: opportunity.aiDraftReply,
+      threadTitle: opportunity.title,
+      threadBody: opportunity.bodySnippet || "",
+      clientName: opportunity.client.name,
+      clientDescription: opportunity.client.description || "",
+      pileOnAccountPersonality: account.personalitySummary,
+      pileOnAccountWritingStyle: account.writingStyleNotes,
+    });
 
     return c.json({
       success: true,
-      opportunityId: result.opportunityId,
-      message: "Pile-on opportunity created successfully",
+      draftReply,
     });
   } catch (error) {
-    console.error("Error creating manual pile-on:", error);
-    return c.json({ error: error instanceof Error ? error.message : "Failed to create pile-on" }, 500);
+    console.error("Error generating pile-on:", error);
+    return c.json({ error: error instanceof Error ? error.message : "Failed to generate pile-on" }, 500);
+  } finally {
+    await db.$disconnect();
   }
 });
 
