@@ -260,8 +260,17 @@ app.get("/:id/activity", async (c) => {
     const account = await prisma.redditAccount.findUnique({ where: { id } });
     if (!account) return c.json({ error: "Not found" }, 404);
 
-    const comments = await getUserComments(account.username, 25);
-    return c.json(comments);
+    // Return opportunities for this account instead of raw Reddit comments
+    const opportunities = await prisma.opportunity.findMany({
+      where: { accountId: id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        client: { select: { name: true } },
+      },
+    });
+
+    return c.json(opportunities);
   } catch (error) {
     console.error("GET /api/accounts/:id/activity error:", error);
     return c.json({ error: "Failed to fetch activity" }, 500);
