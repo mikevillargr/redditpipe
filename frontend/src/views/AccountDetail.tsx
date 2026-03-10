@@ -51,6 +51,7 @@ interface ActivityRow {
   subreddit: string
   client: string
   status: string
+  permalinkUrl?: string
 }
 interface AccountData {
   id: string
@@ -122,12 +123,13 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
         const actRes = await fetch(`/api/accounts/${accountId}/activity`)
         if (actRes.ok) {
           const actData = await actRes.json()
-          setActivityLog(actData.map((o: { createdAt: string; title: string; subreddit: string; client?: { name: string }; status: string }) => ({
+          setActivityLog(actData.map((o: { createdAt: string; title: string; subreddit: string; client?: { name: string }; status: string; permalinkUrl?: string }) => ({
             date: new Date(o.createdAt).toISOString().split('T')[0],
             thread: o.title,
             subreddit: `r/${o.subreddit}`,
             client: o.client?.name || '',
             status: o.status === 'published' ? 'pushed' : o.status,
+            permalinkUrl: o.permalinkUrl,
           })))
         }
       }
@@ -1277,22 +1279,43 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                       {row.date}
                     </TableCell>
                     <TableCell>
-                      <Typography
-                        sx={{
-                          fontSize: '12px',
-                          color: '#3b82f6',
-                          cursor: 'pointer',
-                          '&:hover': {
-                            textDecoration: 'underline',
-                          },
-                          maxWidth: 280,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {row.thread}
-                      </Typography>
+                      {row.permalinkUrl ? (
+                        <Typography
+                          component="a"
+                          href={row.permalinkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          sx={{
+                            fontSize: '12px',
+                            color: '#3b82f6',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            '&:hover': {
+                              textDecoration: 'underline',
+                            },
+                            maxWidth: 280,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            display: 'block',
+                          }}
+                        >
+                          {row.thread}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          sx={{
+                            fontSize: '12px',
+                            color: '#64748b',
+                            maxWidth: 280,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {row.thread}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Chip
