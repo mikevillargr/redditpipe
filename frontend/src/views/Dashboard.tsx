@@ -756,6 +756,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   const newCount = countByStatus('new')
   const publishedCount = countByStatus('published')
   const unverifiedCount = countByStatus('unverified')
+  const deletedCount = countByStatus('deleted_by_mod')
   const allCount = clientFilteredOpps.length
   // clients are fetched from API
   return (
@@ -938,7 +939,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
               <ToggleButton value="deleted_by_mod">
                 Deleted{' '}
                 <CountBadge
-                  count={opportunities.filter((o) => o.status === 'deleted_by_mod').length}
+                  count={deletedCount}
                   active={statusFilter === 'deleted_by_mod'}
                   color="#ef4444"
                 />
