@@ -11,6 +11,9 @@ import {
   Snackbar,
   CircularProgress,
   useTheme,
+  Tabs,
+  Tab,
+  Checkbox,
 } from '@mui/material'
 import {
   BarChart3Icon,
@@ -73,12 +76,14 @@ interface DeletionInsights {
 export function Insights() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const [activeTab, setActiveTab] = useState(0)
   const [analysis, setAnalysis] = useState<DismissalAnalysis | null>(null)
   const [deletionInsights, setDeletionInsights] = useState<DeletionInsights | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingDeletions, setLoadingDeletions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [appliedItems, setAppliedItems] = useState<Set<string>>(new Set())
+  const [selectedDeletionRecs, setSelectedDeletionRecs] = useState<Set<number>>(new Set())
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
   const [showApplyModal, setShowApplyModal] = useState(false)
   const [suggestedInstructions, setSuggestedInstructions] = useState('')

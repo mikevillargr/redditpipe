@@ -48,12 +48,15 @@ import {
   BriefcaseIcon,
   LinkIcon,
   ExternalLinkIcon,
+  TrashIcon,
   AlertCircleIcon,
+  LightbulbIcon,
   SquareIcon,
   BrainIcon,
   UserIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
+import { DeletionAnalysisModal } from '../components/DeletionAnalysisModal'
 type StatusFilter = 'all' | 'new' | 'published' | 'unverified' | 'deleted_by_mod'
 interface AccountStats {
   postsToday: number
@@ -338,6 +341,11 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   const [pileOnOppId, setPileOnOppId] = useState<string | null>(null)
   const [pileOnOppTitle, setPileOnOppTitle] = useState('')
   const [showPileOnDialog, setShowPileOnDialog] = useState(false)
+  const [pileOnOpportunity, setPileOnOpportunity] = useState<Opportunity | null>(null)
+  const [showDeletionAnalysis, setShowDeletionAnalysis] = useState(false)
+  const [deletionAnalysisData, setDeletionAnalysisData] = useState<any>(null)
+  const [analyzingDeletion, setAnalyzingDeletion] = useState(false)
+  const [selectedRecommendations, setSelectedRecommendations] = useState<Set<number>>(new Set())
   // Thread preview
   const [previewOpp, setPreviewOpp] = useState<Opportunity | null>(null)
   // Lazy load / infinite scroll
@@ -529,6 +537,71 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     setShowSingleDismissDialog(true)
   }
 
+  const handleAnalyzeDeletion = async (id: string) => {
+    setAnalyzingDeletion(true)
+    setShowDeletionAnalysis(true)
+    setDeletionAnalysisData(null)
+    setSelectedRecommendations(new Set())
+    try {
+      const res = await fetch(`/api/deletion-analysis/analyze/${id}`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDeletionAnalysisData(data.analysis)
+      } else {
+        const data = await res.json()
+        setDeletionAnalysisData({ error: data.error || 'Failed to analyze deletion' })
+      }
+    } catch (err) {
+      setDeletionAnalysisData({ error: 'Network error - could not analyze deletion' })
+    } finally {
+      setAnalyzingDeletion(false)
+    }
+  }
+
+  const toggleRecommendation = (index: number) => {
+    setSelectedRecommendations(prev => {
+      const next = new Set(prev)
+      if (next.has(index)) {
+        next.delete(index)
+      } else {
+        next.add(index)
+      }
+      return next
+    })
+  }
+
+  const handleApplyRecommendations = async () => {
+    if (!deletionAnalysisData || !deletionAnalysisData.recommendations) return
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const recommendations = JSON.parse(deletionAnalysisData.recommendations)
+      const selectedRecs = Array.from(selectedRecommendations)
+        .map(i => recommendations[i])
+        .filter(Boolean)
+      
+      const current = settings.specialInstructions || ''
+      const newInstructions = selectedRecs.join('\n')
+      const separator = current.trim() ? '\n\n' : ''
+      const updated = current.trim() + separator + newInstructions
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specialInstructions: updated }),
+      })
+      
+      setShowDeletionAnalysis(false)
+      setSnackbar({ open: true, message: `Applied ${selectedRecs.length} recommendation(s) to Special Instructions for AI Generation`, severity: 'success' })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply recommendations', severity: 'warning' })
+    }
+  }
+
   const handleReassign = (id: string) => {
     setReassigningId(id)
     setReassignAccountId('')
@@ -558,7 +631,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     if (!dismissingId || !singleDismissReason.trim()) return
     try {
       const res = await fetch(`/api/opportunities/${dismissingId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'dismissed', dismissReason: singleDismissReason.trim() }),
       })
@@ -1436,6 +1509,8 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             onPreview={() => setPreviewOpp(opp)}
             onReassign={() => handleReassign(opp.id)}
             onAssignAccount={(accountId) => handleAssignAccount(opp.id, accountId)}
+            onAnalyzeDeletion={() => handleAnalyzeDeletion(opp.id)}
+            analyzingDeletion={analyzingDeletion}
             availableAccounts={accountList}
           />
         ))}
@@ -1902,6 +1977,17 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
           onSuccess={handlePileOnSuccess}
         />
       )}
+
+      {/* Deletion Analysis Modal */}
+      <DeletionAnalysisModal
+        open={showDeletionAnalysis}
+        onClose={() => setShowDeletionAnalysis(false)}
+        loading={analyzingDeletion}
+        data={deletionAnalysisData}
+        selectedRecommendations={selectedRecommendations}
+        onToggleRecommendation={toggleRecommendation}
+        onApply={handleApplyRecommendations}
+      />
     </Box>
   )
 }
@@ -1923,6 +2009,8 @@ interface OpportunityCardProps {
   onPreview: () => void
   onReassign: () => void
   onAssignAccount: (accountId: string) => void
+  onAnalyzeDeletion: () => void
+  analyzingDeletion: boolean
   availableAccounts: { id: string; username: string; status: string }[]
 }
 function OpportunityCard({
@@ -1940,6 +2028,8 @@ function OpportunityCard({
   onPreview,
   onReassign,
   onAssignAccount,
+  onAnalyzeDeletion,
+  analyzingDeletion,
   availableAccounts,
 }: OpportunityCardProps) {
   const [showPassword, setShowPassword] = useState(false)
@@ -2300,23 +2390,10 @@ function OpportunityCard({
                   />
                   <Tooltip title="AI analyzes why this was deleted to improve future comments" arrow>
                     <Chip
-                      label="Analyze Deletion"
+                      label={analyzingDeletion ? "Analyzing..." : "Analyze Deletion"}
                       size="small"
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/deletion-analysis/analyze/${opp.id}`, {
-                            method: 'POST',
-                          })
-                          if (res.ok) {
-                            alert('Deletion analyzed successfully! View insights in the Insights page.')
-                          } else {
-                            const data = await res.json()
-                            alert(data.error || 'Failed to analyze deletion')
-                          }
-                        } catch (err) {
-                          alert('Network error - could not analyze deletion')
-                        }
-                      }}
+                      onClick={onAnalyzeDeletion}
+                      disabled={analyzingDeletion}
                       clickable
                       sx={{
                         height: 22,
