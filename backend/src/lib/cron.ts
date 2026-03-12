@@ -39,6 +39,60 @@ async function runDeletionCheck() {
 
 export { runDeletionCheck };
 
+async function runDeletionAnalysis() {
+  console.log("[Cron] Running automated deletion analysis...");
+  const db = createPrismaClient();
+  try {
+    // Find deleted opportunities that haven't been analyzed yet
+    const deletedOpps = await db.opportunity.findMany({
+      where: {
+        status: "deleted_by_mod",
+        deletionAnalysis: null,
+      },
+      take: 50, // Analyze up to 50 per run to avoid overwhelming the AI API
+    });
+
+    if (deletedOpps.length === 0) {
+      console.log("[Cron] No unanalyzed deletions found.");
+      return;
+    }
+
+    console.log(`[Cron] Found ${deletedOpps.length} unanalyzed deletions. Triggering analysis via API...`);
+    
+    let analyzed = 0;
+    let failed = 0;
+
+    // Call the analysis endpoint for each deletion
+    for (const opp of deletedOpps) {
+      try {
+        const response = await fetch(`http://localhost:8000/api/deletion-analysis/analyze/${opp.id}`, {
+          method: 'POST',
+        });
+        
+        if (response.ok) {
+          analyzed++;
+          console.log(`[Cron] Analyzed deletion ${opp.id} (${analyzed}/${deletedOpps.length})`);
+        } else {
+          failed++;
+          const data = await response.json();
+          console.error(`[Cron] Failed to analyze ${opp.id}:`, data.error);
+        }
+      } catch (error) {
+        failed++;
+        console.error(`[Cron] Failed to analyze ${opp.id}:`, error);
+      }
+    }
+
+    console.log(`[Cron] Deletion analysis complete: ${analyzed} analyzed, ${failed} failed`);
+  } catch (error) {
+    console.error("[Cron] Deletion analysis failed:", error);
+  } finally {
+    await db.$disconnect().catch(() => {});
+  }
+}
+
+export { runDeletionAnalysis };
+
 function buildSearchCron(frequency: string, scheduleTimes: string): string | null {
   if (frequency === "manual") return null;
 
@@ -144,6 +198,12 @@ export async function initCronJobs() {
 
   // No auto-run on startup — only the cron schedule or manual trigger should start searches.
   // Previous behavior: setTimeout(runSearch, 10000) caused unscheduled runs on every deploy.
+
+  // Automated Deletion Analysis — Daily at 8 PM UTC
+  if (cronEnabled) {
+    cron.schedule("0 20 * * *", runDeletionAnalysis);
+    console.log("[Cron] Deletion analysis scheduled: daily at 8 PM UTC");
+  }
 
   // Reset Daily Counts — Midnight UTC
   cron.schedule("0 0 * * *", async () => {
