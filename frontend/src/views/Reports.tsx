@@ -63,6 +63,7 @@ interface ReportOpportunity {
   subreddit: string
   threadCreatedAt: string | null
   publishedAt: string | null
+  deletedAt: string | null
   createdAt: string
 }
 
@@ -418,6 +419,7 @@ export function Reports() {
                   'Thread Title',
                   'Scores',
                   'Status',
+                  'Deleted',
                   'AI Commentary',
                   'Comment',
                   'Citations',
@@ -510,6 +512,22 @@ export function Reports() {
                           textTransform: 'capitalize',
                         }}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {opp.deletedAt ? (
+                        <Box>
+                          <Typography sx={{ fontSize: '11px', color: '#ef4444', fontWeight: 600 }}>
+                            Yes
+                          </Typography>
+                          <Typography sx={{ fontSize: '10px', color: 'text.secondary' }}>
+                            {new Date(opp.deletedAt).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Typography sx={{ fontSize: '11px', color: 'text.secondary' }}>
+                          No
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell sx={{ minWidth: 250, maxWidth: 350 }}>
                       <Typography

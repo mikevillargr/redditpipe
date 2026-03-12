@@ -278,6 +278,7 @@ export function Settings() {
   const [deletionCheckDays, setDeletionCheckDays] = useState(30)
   const [deletionCheckRunning, setDeletionCheckRunning] = useState(false)
   const [deletionCheckResult, setDeletionCheckResult] = useState<any>(null)
+  const [deletionCheckProgress, setDeletionCheckProgress] = useState<string>('')
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -1502,9 +1503,11 @@ export function Settings() {
                   onClick={async () => {
                     setDeletionCheckRunning(true)
                     setDeletionCheckResult(null)
+                    setDeletionCheckProgress('Starting deletion check...')
                     try {
                       const res = await fetch('/api/deletion-check/run', { method: 'POST' })
                       if (res.ok) {
+                        setDeletionCheckProgress('Check in progress...')
                         // Poll for status every 2 seconds for up to 60 seconds
                         let attempts = 0
                         const maxAttempts = 30
@@ -1516,15 +1519,21 @@ export function Settings() {
                               const data = await statusRes.json()
                               if (!data.isRunning && data.lastResult) {
                                 setDeletionCheckResult(data.lastResult)
+                                setDeletionCheckProgress('')
                                 setDeletionCheckRunning(false)
                                 clearInterval(pollInterval)
+                              } else if (data.isRunning) {
+                                setDeletionCheckProgress(`Checking opportunities... (${attempts * 2}s elapsed)`)
                               } else if (attempts >= maxAttempts) {
+                                setDeletionCheckProgress('')
                                 setDeletionCheckRunning(false)
+                                setSaveError('Check timed out after 60 seconds')
                                 clearInterval(pollInterval)
                               }
                             }
                           } catch {
                             if (attempts >= maxAttempts) {
+                              setDeletionCheckProgress('')
                               setDeletionCheckRunning(false)
                               clearInterval(pollInterval)
                             }
@@ -1533,10 +1542,12 @@ export function Settings() {
                       } else {
                         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
                         setSaveError(errorData.error || 'Failed to start deletion check')
+                        setDeletionCheckProgress('')
                         setDeletionCheckRunning(false)
                       }
                     } catch (err) {
                       setSaveError('Network error - could not start deletion check')
+                      setDeletionCheckProgress('')
                       setDeletionCheckRunning(false)
                     }
                   }}
@@ -1550,11 +1561,23 @@ export function Settings() {
                 >
                   {deletionCheckRunning ? 'Running...' : 'Run Check Now'}
                 </Button>
-                {deletionCheckResult && (
-                  <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: 1 }}>
-                    Last check: {deletionCheckResult.deleted} deleted out of {deletionCheckResult.checked} checked
-                    {deletionCheckResult.lastRunAt && ` at ${new Date(deletionCheckResult.lastRunAt).toLocaleString()}`}
+                {deletionCheckProgress && (
+                  <Typography sx={{ fontSize: '12px', color: '#3b82f6', mt: 1, fontWeight: 500 }}>
+                    {deletionCheckProgress}
                   </Typography>
+                )}
+                {deletionCheckResult && !deletionCheckProgress && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>
+                      Last check: <strong>{deletionCheckResult.deleted} deleted</strong> out of <strong>{deletionCheckResult.checked} checked</strong>
+                      {deletionCheckResult.lastRunAt && ` at ${new Date(deletionCheckResult.lastRunAt).toLocaleString()}`}
+                    </Typography>
+                    {deletionCheckResult.errors && deletionCheckResult.errors.length > 0 && (
+                      <Typography sx={{ fontSize: '11px', color: '#ef4444', mt: 0.5 }}>
+                        {deletionCheckResult.errors.length} error(s) occurred
+                      </Typography>
+                    )}
+                  </Box>
                 )}
               </Box>
             </>

@@ -19,6 +19,7 @@ export async function checkCommentExists(permalinkUrl: string): Promise<boolean>
   try {
     // Parse permalink to get the JSON endpoint
     // Reddit permalink format: https://www.reddit.com/r/subreddit/comments/threadid/title/commentid/
+    // or user profile: https://www.reddit.com/user/username/comments/
     const url = new URL(permalinkUrl);
     const jsonUrl = `${url.origin}${url.pathname}.json`;
 
@@ -37,30 +38,68 @@ export async function checkCommentExists(permalinkUrl: string): Promise<boolean>
     if (!response.ok) {
       // 404 means comment doesn't exist
       if (response.status === 404) {
+        console.log(`[DeletionDetection] 404 for ${permalinkUrl}`);
         return false;
       }
+      console.warn(`[DeletionDetection] Reddit API returned ${response.status} for ${permalinkUrl}`);
       throw new Error(`Reddit API returned ${response.status}`);
     }
 
     const data = await response.json();
 
-    // Reddit returns an array with [thread_data, comment_data]
-    // If comment is deleted/removed, the comment data will be empty or have [removed]/[deleted] body
+    // Reddit returns different structures depending on the permalink type:
+    // 1. Full comment permalink: [thread_listing, comment_listing]
+    // 2. User profile comment: {kind: "Listing", data: {children: [...]}}
+    
+    // Handle user profile comments (single listing object)
+    if (!Array.isArray(data) && data.kind === "Listing") {
+      const children = data.data?.children || [];
+      if (children.length === 0) {
+        console.log(`[DeletionDetection] No children in user profile listing for ${permalinkUrl}`);
+        return false;
+      }
+      const commentData = children[0]?.data;
+      if (!commentData) {
+        console.log(`[DeletionDetection] No comment data in user profile for ${permalinkUrl}`);
+        return false;
+      }
+      // Check if comment body is [removed] or [deleted] or missing
+      const body = commentData.body || "";
+      const author = commentData.author || "";
+      if (body === "[removed]" || body === "[deleted]" || !body || author === "[deleted]") {
+        console.log(`[DeletionDetection] Comment deleted/removed in user profile: body="${body}", author="${author}"`);
+        return false;
+      }
+      return true;
+    }
+
+    // Handle full comment permalink (array with thread and comment listings)
     if (!Array.isArray(data) || data.length < 2) {
+      console.log(`[DeletionDetection] Unexpected data structure for ${permalinkUrl}`);
       return false;
     }
 
-    const commentData = data[1]?.data?.children?.[0]?.data;
+    const commentListing = data[1];
+    if (!commentListing?.data?.children || commentListing.data.children.length === 0) {
+      console.log(`[DeletionDetection] No comment children for ${permalinkUrl}`);
+      return false;
+    }
+
+    const commentData = commentListing.data.children[0]?.data;
     if (!commentData) {
+      console.log(`[DeletionDetection] No comment data for ${permalinkUrl}`);
       return false;
     }
 
-    // Check if comment body is [removed] or [deleted]
+    // Check if comment body is [removed] or [deleted] or author is deleted
     const body = commentData.body || "";
-    if (body === "[removed]" || body === "[deleted]" || !body) {
+    const author = commentData.author || "";
+    if (body === "[removed]" || body === "[deleted]" || !body || author === "[deleted]") {
+      console.log(`[DeletionDetection] Comment deleted/removed: body="${body}", author="${author}"`);
       return false;
     }
 
+    console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}`);
     return true;
   } catch (error) {
     console.error("[DeletionDetection] Error checking comment:", error);
