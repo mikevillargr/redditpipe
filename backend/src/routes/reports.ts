@@ -29,6 +29,8 @@ interface ReportOpportunity {
   commentPermalink: string | null;
   subreddit: string;
   threadCreatedAt: Date | null;
+  publishedAt: Date | null;
+  deletedAt: Date | null;
   createdAt: Date;
   opportunityType: string;
   parentOpportunityId: string | null;
@@ -110,6 +112,8 @@ reports.get("/clients/:clientId", async (c) => {
         commentPermalink: opp.permalinkUrl || null,
         subreddit: opp.subreddit,
         threadCreatedAt: opp.threadCreatedAt || null,
+        publishedAt: opp.publishedAt || null,
+        deletedAt: opp.deletedAt || null,
         createdAt: opp.createdAt,
         opportunityType: opp.opportunityType || "primary",
         parentOpportunityId: opp.parentOpportunityId || null,
