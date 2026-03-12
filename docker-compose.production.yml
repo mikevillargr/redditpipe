@@ -1,13 +1,15 @@
 services:
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      cache_from:
+        - redditpipe-backend:latest
     container_name: redditpipe-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./backend/dist:/app/dist:ro
     env_file:
       - .env.production
     environment:
@@ -16,12 +18,13 @@ services:
       - ENABLE_CRON=true
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      cache_from:
+        - redditpipe-frontend:latest
     container_name: redditpipe-frontend
     restart: unless-stopped
     ports:
       - "3200:80"
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
     depends_on:
       - backend

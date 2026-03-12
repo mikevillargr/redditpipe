@@ -95,39 +95,9 @@ jobs:
             cd /docker/redditpipe-production 2>/dev/null && docker compose -f docker-compose.production.yml down 2>/dev/null || true
             cd "$REPO_DIR"
 
-            # Check if we need to rebuild Docker images (Dockerfile or docker-compose changed)
-            NEED_DOCKER_REBUILD=0
-            if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -qE '(Dockerfile|docker-compose\.production\.yml)'; then
-              echo "=== Detected Docker config changes, rebuilding images ==="
-              NEED_DOCKER_REBUILD=1
-            fi
-
-            # Check if dependencies changed
-            NEED_DEPS_INSTALL=0
-            if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -qE 'package\.json'; then
-              echo "=== Detected package.json changes, reinstalling dependencies ==="
-              NEED_DEPS_INSTALL=1
-            fi
-
-            if [ "$NEED_DOCKER_REBUILD" -eq 1 ]; then
-              # Full Docker rebuild
-              docker compose -f docker-compose.production.yml down --remove-orphans 2>/dev/null || true
-              docker compose -f docker-compose.production.yml build
-              docker compose -f docker-compose.production.yml up -d --remove-orphans
-            elif [ "$NEED_DEPS_INSTALL" -eq 1 ]; then
-              # Rebuild with new dependencies
-              docker compose -f docker-compose.production.yml down --remove-orphans 2>/dev/null || true
-              docker compose -f docker-compose.production.yml build
-              docker compose -f docker-compose.production.yml up -d --remove-orphans
-            else
-              # Just build code and restart (fastest path)
-              echo "=== Building backend ==="
-              cd backend && npm run build && cd ..
-              echo "=== Building frontend ==="
-              cd frontend && npm run build && cd ..
-              echo "=== Restarting containers ==="
-              docker compose -f docker-compose.production.yml restart
-            fi
+            # Fast rebuild with BuildKit and layer caching
+            echo "=== Building and deploying ==="
+            DOCKER_BUILDKIT=1 docker compose -f docker-compose.production.yml up -d --build --remove-orphans
 
             # Quick health check
             echo "=== Waiting for backend ==="
