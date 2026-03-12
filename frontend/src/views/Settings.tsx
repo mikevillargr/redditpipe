@@ -271,6 +271,13 @@ export function Settings() {
   const [pileOnDelayMaxHours, setPileOnDelayMaxHours] = useState(6)
   const [pileOnMaxPerOpportunity, setPileOnMaxPerOpportunity] = useState(2)
   const [pileOnCooldownDays, setPileOnCooldownDays] = useState(14)
+  // Deletion detection
+  const [deletionCheckEnabled, setDeletionCheckEnabled] = useState(true)
+  const [deletionCheckTime, setDeletionCheckTime] = useState('19:00')
+  const [deletionCheckTimezone, setDeletionCheckTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const [deletionCheckDays, setDeletionCheckDays] = useState(30)
+  const [deletionCheckRunning, setDeletionCheckRunning] = useState(false)
+  const [deletionCheckResult, setDeletionCheckResult] = useState<any>(null)
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -314,6 +321,10 @@ export function Settings() {
         setPileOnDelayMaxHours(data.pileOnDelayMaxHours ?? 6)
         setPileOnMaxPerOpportunity(data.pileOnMaxPerOpportunity ?? 2)
         setPileOnCooldownDays(data.pileOnCooldownDays ?? 14)
+        setDeletionCheckEnabled(data.deletionCheckEnabled ?? true)
+        setDeletionCheckTime(data.deletionCheckTime || '19:00')
+        setDeletionCheckTimezone(data.deletionCheckTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+        setDeletionCheckDays(data.deletionCheckDays ?? 30)
       }
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -426,6 +437,10 @@ export function Settings() {
         pileOnMaxPerOpportunity,
         pileOnCooldownDays,
         specialInstructions,
+        deletionCheckEnabled,
+        deletionCheckTime,
+        deletionCheckTimezone,
+        deletionCheckDays,
       }
       // Only include non-masked values
       if (!redditClientId.startsWith('****')) payload.redditClientId = redditClientId
