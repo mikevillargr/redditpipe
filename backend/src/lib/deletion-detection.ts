@@ -12,10 +12,10 @@ let lastCheckResult: DeletionCheckResult | null = null;
 let isRunning = false;
 
 /**
- * Check if a comment exists at the given permalink
- * Returns true if comment exists, false if deleted/removed
+ * Check if a comment exists at the given permalink and matches the expected author
+ * Returns true if comment exists and author matches, false if deleted/removed or author mismatch
  */
-export async function checkCommentExists(permalinkUrl: string): Promise<boolean> {
+export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: string): Promise<boolean> {
   try {
     // Parse permalink to get the JSON endpoint
     // Reddit permalink format: https://www.reddit.com/r/subreddit/comments/threadid/title/commentid/
@@ -58,18 +58,42 @@ export async function checkCommentExists(permalinkUrl: string): Promise<boolean>
         console.log(`[DeletionDetection] No children in user profile listing for ${permalinkUrl}`);
         return false;
       }
-      const commentData = children[0]?.data;
-      if (!commentData) {
-        console.log(`[DeletionDetection] No comment data in user profile for ${permalinkUrl}`);
+      
+      // For user profile, we need to find the comment from our account
+      // The permalink might be /user/username/comments/ which shows all their comments
+      // We need to verify at least one comment exists from the expected author
+      let foundMatchingComment = false;
+      for (const child of children) {
+        const commentData = child?.data;
+        if (!commentData) continue;
+        
+        const body = commentData.body || "";
+        const author = commentData.author || "";
+        
+        // Skip deleted/removed comments
+        if (body === "[removed]" || body === "[deleted]" || !body || author === "[deleted]") {
+          continue;
+        }
+        
+        // If expectedAuthor is provided, check if this comment is from them
+        if (expectedAuthor) {
+          if (author === expectedAuthor) {
+            foundMatchingComment = true;
+            console.log(`[DeletionDetection] Found comment from ${expectedAuthor} in user profile`);
+            break;
+          }
+        } else {
+          // No expected author, just check if any valid comment exists
+          foundMatchingComment = true;
+          break;
+        }
+      }
+      
+      if (!foundMatchingComment) {
+        console.log(`[DeletionDetection] No matching comment found in user profile for ${expectedAuthor || 'any author'}`);
         return false;
       }
-      // Check if comment body is [removed] or [deleted] or missing
-      const body = commentData.body || "";
-      const author = commentData.author || "";
-      if (body === "[removed]" || body === "[deleted]" || !body || author === "[deleted]") {
-        console.log(`[DeletionDetection] Comment deleted/removed in user profile: body="${body}", author="${author}"`);
-        return false;
-      }
+      
       return true;
     }
 
@@ -99,7 +123,13 @@ export async function checkCommentExists(permalinkUrl: string): Promise<boolean>
       return false;
     }
 
-    console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}`);
+    // If expectedAuthor is provided, verify it matches
+    if (expectedAuthor && author !== expectedAuthor) {
+      console.log(`[DeletionDetection] Author mismatch: expected="${expectedAuthor}", actual="${author}"`);
+      return false;
+    }
+
+    console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}, author="${author}"`);
     return true;
   } catch (error) {
     console.error("[DeletionDetection] Error checking comment:", error);
@@ -119,26 +149,40 @@ export async function checkOpportunityDeletion(
   try {
     const opportunity = await prisma.opportunity.findUnique({
       where: { id: opportunityId },
-      select: { permalinkUrl: true },
+      include: { 
+        account: {
+          select: {
+            username: true
+          }
+        }
+      },
     });
 
     if (!opportunity?.permalinkUrl) {
       return { deleted: false, retried: false };
     }
 
-    // First check
-    const firstCheck = await checkCommentExists(opportunity.permalinkUrl);
-    if (firstCheck) {
-      // Comment exists, no deletion
+    const urlToCheck = opportunity.permalinkUrl;
+    const expectedAuthor = opportunity.account?.username;
+
+    if (!expectedAuthor) {
+      console.warn(`[DeletionDetection] No account username found for ${opportunityId}, skipping`);
       return { deleted: false, retried: false };
     }
 
-    // Comment appears deleted, wait 30 seconds and retry
-    console.log(`[DeletionDetection] Comment appears deleted for ${opportunityId}, retrying in 30s...`);
+    // First check - verify our account's comment exists
+    const firstCheck = await checkCommentExists(urlToCheck, expectedAuthor);
+    if (firstCheck) {
+      // Comment exists and author matches, no deletion
+      return { deleted: false, retried: false };
+    }
+
+    // Comment appears deleted or author mismatch, wait 30 seconds and retry
+    console.log(`[DeletionDetection] Comment appears deleted for ${opportunityId} (author: ${expectedAuthor}), retrying in 30s...`);
     await new Promise((resolve) => setTimeout(resolve, 30000));
 
     // Second check (retry)
-    const secondCheck = await checkCommentExists(opportunity.permalinkUrl);
+    const secondCheck = await checkCommentExists(urlToCheck, expectedAuthor);
     return { deleted: !secondCheck, retried: true };
   } finally {
     await prisma.$disconnect().catch(() => {});
