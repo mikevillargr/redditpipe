@@ -312,11 +312,12 @@ export function Reports() {
             sx={{
               '& .MuiToggleButton-root': {
                 px: 1.5,
-                py: 0.75,
+                py: 0.5,
                 fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'capitalize',
                 border: `1px solid ${borderColor}`,
+                color: isDark ? '#94a3b8' : 'text.secondary',
                 '&.Mui-selected': {
                   bgcolor: 'rgba(249, 115, 22, 0.1)',
                   color: '#f97316',
@@ -324,6 +325,9 @@ export function Reports() {
                   '&:hover': {
                     bgcolor: 'rgba(249, 115, 22, 0.15)',
                   },
+                },
+                '&:hover': {
+                  bgcolor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
                 },
               },
             }}
