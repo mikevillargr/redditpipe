@@ -134,11 +134,12 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
     cutoffDate.setDate(cutoffDate.getDate() - deletionCheckDays);
 
     // Fetch published opportunities with permalinks from the last N days
+    // Use createdAt since publishedAt may be null for older opportunities
     const opportunities = await prisma.opportunity.findMany({
       where: {
         status: "published",
         permalinkUrl: { not: null },
-        publishedAt: { gte: cutoffDate },
+        createdAt: { gte: cutoffDate },
       },
       select: {
         id: true,
