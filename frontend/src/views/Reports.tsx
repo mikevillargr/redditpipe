@@ -80,6 +80,7 @@ export function Reports() {
   const [startDate, setStartDate] = useState<Date | null>(null)
   const [endDate, setEndDate] = useState<Date | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [expandedRows, setExpandedRows] = useState<Record<string, { commentary: boolean; comment: boolean }>>({})
 
   const borderColor = isDark ? '#334155' : '#e2e8f0'
   const rowBorder = isDark ? '#1e293b' : '#f1f5f9'
@@ -444,13 +445,27 @@ export function Reports() {
             <TableBody>
               {opportunities.map((opp, idx) => {
                 const statusColor = getStatusColor(opp.status)
-                const [expandedCommentary, setExpandedCommentary] = useState(false)
-                const [expandedComment, setExpandedComment] = useState(false)
+                const expandedCommentary = expandedRows[opp.id]?.commentary || false
+                const expandedComment = expandedRows[opp.id]?.comment || false
                 
                 const commentaryText = opp.aiScoreCommentary || 'N/A'
                 const commentText = opp.commentText || 'N/A'
                 const commentaryTruncated = commentaryText.length > 150
                 const commentTruncated = commentText.length > 200
+                
+                const toggleCommentary = () => {
+                  setExpandedRows(prev => ({
+                    ...prev,
+                    [opp.id]: { ...prev[opp.id], commentary: !expandedCommentary }
+                  }))
+                }
+                
+                const toggleComment = () => {
+                  setExpandedRows(prev => ({
+                    ...prev,
+                    [opp.id]: { ...prev[opp.id], comment: !expandedComment }
+                  }))
+                }
                 
                 return (
                   <TableRow
@@ -556,7 +571,7 @@ export function Reports() {
                         {commentaryTruncated && (
                           <Button
                             size="small"
-                            onClick={() => setExpandedCommentary(!expandedCommentary)}
+                            onClick={toggleCommentary}
                             sx={{
                               fontSize: '11px',
                               textTransform: 'none',
@@ -591,7 +606,7 @@ export function Reports() {
                         {commentTruncated && (
                           <Button
                             size="small"
-                            onClick={() => setExpandedComment(!expandedComment)}
+                            onClick={toggleComment}
                             sx={{
                               fontSize: '11px',
                               textTransform: 'none',
