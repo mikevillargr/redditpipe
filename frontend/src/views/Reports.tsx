@@ -444,6 +444,14 @@ export function Reports() {
             <TableBody>
               {opportunities.map((opp, idx) => {
                 const statusColor = getStatusColor(opp.status)
+                const [expandedCommentary, setExpandedCommentary] = useState(false)
+                const [expandedComment, setExpandedComment] = useState(false)
+                
+                const commentaryText = opp.aiScoreCommentary || 'N/A'
+                const commentText = opp.commentText || 'N/A'
+                const commentaryTruncated = commentaryText.length > 150
+                const commentTruncated = commentText.length > 200
+                
                 return (
                   <TableRow
                     key={opp.id}
@@ -530,30 +538,74 @@ export function Reports() {
                       )}
                     </TableCell>
                     <TableCell sx={{ minWidth: 250, maxWidth: 350 }}>
-                      <Typography
-                        sx={{
-                          fontSize: '12px',
-                          color: 'text.secondary',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {opp.aiScoreCommentary || 'N/A'}
-                      </Typography>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '12px',
+                            color: 'text.secondary',
+                            wordBreak: 'break-word',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: expandedCommentary ? 'unset' : 3,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {commentaryText}
+                        </Typography>
+                        {commentaryTruncated && (
+                          <Button
+                            size="small"
+                            onClick={() => setExpandedCommentary(!expandedCommentary)}
+                            sx={{
+                              fontSize: '11px',
+                              textTransform: 'none',
+                              minWidth: 'auto',
+                              p: 0,
+                              mt: 0.5,
+                              color: '#3b82f6',
+                              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+                            }}
+                          >
+                            {expandedCommentary ? 'Show less' : 'Show more'}
+                          </Button>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ minWidth: 200, maxWidth: 400 }}>
-                      <Typography
-                        sx={{
-                          fontSize: '12px',
-                          color: 'text.secondary',
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-word',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {opp.commentText || 'N/A'}
-                      </Typography>
+                      <Box>
+                        <Typography
+                          sx={{
+                            fontSize: '12px',
+                            color: 'text.secondary',
+                            wordBreak: 'break-word',
+                            lineHeight: 1.5,
+                            display: '-webkit-box',
+                            WebkitLineClamp: expandedComment ? 'unset' : 4,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {commentText}
+                        </Typography>
+                        {commentTruncated && (
+                          <Button
+                            size="small"
+                            onClick={() => setExpandedComment(!expandedComment)}
+                            sx={{
+                              fontSize: '11px',
+                              textTransform: 'none',
+                              minWidth: 'auto',
+                              p: 0,
+                              mt: 0.5,
+                              color: '#3b82f6',
+                              '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' },
+                            }}
+                          >
+                            {expandedComment ? 'Show less' : 'Show more'}
+                          </Button>
+                        )}
+                      </Box>
                     </TableCell>
                     <TableCell sx={{ minWidth: 150 }}>
                       {opp.citationAnchorText ? (
