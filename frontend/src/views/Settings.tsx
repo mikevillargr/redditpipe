@@ -1501,21 +1501,42 @@ export function Settings() {
                   size="small"
                   onClick={async () => {
                     setDeletionCheckRunning(true)
+                    setDeletionCheckResult(null)
                     try {
                       const res = await fetch('/api/deletion-check/run', { method: 'POST' })
                       if (res.ok) {
-                        setTimeout(async () => {
-                          const statusRes = await fetch('/api/deletion-check/status')
-                          if (statusRes.ok) {
-                            const data = await statusRes.json()
-                            setDeletionCheckResult(data.lastResult)
+                        // Poll for status every 2 seconds for up to 60 seconds
+                        let attempts = 0
+                        const maxAttempts = 30
+                        const pollInterval = setInterval(async () => {
+                          attempts++
+                          try {
+                            const statusRes = await fetch('/api/deletion-check/status')
+                            if (statusRes.ok) {
+                              const data = await statusRes.json()
+                              if (!data.isRunning && data.lastResult) {
+                                setDeletionCheckResult(data.lastResult)
+                                setDeletionCheckRunning(false)
+                                clearInterval(pollInterval)
+                              } else if (attempts >= maxAttempts) {
+                                setDeletionCheckRunning(false)
+                                clearInterval(pollInterval)
+                              }
+                            }
+                          } catch {
+                            if (attempts >= maxAttempts) {
+                              setDeletionCheckRunning(false)
+                              clearInterval(pollInterval)
+                            }
                           }
-                          setDeletionCheckRunning(false)
-                        }, 5000)
+                        }, 2000)
                       } else {
+                        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+                        setSaveError(errorData.error || 'Failed to start deletion check')
                         setDeletionCheckRunning(false)
                       }
-                    } catch {
+                    } catch (err) {
+                      setSaveError('Network error - could not start deletion check')
                       setDeletionCheckRunning(false)
                     }
                   }}
@@ -1532,6 +1553,7 @@ export function Settings() {
                 {deletionCheckResult && (
                   <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: 1 }}>
                     Last check: {deletionCheckResult.deleted} deleted out of {deletionCheckResult.checked} checked
+                    {deletionCheckResult.lastRunAt && ` at ${new Date(deletionCheckResult.lastRunAt).toLocaleString()}`}
                   </Typography>
                 )}
               </Box>
