@@ -86,6 +86,7 @@ model Opportunity {
   parentOpportunityId String?
   pileOnEligibleAt    DateTime?
   publishedAt         DateTime?
+  deletedAt           DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -172,4 +173,8 @@ model Settings {
   pileOnAutoCreate        Boolean @default(true)
   pileOnMaxPerPrimary     Int     @default(2)
   specialInstructions     String?
+  deletionCheckEnabled    Boolean @default(true)
+  deletionCheckTime       String  @default("19:00")
+  deletionCheckTimezone   String  @default("UTC")
+  deletionCheckDays       Int     @default(30)
 }

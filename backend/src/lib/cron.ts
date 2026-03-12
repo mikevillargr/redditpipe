@@ -1,10 +1,12 @@
 import cron from "node-cron";
 import { createPrismaClient } from "./prisma.js";
 import { runSearchPipeline } from "./search-pipeline.js";
+import { runDeletionDetection } from "./deletion-detection.js";
 
 let initialized = false;
 let searchRunning = false;
 let searchTask: ReturnType<typeof cron.schedule> | null = null;
+let deletionCheckTask: ReturnType<typeof cron.schedule> | null = null;
 
 async function runSearch() {
   if (searchRunning) {
@@ -24,6 +26,18 @@ async function runSearch() {
 }
 
 export { runSearch };
+
+async function runDeletionCheck() {
+  console.log("[Cron] Running deletion check...");
+  try {
+    const result = await runDeletionDetection();
+    console.log(`[Cron] Deletion check complete: ${result.deleted} deleted out of ${result.checked} checked`);
+  } catch (error) {
+    console.error("[Cron] Deletion check failed:", error);
+  }
+}
+
+export { runDeletionCheck };
 
 function buildSearchCron(frequency: string, scheduleTimes: string): string | null {
   if (frequency === "manual") return null;
@@ -82,6 +96,35 @@ export async function refreshSearchSchedule(): Promise<void> {
   }
 }
 
+export async function refreshDeletionCheckSchedule(): Promise<void> {
+  const db = createPrismaClient();
+  try {
+    const settings = await db.settings.findUnique({ where: { id: "singleton" } });
+    const enabled = (settings as Record<string, unknown>)?.deletionCheckEnabled !== false;
+    const checkTime = (settings as Record<string, unknown>)?.deletionCheckTime as string || "19:00";
+    const timezone = (settings as Record<string, unknown>)?.deletionCheckTimezone as string || "UTC";
+
+    // Stop existing deletion check task
+    if (deletionCheckTask) {
+      deletionCheckTask.stop();
+      deletionCheckTask = null;
+    }
+
+    if (enabled && process.env.ENABLE_CRON === "true") {
+      const [h, m] = checkTime.split(":");
+      const cronExpr = `${parseInt(m || "0", 10)} ${parseInt(h || "19", 10)} * * *`;
+      deletionCheckTask = cron.schedule(cronExpr, runDeletionCheck, { timezone });
+      console.log(`[Cron] Deletion check scheduled: "${cronExpr}" (time: ${checkTime}, tz: ${timezone})`);
+    } else if (!enabled) {
+      console.log("[Cron] Deletion check disabled.");
+    }
+  } catch (error) {
+    console.error("[Cron] Failed to refresh deletion check schedule:", error);
+  } finally {
+    await db.$disconnect().catch(() => {});
+  }
+}
+
 export async function initCronJobs() {
   if (initialized) return;
   initialized = true;
@@ -95,6 +138,9 @@ export async function initCronJobs() {
 
   // Schedule search based on DB settings
   await refreshSearchSchedule();
+
+  // Schedule deletion check based on DB settings
+  await refreshDeletionCheckSchedule();
 
   // No auto-run on startup — only the cron schedule or manual trigger should start searches.
   // Previous behavior: setTimeout(runSearch, 10000) caused unscheduled runs on every deploy.

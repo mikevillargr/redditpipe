@@ -13,6 +13,7 @@ import warmingRoutes from "./routes/warming.js";
 import reportsRoutes from "./routes/reports.js";
 import pileOnRoutes from "./routes/pile-on.js";
 import extensionRoutes from "./routes/extension.js";
+import deletionCheckRoutes from "./routes/deletion-check.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -40,6 +41,7 @@ app.route("/api/auth", authRoutes);
 app.route("/api/warming", warmingRoutes);
 app.route("/api/reports", reportsRoutes);
 app.route("/api/extension", extensionRoutes);
+app.route("/api/deletion-check", deletionCheckRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);

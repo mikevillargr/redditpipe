@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { prisma } from "../lib/prisma.js";
 import { clearApiKeyCache, testConnection } from "../lib/ai.js";
 import { getRedditAccessToken } from "../lib/reddit.js";
-import { refreshSearchSchedule } from "../lib/cron.js";
+import { refreshSearchSchedule, refreshDeletionCheckSchedule } from "../lib/cron.js";
 import { clearScoringCache } from "../lib/ai-scoring.js";
 
 const app = new Hono();
@@ -41,6 +41,7 @@ const ALLOWED_FIELDS = new Set([
   "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",
   "pileOnEnabled", "pileOnDelayMinHours", "pileOnDelayMaxHours", "pileOnMaxPerOpportunity", "pileOnCooldownDays",
   "pileOnAutoCreate", "pileOnMaxPerPrimary",
+  "deletionCheckEnabled", "deletionCheckTime", "deletionCheckTimezone", "deletionCheckDays",
 ]);
 
 app.put("/", async (c) => {
@@ -63,6 +64,7 @@ app.put("/", async (c) => {
     clearApiKeyCache();
     clearScoringCache();
     refreshSearchSchedule().catch((err) => console.error("[Settings] Failed to refresh schedule:", err));
+    refreshDeletionCheckSchedule().catch((err) => console.error("[Settings] Failed to refresh deletion check schedule:", err));
 
     return c.json({
       ...settings,
