@@ -310,7 +310,7 @@ export function Reports() {
             sx={{
               '& .MuiToggleButton-root': {
                 px: 1.5,
-                py: 0.5,
+                py: 0.75,
                 fontSize: '11px',
                 fontWeight: 600,
                 textTransform: 'capitalize',
