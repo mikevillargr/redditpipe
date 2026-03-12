@@ -54,7 +54,7 @@ import {
   UserIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
-type StatusFilter = 'all' | 'new' | 'published' | 'unverified'
+type StatusFilter = 'all' | 'new' | 'published' | 'unverified' | 'deleted_by_mod'
 interface AccountStats {
   postsToday: number
   maxPostsPerDay: number
@@ -933,6 +933,14 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
                   count={unverifiedCount}
                   active={statusFilter === 'unverified'}
                   color="#f59e0b"
+                />
+              </ToggleButton>
+              <ToggleButton value="deleted_by_mod">
+                Deleted{' '}
+                <CountBadge
+                  count={opportunities.filter((o) => o.status === 'deleted_by_mod').length}
+                  active={statusFilter === 'deleted_by_mod'}
+                  color="#ef4444"
                 />
               </ToggleButton>
               <ToggleButton value="all">
