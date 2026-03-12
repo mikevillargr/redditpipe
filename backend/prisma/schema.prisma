@@ -85,6 +85,7 @@ model Opportunity {
   opportunityType     String    @default("primary")
   parentOpportunityId String?
   pileOnEligibleAt    DateTime?
+  publishedAt         DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 

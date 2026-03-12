@@ -15,6 +15,8 @@ import {
   FormControl,
   InputLabel,
   Chip,
+  ToggleButtonGroup,
+  ToggleButton,
   CircularProgress,
   Alert,
   useTheme,
@@ -60,6 +62,7 @@ interface ReportOpportunity {
   commentPermalink: string | null
   subreddit: string
   threadCreatedAt: string | null
+  publishedAt: string | null
   createdAt: string
 }
 
@@ -75,6 +78,7 @@ export function Reports() {
   const [exporting, setExporting] = useState<'excel' | null>(null)
   const [startDate, setStartDate] = useState<Date | null>(null)
   const [endDate, setEndDate] = useState<Date | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
 
   const borderColor = isDark ? '#334155' : '#e2e8f0'
   const rowBorder = isDark ? '#1e293b' : '#f1f5f9'
@@ -124,19 +128,24 @@ export function Reports() {
   }
 
   useEffect(() => {
-    // Filter opportunities based on date range
+    // Filter opportunities based on date range and status
+    let filtered = allOpportunities
+    
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((opp) => opp.status === statusFilter)
+    }
+    
     if (startDate || endDate) {
-      const filtered = allOpportunities.filter((opp) => {
+      filtered = filtered.filter((opp) => {
         const oppDate = new Date(opp.createdAt)
         if (startDate && oppDate < startDate) return false
         if (endDate && oppDate > endDate) return false
         return true
       })
-      setOpportunities(filtered)
-    } else {
-      setOpportunities(allOpportunities)
     }
-  }, [startDate, endDate, allOpportunities])
+    
+    setOpportunities(filtered)
+  }, [startDate, endDate, statusFilter, allOpportunities])
 
   const handleExportExcel = async () => {
     setExporting('excel')
@@ -285,6 +294,43 @@ export function Reports() {
               </MenuItem>
             ))}
           </Select>
+          
+          <Box sx={{ width: '1px', height: 20, bgcolor: borderColor, mx: 0.5 }} />
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            <Typography sx={{ fontSize: '12px', color: 'text.secondary', whiteSpace: 'nowrap' }}>
+              Status:
+            </Typography>
+          </Box>
+          <ToggleButtonGroup
+            value={statusFilter}
+            exclusive
+            onChange={(_, val) => val && setStatusFilter(val)}
+            size="small"
+            sx={{
+              '& .MuiToggleButton-root': {
+                px: 1.5,
+                py: 0.5,
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'capitalize',
+                border: `1px solid ${borderColor}`,
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(249, 115, 22, 0.1)',
+                  color: '#f97316',
+                  borderColor: '#f97316',
+                  '&:hover': {
+                    bgcolor: 'rgba(249, 115, 22, 0.15)',
+                  },
+                },
+              },
+            }}
+          >
+            <ToggleButton value="all">All</ToggleButton>
+            <ToggleButton value="new">New</ToggleButton>
+            <ToggleButton value="published">Published</ToggleButton>
+            <ToggleButton value="unverified">Unverified</ToggleButton>
+          </ToggleButtonGroup>
           
           <Box sx={{ width: '1px', height: 20, bgcolor: borderColor, mx: 0.5 }} />
           
@@ -464,37 +510,31 @@ export function Reports() {
                         }}
                       />
                     </TableCell>
-                    <TableCell sx={{ minWidth: 250 }}>
-                      <Tooltip title={opp.aiScoreCommentary || 'N/A'}>
-                        <Typography
-                          sx={{
-                            fontSize: '12px',
-                            color: 'text.secondary',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: 250,
-                          }}
-                        >
-                          {opp.aiScoreCommentary || 'N/A'}
-                        </Typography>
-                      </Tooltip>
+                    <TableCell sx={{ minWidth: 250, maxWidth: 350 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '12px',
+                          color: 'text.secondary',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {opp.aiScoreCommentary || 'N/A'}
+                      </Typography>
                     </TableCell>
-                    <TableCell sx={{ minWidth: 200 }}>
-                      <Tooltip title={opp.commentText || 'N/A'}>
-                        <Typography
-                          sx={{
-                            fontSize: '12px',
-                            color: 'text.secondary',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: 200,
-                          }}
-                        >
-                          {opp.commentText || 'N/A'}
-                        </Typography>
-                      </Tooltip>
+                    <TableCell sx={{ minWidth: 200, maxWidth: 400 }}>
+                      <Typography
+                        sx={{
+                          fontSize: '12px',
+                          color: 'text.secondary',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {opp.commentText || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell sx={{ minWidth: 150 }}>
                       {opp.citationAnchorText ? (

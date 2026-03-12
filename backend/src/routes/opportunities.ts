@@ -30,9 +30,14 @@ app.get("/", async (c) => {
       if (endDate) (where.createdAt as Record<string, unknown>).lte = new Date(endDate + "T23:59:59.999Z");
     }
 
+    // Sort published opportunities by publishedAt (most recent first), others by createdAt
+    const orderBy = status === "published" 
+      ? [{ publishedAt: "desc" as const }, { createdAt: "desc" as const }]
+      : { createdAt: "desc" as const };
+
     const opportunities = await prisma.opportunity.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       include: {
         client: { select: { id: true, name: true } },
         account: {
@@ -172,9 +177,15 @@ app.patch("/:id", async (c) => {
       return c.json({ success: true });
     }
 
+    // Set publishedAt timestamp when status changes to published
+    const updateData = { ...body };
+    if (body.status === "published" && !body.publishedAt) {
+      updateData.publishedAt = new Date();
+    }
+
     const updated = await prisma.opportunity.update({
       where: { id },
-      data: body,
+      data: updateData,
       include: {
         client: { select: { id: true, name: true } },
         account: {

@@ -85,6 +85,7 @@ interface Opportunity {
   opportunityType?: string
   parentOpportunityId?: string
   pileOnEligibleAt?: string
+  publishedAt?: string
 }
 function getTimeAgo(date: Date): string {
   const ms = Date.now() - date.getTime()
@@ -267,6 +268,10 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             platform: 'reddit' as const,
             permalinkUrl: o.permalinkUrl || undefined,
             discoveredVia: o.discoveredVia || undefined,
+            opportunityType: o.opportunityType || undefined,
+            parentOpportunityId: o.parentOpportunityId || undefined,
+            pileOnEligibleAt: o.pileOnEligibleAt || undefined,
+            publishedAt: o.publishedAt || undefined,
           }
         }))
       }
@@ -2101,6 +2106,20 @@ function OpportunityCard({
                       border: '1px solid rgba(16,185,129,0.35)',
                     }}
                   />
+                  {opp.publishedAt && (
+                    <Chip
+                      label={`Published ${getTimeAgo(new Date(opp.publishedAt))}`}
+                      size="small"
+                      sx={{
+                        height: 20,
+                        fontSize: '10px',
+                        fontWeight: 500,
+                        bgcolor: isDark ? 'rgba(148, 163, 184, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                        color: 'text.secondary',
+                        border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+                      }}
+                    />
+                  )}
                   {opp.permalinkUrl && (
                     <Tooltip title="View published comment on Reddit" arrow>
                       <Chip
