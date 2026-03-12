@@ -59,8 +59,13 @@ export async function generateReplyDraft(params: GenerateReplyParams): Promise<s
 
   // Get special instructions first to integrate them properly
   const specialInstructions = await getSpecialInstructions();
+  const noUrlsRequested = specialInstructions?.toLowerCase().includes('no url') || 
+                          specialInstructions?.toLowerCase().includes('without url') ||
+                          specialInstructions?.toLowerCase().includes('do not mention url');
+  
   if (specialInstructions) {
     console.log("[AI] Special instructions applied:", specialInstructions);
+    console.log("[AI] URLs disabled:", noUrlsRequested);
   } else {
     console.log("[AI] No special instructions found");
   }
@@ -92,8 +97,8 @@ CORE RULES:
 
 REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
 - Use Reddit markdown syntax: **bold**, *italic*, ~~strikethrough~~
-- When mentioning any product, tool, or service, ALWAYS include a clickable link: [Product Name](https://example.com)
-- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})
+${!noUrlsRequested ? `- When mentioning any product, tool, or service, include a clickable link: [Product Name](https://example.com)
+- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})` : '- Do NOT include URLs or links - just mention product/service names as plain text'}
 - Use line breaks between paragraphs (double newline)
 - Use bullet points with "- " when listing multiple options
 - Do NOT use HTML tags — Reddit uses its own markdown
@@ -121,8 +126,8 @@ CORE RULES:
 
 REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
 - Use Reddit markdown syntax: **bold**, *italic*, ~~strikethrough~~
-- When mentioning any product, tool, or service, ALWAYS include a clickable link: [Product Name](https://example.com)
-- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})
+${!noUrlsRequested ? `- When mentioning any product, tool, or service, include a clickable link: [Product Name](https://example.com)
+- For the client, link like: [${params.clientMentionTerms.split(',')[0].trim()}](${params.clientUrl})` : '- Do NOT include URLs or links - just mention product/service names as plain text'}
 - Use line breaks between paragraphs (double newline)
 - Use bullet points with "- " when listing multiple options
 - Do NOT use HTML tags — Reddit uses its own markdown`;
@@ -172,8 +177,13 @@ export async function rewriteReply(
 
   // Get special instructions first
   const specialInstructions = await getSpecialInstructions();
+  const noUrlsRequested = specialInstructions?.toLowerCase().includes('no url') || 
+                          specialInstructions?.toLowerCase().includes('without url') ||
+                          specialInstructions?.toLowerCase().includes('do not mention url');
+  
   if (specialInstructions) {
     console.log("[AI] Special instructions applied to rewrite:", specialInstructions);
+    console.log("[AI] URLs disabled:", noUrlsRequested);
   }
 
   const actionPrompts: Record<RewriteAction, string> = {
@@ -187,7 +197,11 @@ export async function rewriteReply(
     ? `\n\nADDITIONAL USER INSTRUCTIONS:\n${context.userPrompt}`
     : "";
 
-  let systemPrompt = `You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with "- ". Include clickable URLs for any product/service mentioned.
+  const urlGuidance = noUrlsRequested 
+    ? "Do NOT include URLs or links - just mention product/service names as plain text."
+    : "Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.";
+
+  let systemPrompt = `You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. ${urlGuidance}
 
 ${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}` : ''}`;
 
