@@ -51,6 +51,7 @@ import {
   AlertCircleIcon,
   SquareIcon,
   BrainIcon,
+  UserIcon,
 } from 'lucide-react'
 import { RedditIcon } from '../components/RedditIcon'
 type StatusFilter = 'all' | 'new' | 'published' | 'unverified'
@@ -325,6 +326,10 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   const [dismissingId, setDismissingId] = useState<string | null>(null)
   const [showSingleDismissDialog, setShowSingleDismissDialog] = useState(false)
   const [singleDismissReason, setSingleDismissReason] = useState('')
+  // Reassign
+  const [showReassignDialog, setShowReassignDialog] = useState(false)
+  const [reassigningId, setReassigningId] = useState<string | null>(null)
+  const [reassignAccountId, setReassignAccountId] = useState('')
   // Mark published permalink dialog
   const [publishingId, setPublishingId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
@@ -432,11 +437,8 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
     color: 'text.secondary',
     fontSize: '13px',
-    px: {
-      xs: 1,
-      sm: 1.5,
-    },
-    py: 0.5,
+    px: 1.5,
+    py: 0.75,
     textTransform: 'none',
     gap: 0.75,
     whiteSpace: 'nowrap',
@@ -525,6 +527,32 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     setDismissingId(id)
     setSingleDismissReason('')
     setShowSingleDismissDialog(true)
+  }
+
+  const handleReassign = (id: string) => {
+    setReassigningId(id)
+    setReassignAccountId('')
+    setShowReassignDialog(true)
+  }
+
+  const confirmReassign = async () => {
+    if (!reassigningId || !reassignAccountId) return
+    try {
+      const res = await fetch(`/api/opportunities/${reassigningId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: reassignAccountId }),
+      })
+      if (res.ok) {
+        await fetchOpportunities()
+        setSnackbar({ open: true, message: 'Opportunity reassigned successfully', severity: 'success' })
+        setShowReassignDialog(false)
+      } else {
+        setSnackbar({ open: true, message: 'Failed to reassign opportunity', severity: 'warning' })
+      }
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Network error', severity: 'warning' })
+    }
   }
   const handleConfirmSingleDismiss = async () => {
     if (!dismissingId || !singleDismissReason.trim()) return
@@ -1397,6 +1425,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             onUpdateDraft={(text) => handleUpdateDraft(opp.id, text)}
             onPileOn={() => handlePileOn(opp.id, opp.title)}
             onPreview={() => setPreviewOpp(opp)}
+            onReassign={() => handleReassign(opp.id)}
             onAssignAccount={(accountId) => handleAssignAccount(opp.id, accountId)}
             availableAccounts={accountList}
           />
@@ -1669,6 +1698,70 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
         </DialogActions>
       </Dialog>
 
+      {/* Reassign Opportunity Dialog */}
+      <Dialog
+        open={showReassignDialog}
+        onClose={() => { setShowReassignDialog(false); setReassigningId(null); setReassignAccountId('') }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+            borderRadius: '12px',
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: '17px' }}>
+          Reassign Opportunity
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 2 }}>
+            Select a different Reddit account to assign this opportunity to.
+          </Typography>
+          <Select
+            value={reassignAccountId}
+            onChange={(e) => setReassignAccountId(e.target.value)}
+            fullWidth
+            size="small"
+            displayEmpty
+            sx={{
+              fontSize: '13px',
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#334155' : '#e2e8f0' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: isDark ? '#475569' : '#cbd5e1' },
+              '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#3b82f6' },
+            }}
+          >
+            <MenuItem value="" disabled>
+              <em>Select an account...</em>
+            </MenuItem>
+            {accountList.map((acc) => (
+              <MenuItem key={acc.id} value={acc.id}>
+                u/{acc.username} ({acc.status})
+              </MenuItem>
+            ))}
+          </Select>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 1.5 }}>
+          <Button
+            size="small"
+            onClick={() => { setShowReassignDialog(false); setReassigningId(null); setReassignAccountId('') }}
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!reassignAccountId}
+            onClick={confirmReassign}
+            sx={{ bgcolor: '#3b82f6', textTransform: 'none', '&:hover': { bgcolor: '#2563eb' } }}
+          >
+            Reassign
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Single Dismiss Reason Dialog */}
       <Dialog
         open={showSingleDismissDialog}
@@ -1819,6 +1912,7 @@ interface OpportunityCardProps {
   onUpdateDraft: (text: string) => void
   onPileOn: () => void
   onPreview: () => void
+  onReassign: () => void
   onAssignAccount: (accountId: string) => void
   availableAccounts: { id: string; username: string; status: string }[]
 }
@@ -1835,6 +1929,7 @@ function OpportunityCard({
   onUpdateDraft,
   onPileOn,
   onPreview,
+  onReassign,
   onAssignAccount,
   availableAccounts,
 }: OpportunityCardProps) {
@@ -2993,20 +3088,36 @@ function OpportunityCard({
             )}
 
             {!isPublished && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<XIcon size={13} />}
-                onClick={onDismiss}
-                sx={{
-                  borderColor: 'rgba(239,68,68,0.3)',
-                  color: '#ef4444',
-                  fontSize: '13px',
-                  '&:hover': { borderColor: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' },
-                }}
-              >
-                Dismiss
-              </Button>
+              <>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<UserIcon size={13} />}
+                  onClick={onReassign}
+                  sx={{
+                    borderColor: 'rgba(59,130,246,0.3)',
+                    color: '#3b82f6',
+                    fontSize: '13px',
+                    '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59,130,246,0.08)' },
+                  }}
+                >
+                  Reassign
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<XIcon size={13} />}
+                  onClick={onDismiss}
+                  sx={{
+                    borderColor: 'rgba(239,68,68,0.3)',
+                    color: '#ef4444',
+                    fontSize: '13px',
+                    '&:hover': { borderColor: '#ef4444', bgcolor: 'rgba(239,68,68,0.08)' },
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </>
             )}
           </Box>
 

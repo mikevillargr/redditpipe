@@ -390,7 +390,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 <Typography
                   sx={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'text.secondary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                   }}
@@ -415,7 +415,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 <Typography
                   sx={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'text.secondary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                   }}
@@ -440,7 +440,7 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 <Typography
                   sx={{
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'text.secondary',
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
                   }}

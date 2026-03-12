@@ -60,11 +60,18 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
-  const [mode, setMode] = useState<'light' | 'dark'>('dark')
+  const [mode, setMode] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('theme-mode')
+    return (saved === 'light' || saved === 'dark') ? saved : 'dark'
+  })
 
   const theme = useAppTheme(mode)
   const colorMode = useMemo(() => ({
-    toggleColorMode: () => setMode((prev) => (prev === 'dark' ? 'light' : 'dark')),
+    toggleColorMode: () => setMode((prev) => {
+      const newMode = prev === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('theme-mode', newMode)
+      return newMode
+    }),
   }), [])
 
   const checkAuth = useCallback(async () => {
