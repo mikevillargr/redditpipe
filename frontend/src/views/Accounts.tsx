@@ -1219,7 +1219,7 @@ export function Accounts({ onViewAccount }: AccountsProps) {
 
   const fetchAccounts = useCallback(async () => {
     try {
-      const res = await fetch('/api/accounts')
+      const res = await fetch('/api/accounts?autoRefresh=true')
       if (res.ok) {
         const data = await res.json()
         setAccounts(data.map((a: {

@@ -51,6 +51,7 @@ app.post("/verify", async (c) => {
 app.get("/", async (c) => {
   try {
     const username = c.req.query("username");
+    const autoRefresh = c.req.query("autoRefresh") === "true";
     const where: Record<string, unknown> = {};
     if (username) where.username = username;
 
@@ -75,6 +76,40 @@ app.get("/", async (c) => {
       accounts = all.filter(
         (a) => a.username.toLowerCase() === username.toLowerCase()
       );
+    }
+
+    // Auto-refresh account data from Reddit if requested and accountAgeDays is null
+    if (autoRefresh) {
+      const accountsToRefresh = accounts.filter(a => a.accountAgeDays === null);
+      for (const account of accountsToRefresh) {
+        try {
+          const profile = await getUserProfile(account.username);
+          if (profile && profile.created_utc) {
+            await prisma.redditAccount.update({
+              where: { id: account.id },
+              data: {
+                accountAgeDays: Math.floor((Date.now() / 1000 - profile.created_utc) / 86400),
+                postKarma: profile.link_karma || 0,
+                commentKarma: profile.comment_karma || 0,
+              },
+            });
+          }
+        } catch (err) {
+          console.error(`Failed to refresh account ${account.username}:`, err);
+        }
+      }
+      
+      // Re-fetch accounts after refresh
+      if (accountsToRefresh.length > 0) {
+        accounts = await prisma.redditAccount.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            accountAssignments: { include: { client: { select: { id: true, name: true } } } },
+            _count: { select: { opportunities: true } },
+          },
+        });
+      }
     }
 
     return c.json(accounts);

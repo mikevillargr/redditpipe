@@ -2297,6 +2297,37 @@ function OpportunityCard({
                       border: '1px solid rgba(239,68,68,0.35)',
                     }}
                   />
+                  <Tooltip title="AI analyzes why this was deleted to improve future comments" arrow>
+                    <Chip
+                      label="Analyze Deletion"
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/deletion-analysis/analyze/${opp.id}`, {
+                            method: 'POST',
+                          })
+                          if (res.ok) {
+                            alert('Deletion analyzed successfully! View insights in the Insights page.')
+                          } else {
+                            const data = await res.json()
+                            alert(data.error || 'Failed to analyze deletion')
+                          }
+                        } catch (err) {
+                          alert('Network error - could not analyze deletion')
+                        }
+                      }}
+                      clickable
+                      sx={{
+                        height: 22,
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        bgcolor: 'rgba(249,115,22,0.1)',
+                        color: '#f97316',
+                        border: '1px solid rgba(249,115,22,0.3)',
+                        '&:hover': { bgcolor: 'rgba(249,115,22,0.15)' },
+                      }}
+                    />
+                  </Tooltip>
                   <Tooltip title="Restore this opportunity to Published status" arrow>
                     <Chip
                       label="Restore"
