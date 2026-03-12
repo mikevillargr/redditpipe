@@ -1967,6 +1967,7 @@ function OpportunityCard({
   const isPublished = opp.status === 'published'
   const isUnverified = opp.status === 'unverified'
   const isNew = opp.status === 'new'
+  const isDeleted = opp.status === 'deleted_by_mod'
   const isPileOn = opp.opportunityType === 'pile_on'
   const handleCopy = async () => {
     const success = await copyToClipboard(opp.accountPassword)
@@ -2029,6 +2030,8 @@ function OpportunityCard({
   }
   const statusConfig = isPileOn
     ? { borderLeft: '4px solid #a855f7', border: '1px solid rgba(168,85,247,0.3)', bg: isDark ? 'rgba(168,85,247,0.03)' : 'rgba(168,85,247,0.03)', opacity: 1 }
+    : isDeleted
+    ? { borderLeft: '4px solid #ef4444', border: '1px solid rgba(239,68,68,0.3)', bg: isDark ? 'rgba(239,68,68,0.04)' : 'rgba(239,68,68,0.03)', opacity: 1 }
     : isPublished
     ? { borderLeft: '4px solid #10b981', border: '1px solid rgba(16,185,129,0.3)', bg: isDark ? 'rgba(16,185,129,0.04)' : 'rgba(16,185,129,0.03)', opacity: 1 }
     : isUnverified
@@ -2279,6 +2282,53 @@ function OpportunityCard({
                     border: '1px solid rgba(245,158,11,0.35)',
                   }}
                 />
+              )}
+              {isDeleted && (
+                <>
+                  <Chip
+                    label="✕ Deleted"
+                    size="small"
+                    sx={{
+                      height: 22,
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      bgcolor: 'rgba(239,68,68,0.15)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239,68,68,0.35)',
+                    }}
+                  />
+                  <Tooltip title="Restore this opportunity to Published status" arrow>
+                    <Chip
+                      label="Restore"
+                      size="small"
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/opportunities/${opp.id}/restore`, {
+                            method: 'POST',
+                          })
+                          if (res.ok) {
+                            window.location.reload()
+                          } else {
+                            const data = await res.json()
+                            alert(data.error || 'Failed to restore opportunity')
+                          }
+                        } catch (err) {
+                          alert('Network error - could not restore opportunity')
+                        }
+                      }}
+                      clickable
+                      sx={{
+                        height: 22,
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        bgcolor: 'rgba(16,185,129,0.1)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16,185,129,0.3)',
+                        '&:hover': { bgcolor: 'rgba(16,185,129,0.15)' },
+                      }}
+                    />
+                  </Tooltip>
+                </>
               )}
             </Box>
             <Typography

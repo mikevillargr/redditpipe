@@ -281,6 +281,39 @@ app.post("/:id/manual-verify", async (c) => {
   }
 });
 
+// POST /api/opportunities/:id/restore
+app.post("/:id/restore", async (c) => {
+  try {
+    const id = c.req.param("id");
+    
+    const opportunity = await prisma.opportunity.findUnique({
+      where: { id },
+      select: { status: true },
+    });
+    
+    if (!opportunity) {
+      return c.json({ error: "Opportunity not found" }, 404);
+    }
+    
+    if (opportunity.status !== "deleted_by_mod") {
+      return c.json({ error: "Only deleted opportunities can be restored" }, 400);
+    }
+    
+    const updated = await prisma.opportunity.update({
+      where: { id },
+      data: {
+        status: "published",
+        deletedAt: null,
+      },
+    });
+    
+    return c.json({ success: true, opportunity: updated });
+  } catch (error) {
+    console.error("POST /api/opportunities/:id/restore error:", error);
+    return c.json({ error: "Failed to restore opportunity", details: error instanceof Error ? error.message : "Unknown error" }, 500);
+  }
+});
+
 // POST /api/opportunities/bulk
 app.post("/bulk", async (c) => {
   try {
