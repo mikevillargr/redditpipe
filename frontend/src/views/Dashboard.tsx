@@ -2319,44 +2319,51 @@ function OpportunityCard({
                   )}
                   {opp.permalinkUrl && (
                     <Tooltip title="View published comment on Reddit" arrow>
-                      <Chip
-                        label="View Comment"
+                      <Button
                         size="small"
-                        icon={<ExternalLinkIcon size={12} />}
+                        variant="outlined"
+                        startIcon={<ExternalLinkIcon size={12} />}
                         component="a"
                         href={opp.permalinkUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        clickable
                         sx={{
-                          height: 22,
                           fontSize: '11px',
                           fontWeight: 600,
-                          bgcolor: 'rgba(59,130,246,0.1)',
+                          textTransform: 'none',
+                          borderColor: 'rgba(59,130,246,0.3)',
                           color: '#3b82f6',
-                          border: '1px solid rgba(59,130,246,0.3)',
-                          '&:hover': { bgcolor: 'rgba(59,130,246,0.15)' },
+                          py: 0.25,
+                          px: 1,
+                          minWidth: 'auto',
+                          '&:hover': { borderColor: '#3b82f6', bgcolor: 'rgba(59,130,246,0.08)' },
                           textDecoration: 'none',
                         }}
-                      />
+                      >
+                        View Comment
+                      </Button>
                     </Tooltip>
                   )}
                   <Tooltip title="Add pile-on comment from secondary account" arrow>
-                    <Chip
-                      label="Pile On"
+                    <Button
                       size="small"
+                      variant="outlined"
+                      startIcon={<MessageSquareIcon size={12} />}
                       onClick={onPileOn}
-                      clickable
                       sx={{
-                        height: 22,
                         fontSize: '11px',
                         fontWeight: 600,
-                        bgcolor: 'rgba(168,85,247,0.1)',
+                        textTransform: 'none',
+                        borderColor: 'rgba(168,85,247,0.3)',
                         color: '#a855f7',
-                        border: '1px solid rgba(168,85,247,0.3)',
-                        '&:hover': { bgcolor: 'rgba(168,85,247,0.15)' },
+                        py: 0.25,
+                        px: 1,
+                        minWidth: 'auto',
+                        '&:hover': { borderColor: '#a855f7', bgcolor: 'rgba(168,85,247,0.08)' },
                       }}
-                    />
+                    >
+                      Pile On
+                    </Button>
                   </Tooltip>
                 </>
               )}
@@ -2389,27 +2396,33 @@ function OpportunityCard({
                     }}
                   />
                   <Tooltip title="AI analyzes why this was deleted to improve future comments" arrow>
-                    <Chip
-                      label={analyzingDeletion ? "Analyzing..." : "Analyze Deletion"}
+                    <Button
                       size="small"
+                      variant="outlined"
+                      startIcon={analyzingDeletion ? <CircularProgress size={12} sx={{ color: '#f97316' }} /> : <AlertCircleIcon size={12} />}
                       onClick={onAnalyzeDeletion}
                       disabled={analyzingDeletion}
-                      clickable
                       sx={{
-                        height: 22,
                         fontSize: '11px',
                         fontWeight: 600,
-                        bgcolor: 'rgba(249,115,22,0.1)',
+                        textTransform: 'none',
+                        borderColor: 'rgba(249,115,22,0.3)',
                         color: '#f97316',
-                        border: '1px solid rgba(249,115,22,0.3)',
-                        '&:hover': { bgcolor: 'rgba(249,115,22,0.15)' },
+                        py: 0.25,
+                        px: 1,
+                        minWidth: 'auto',
+                        '&:hover': { borderColor: '#f97316', bgcolor: 'rgba(249,115,22,0.08)' },
+                        '&:disabled': { borderColor: 'rgba(249,115,22,0.2)', color: 'rgba(249,115,22,0.5)' },
                       }}
-                    />
+                    >
+                      {analyzingDeletion ? "Analyzing..." : "Analyze"}
+                    </Button>
                   </Tooltip>
                   <Tooltip title="Restore this opportunity to Published status" arrow>
-                    <Chip
-                      label="Restore"
+                    <Button
                       size="small"
+                      variant="outlined"
+                      startIcon={<RefreshCwIcon size={12} />}
                       onClick={async () => {
                         try {
                           const res = await fetch(`/api/opportunities/${opp.id}/restore`, {
@@ -2425,17 +2438,20 @@ function OpportunityCard({
                           alert('Network error - could not restore opportunity')
                         }
                       }}
-                      clickable
                       sx={{
-                        height: 22,
                         fontSize: '11px',
                         fontWeight: 600,
-                        bgcolor: 'rgba(16,185,129,0.1)',
+                        textTransform: 'none',
+                        borderColor: 'rgba(16,185,129,0.3)',
                         color: '#10b981',
-                        border: '1px solid rgba(16,185,129,0.3)',
-                        '&:hover': { bgcolor: 'rgba(16,185,129,0.15)' },
+                        py: 0.25,
+                        px: 1,
+                        minWidth: 'auto',
+                        '&:hover': { borderColor: '#10b981', bgcolor: 'rgba(16,185,129,0.08)' },
                       }}
-                    />
+                    >
+                      Restore
+                    </Button>
                   </Tooltip>
                 </>
               )}
