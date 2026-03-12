@@ -186,12 +186,21 @@ def create_release(version, commit, title, notes):
     """Create a new release with semver tag and notes."""
     print(f"📦 Creating release {version} at commit {commit}...")
     
+    # Delete existing tag if it exists (local and remote)
+    run_command(f"git tag -d {version}", check=False)
+    run_command(f"git push --delete origin {version}", check=False)
+    
+    # Create and push the git tag
+    print(f"  Creating git tag {version}...")
+    run_command(f"git tag {version} {commit}")
+    run_command(f"git push origin {version}")
+    
     # Write notes to temp file
     with open('/tmp/release_notes.md', 'w') as f:
         f.write(notes)
     
-    # Create release
-    cmd = f'gh release create {version} --target {commit} --title "{title}" --notes-file /tmp/release_notes.md --repo mikevillargr/redditpipe'
+    # Create release using the tag
+    cmd = f'gh release create {version} --title "{title}" --notes-file /tmp/release_notes.md --repo mikevillargr/redditpipe'
     run_command(cmd)
     print(f"✅ Created release {version}")
 
