@@ -90,11 +90,12 @@ model Opportunity {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  client            Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  account           RedditAccount?   @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  client            Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  account           RedditAccount?     @relation(fields: [accountId], references: [id], onDelete: SetNull)
   pileOnComments    PileOnComment[]
-  parentOpportunity Opportunity?     @relation("PileOnRelation", fields: [parentOpportunityId], references: [id], onDelete: Cascade)
-  childPileOns      Opportunity[]    @relation("PileOnRelation")
+  parentOpportunity Opportunity?       @relation("PileOnRelation", fields: [parentOpportunityId], references: [id], onDelete: Cascade)
+  childPileOns      Opportunity[]      @relation("PileOnRelation")
+  deletionAnalysis  DeletionAnalysis?
 
   @@unique([threadId, clientId])
 }
@@ -140,6 +141,28 @@ model AccountInteractionLog {
 
   @@index([account1Id, account2Id])
   @@index([threadId])
+}
+
+model DeletionAnalysis {
+  id                   String   @id @default(cuid())
+  opportunityId        String   @unique
+  subreddit            String
+  commentText          String
+  threadTitle          String
+  threadContext        String?
+  citationIncluded     Boolean
+  citationUrl          String?
+  publishedAt          DateTime
+  deletedAt            DateTime
+  hoursUntilDeletion   Float
+  aiAnalysis           String
+  likelyReason         String
+  confidence           Float
+  patterns             String?
+  recommendations      String?
+  createdAt            DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 }
 
 model Settings {
