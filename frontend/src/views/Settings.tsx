@@ -1411,6 +1411,135 @@ export function Settings() {
         </Box>
       </SectionCard>
 
+      {/* Deletion Detection */}
+      <SectionCard title="Deletion Detection">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
+              Enable Deletion Checks
+            </Typography>
+            <ToggleButtonGroup
+              value={deletionCheckEnabled ? 'enabled' : 'disabled'}
+              exclusive
+              onChange={(_, val) => val && setDeletionCheckEnabled(val === 'enabled')}
+              size="small"
+              fullWidth
+              sx={{
+                '& .MuiToggleButton-root': {
+                  border: '1px solid #334155',
+                  color: 'text.secondary',
+                  fontSize: '13px',
+                  py: 0.75,
+                  '&.Mui-selected': {
+                    bgcolor: '#f97316',
+                    color: '#fff',
+                    borderColor: '#f97316',
+                    '&:hover': { bgcolor: '#ea6c0a' },
+                  },
+                },
+              }}
+            >
+              <ToggleButton value="enabled">Enabled</ToggleButton>
+              <ToggleButton value="disabled">Disabled</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {deletionCheckEnabled && (
+            <>
+              <TextField
+                label="Check Time (HH:MM)"
+                value={deletionCheckTime}
+                onChange={(e) => setDeletionCheckTime(e.target.value)}
+                fullWidth
+                size="small"
+                helperText="Daily time to check for deleted comments (24-hour format)"
+                sx={inputSx}
+              />
+
+              <FormControl fullWidth size="small">
+                <InputLabel sx={{ color: '#64748b', '&.Mui-focused': { color: '#f97316' } }}>
+                  Timezone
+                </InputLabel>
+                <Select
+                  value={deletionCheckTimezone}
+                  onChange={(e) => setDeletionCheckTimezone(e.target.value)}
+                  label="Timezone"
+                  sx={{
+                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#334155' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#475569' },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#f97316' },
+                  }}
+                >
+                  <MenuItem value="UTC">UTC</MenuItem>
+                  <MenuItem value="America/New_York">America/New_York</MenuItem>
+                  <MenuItem value="America/Los_Angeles">America/Los_Angeles</MenuItem>
+                  <MenuItem value="America/Chicago">America/Chicago</MenuItem>
+                  <MenuItem value="Europe/London">Europe/London</MenuItem>
+                  <MenuItem value="Europe/Paris">Europe/Paris</MenuItem>
+                  <MenuItem value="Asia/Tokyo">Asia/Tokyo</MenuItem>
+                  <MenuItem value="Asia/Shanghai">Asia/Shanghai</MenuItem>
+                  <MenuItem value="Asia/Manila">Asia/Manila</MenuItem>
+                  <MenuItem value="Australia/Sydney">Australia/Sydney</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Days to Check Back"
+                type="number"
+                value={deletionCheckDays}
+                onChange={(e) => setDeletionCheckDays(Number(e.target.value))}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 365 }}
+                helperText="Check published opportunities from the last N days (default: 30)"
+                sx={inputSx}
+              />
+
+              <Box>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={async () => {
+                    setDeletionCheckRunning(true)
+                    try {
+                      const res = await fetch('/api/deletion-check/run', { method: 'POST' })
+                      if (res.ok) {
+                        setTimeout(async () => {
+                          const statusRes = await fetch('/api/deletion-check/status')
+                          if (statusRes.ok) {
+                            const data = await statusRes.json()
+                            setDeletionCheckResult(data.lastResult)
+                          }
+                          setDeletionCheckRunning(false)
+                        }, 5000)
+                      } else {
+                        setDeletionCheckRunning(false)
+                      }
+                    } catch {
+                      setDeletionCheckRunning(false)
+                    }
+                  }}
+                  disabled={deletionCheckRunning}
+                  sx={{
+                    borderColor: '#3b82f6',
+                    color: '#3b82f6',
+                    fontSize: '13px',
+                    '&:hover': { borderColor: '#2563eb', bgcolor: 'rgba(59,130,246,0.08)' },
+                  }}
+                >
+                  {deletionCheckRunning ? 'Running...' : 'Run Check Now'}
+                </Button>
+                {deletionCheckResult && (
+                  <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: 1 }}>
+                    Last check: {deletionCheckResult.deleted} deleted out of {deletionCheckResult.checked} checked
+                  </Typography>
+                )}
+              </Box>
+            </>
+          )}
+        </Box>
+      </SectionCard>
+
       {/* Save Error */}
       {saveError && (
         <Alert
