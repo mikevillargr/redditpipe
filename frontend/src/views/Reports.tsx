@@ -330,6 +330,7 @@ export function Reports() {
             <ToggleButton value="new">New</ToggleButton>
             <ToggleButton value="published">Published</ToggleButton>
             <ToggleButton value="unverified">Unverified</ToggleButton>
+            <ToggleButton value="deleted_by_mod">Deleted</ToggleButton>
           </ToggleButtonGroup>
           
           <Box sx={{ width: '1px', height: 20, bgcolor: borderColor, mx: 0.5 }} />
