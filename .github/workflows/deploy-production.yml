@@ -31,10 +31,15 @@ jobs:
             LATEST="v2.4.0"
           fi
           
-          # Parse current version
-          MAJOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f1)
-          MINOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f2)
-          PATCH=$(echo "$LATEST" | sed 's/v//' | cut -d. -f3)
+          echo "Latest version: $LATEST"
+          
+          # Parse current version (remove 'v' prefix first)
+          VERSION_NUM="${LATEST#v}"
+          MAJOR=$(echo "$VERSION_NUM" | cut -d. -f1)
+          MINOR=$(echo "$VERSION_NUM" | cut -d. -f2)
+          PATCH=$(echo "$VERSION_NUM" | cut -d. -f3)
+          
+          echo "Parsed: MAJOR=$MAJOR MINOR=$MINOR PATCH=$PATCH"
           
           # Get commit message
           COMMIT_MSG=$(git log -1 --pretty=%B)
