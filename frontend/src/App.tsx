@@ -115,7 +115,7 @@ export default function App() {
 
   const renderContent = () => {
     if (authenticated === null) return null
-    if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />
+    if (!authenticated) return <LoginScreen onLogin={checkAuth} />
 
     return (
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
