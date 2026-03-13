@@ -36,7 +36,7 @@ jobs:
             if [ -d "$REPO_DIR/.git" ]; then
               cd "$REPO_DIR"
               git remote set-url origin "$REPO_URL"
-              git fetch origin main --tags
+              git fetch origin main --tags --force
               git reset --hard origin/main
             else
               git clone "$REPO_URL" "$REPO_DIR"
