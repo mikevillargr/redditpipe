@@ -1,29 +1,70 @@
 ---
-description: How to create a new release with semantic versioning
+description: How releases are automatically created with semantic versioning
 ---
 
 # Release Workflow
 
-This project uses **Semantic Versioning (semver)** for all releases.
+This project uses **Semantic Versioning (semver)** with **automatic release creation** based on commit messages.
 
 ## Semantic Versioning Format
 
-`MAJOR.MINOR.PATCH` (e.g., `v2.3.0`)
+`MAJOR.MINOR.PATCH` (e.g., `v2.4.0`)
 
 - **MAJOR**: Breaking changes or major architecture updates
 - **MINOR**: New features (backwards compatible)
 - **PATCH**: Bug fixes and improvements
 
-## Creating a Release
+## Automatic Release Creation
 
-### 1. Determine Version Bump
+Releases are **automatically created** when you push to `main`, based on your commit message format.
 
-Based on your changes:
-- **Breaking changes?** → Bump MAJOR (e.g., `v2.0.0` → `v3.0.0`)
-- **New features?** → Bump MINOR (e.g., `v2.3.0` → `v2.4.0`)
-- **Bug fixes only?** → Bump PATCH (e.g., `v2.3.0` → `v2.3.1`)
+### Commit Message Format (Conventional Commits)
 
-### 2. Create Release Manually
+Use these prefixes in your commit messages:
+
+**For MINOR version bump (new features):**
+```bash
+git commit -m "feat: Add operator view with role-based access control"
+git commit -m "feature: Implement new dashboard filters"
+```
+
+**For PATCH version bump (bug fixes):**
+```bash
+git commit -m "fix: Operator role not being fetched after login"
+git commit -m "bugfix: Correct deletion count calculation"
+git commit -m "hotfix: Emergency fix for authentication"
+```
+
+**For MAJOR version bump (breaking changes):**
+```bash
+git commit -m "feat!: Redesign API with breaking changes"
+git commit -m "feat: New auth system
+
+BREAKING CHANGE: Old auth tokens no longer work"
+```
+
+**No release (documentation, chores, etc.):**
+```bash
+git commit -m "docs: Update README"
+git commit -m "chore: Update dependencies"
+git commit -m "style: Fix formatting"
+```
+
+### How It Works
+
+1. **Push to main** with a properly formatted commit message
+2. **GitHub Actions** analyzes the commit message
+3. **Version is determined** automatically:
+   - `feat:` or `feature:` → Minor bump (v2.4.0 → v2.5.0)
+   - `fix:`, `bugfix:`, `hotfix:` → Patch bump (v2.4.0 → v2.4.1)
+   - `feat!:` or `BREAKING CHANGE:` → Major bump (v2.4.0 → v3.0.0)
+   - Other commits → No release, just deploy
+4. **Release is created** with auto-generated notes from commit history
+5. **Deployment proceeds** to production
+
+## Manual Release Creation (Optional)
+
+If you need to create a release manually:
 
 ```bash
 # Example: Creating v2.4.0 for new features
