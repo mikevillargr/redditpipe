@@ -71,9 +71,10 @@ app.get("/trending", async (c) => {
     const subreddits = c.req.query("subreddits")?.split(",").filter(Boolean) || [];
 
     const defaultSubs = [
-      "AskReddit", "technology", "personalfinance", "smallbusiness",
-      "Entrepreneur", "startups", "productivity", "todayilearned",
-      "LifeProTips", "explainlikeimfive",
+      "AskReddit", "todayilearned", "LifeProTips", "explainlikeimfive",
+      "CasualConversation", "NoStupidQuestions", "technology", "personalfinance",
+      "productivity", "books", "movies", "gaming", "fitness", "cooking",
+      "DIY", "smallbusiness", "Entrepreneur",
     ];
     const targetSubs = subreddits.length > 0 ? subreddits : defaultSubs;
 

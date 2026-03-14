@@ -281,6 +281,8 @@ const STORAGE_KEY_TOPICS = 'karma_farming_topics'
 const STORAGE_KEY_IDEAS = 'karma_farming_ideas'
 const STORAGE_KEY_LAST_FETCH = 'karma_farming_last_fetch'
 
+const STORAGE_KEY_LAST_AUTO_REFRESH = 'karma_farming_last_auto_refresh'
+
 export function KarmaFarming() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -302,11 +304,17 @@ export function KarmaFarming() {
   const [ideasError, setIdeasError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'question' | 'discussion' | 'trending' | 'news'>('all')
+  const [timezone, setTimezone] = useState<string>('America/New_York')
 
-  const fetchTrending = useCallback(async () => {
+  const fetchTrending = useCallback(async (forceRefresh = false) => {
     setLoading(true)
     setError(null)
     try {
+      // Clear localStorage cache if forcing refresh
+      if (forceRefresh) {
+        localStorage.removeItem(STORAGE_KEY_TOPICS)
+        localStorage.removeItem(STORAGE_KEY_LAST_FETCH)
+      }
       // Add cache-busting timestamp to force fresh data
       const res = await fetch(`/api/warming/trending?t=${Date.now()}`)
       if (res.ok) {
@@ -348,6 +356,60 @@ export function KarmaFarming() {
     setIdeasLoading(false)
   }
 
+  // Fetch timezone from settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings')
+        if (res.ok) {
+          const data = await res.json()
+          setTimezone(data.searchTimezone || 'America/New_York')
+        }
+      } catch { /* ignore */ }
+    }
+    fetchSettings()
+  }, [])
+
+  // Auto-refresh at 10am in the selected timezone
+  useEffect(() => {
+    const checkAndRefresh = () => {
+      try {
+        const now = new Date()
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: timezone,
+          hour: 'numeric',
+          hour12: false,
+          day: 'numeric',
+          month: 'numeric',
+          year: 'numeric',
+        })
+        const parts = formatter.formatToParts(now)
+        const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0')
+        const day = parts.find((p) => p.type === 'day')?.value
+        const month = parts.find((p) => p.type === 'month')?.value
+        const year = parts.find((p) => p.type === 'year')?.value
+        const dateKey = `${year}-${month}-${day}`
+        
+        const lastRefresh = localStorage.getItem(STORAGE_KEY_LAST_AUTO_REFRESH)
+        
+        // If it's 10am and we haven't refreshed today
+        if (hour === 10 && lastRefresh !== dateKey) {
+          console.log('[KarmaFarming] Auto-refreshing trending topics at 10am')
+          fetchTrending(true)
+          localStorage.setItem(STORAGE_KEY_LAST_AUTO_REFRESH, dateKey)
+        }
+      } catch (err) {
+        console.error('[KarmaFarming] Auto-refresh check failed:', err)
+      }
+    }
+
+    // Check every minute
+    const interval = setInterval(checkAndRefresh, 60_000)
+    checkAndRefresh() // Check immediately on mount
+
+    return () => clearInterval(interval)
+  }, [timezone, fetchTrending])
+
   const filteredTopics = filter === 'all' ? topics : topics.filter((t) => t.category === filter)
   const filterCounts: Record<string, number> = { all: topics.length }
   for (const t of topics) filterCounts[t.category] = (filterCounts[t.category] || 0) + 1
@@ -378,58 +440,12 @@ export function KarmaFarming() {
           borderBottom: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
         }}
       >
-        <Tab icon={<PenLineIcon size={14} />} iconPosition="start" label="AI Thread Ideas" />
         <Tab icon={<TrendingUpIcon size={14} />} iconPosition="start" label="Trending Topics" />
+        <Tab icon={<PenLineIcon size={14} />} iconPosition="start" label="AI Thread Ideas" />
       </Tabs>
 
-      {/* ── Tab 0: AI Thread Ideas ── */}
+      {/* ── Tab 0: Trending Topics ── */}
       {activeTab === 0 && (
-        <Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-            <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
-              Generate original thread ideas inspired by trending news and topics. Post these to build karma.
-              {threadIdeas.length > 0 && <span style={{ color: '#10b981', marginLeft: '8px' }}>✓ {threadIdeas.length} ideas cached</span>}
-            </Typography>
-            <Button size="small" variant="contained"
-              startIcon={ideasLoading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <SparklesIcon size={12} />}
-              disabled={ideasLoading} onClick={generateIdeas}
-              sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
-            >
-              {ideasLoading ? 'Generating...' : threadIdeas.length > 0 ? 'Refresh Ideas' : 'Generate Ideas'}
-            </Button>
-          </Box>
-
-          {ideasError && <Alert severity="error" sx={{ mb: 1.5, fontSize: '12px' }} onClose={() => setIdeasError(null)}>{ideasError}</Alert>}
-
-          {threadIdeas.length === 0 && !ideasLoading && (
-            <Paper sx={{ textAlign: 'center', py: 6, px: 3, bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '12px' }}>
-              <Box sx={{ fontSize: 40, mb: 1.5 }}>✍️</Box>
-              <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>AI Thread Ideas</Typography>
-              <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
-                Click "Generate Ideas" to get AI-crafted thread ideas for popular subreddits. Each idea comes with a title, hook, and suggested subreddit.
-              </Typography>
-            </Paper>
-          )}
-
-          {ideasLoading && threadIdeas.length === 0 && (
-            <Box sx={{ textAlign: 'center', py: 6 }}>
-              <CircularProgress size={32} sx={{ color: '#f97316' }} />
-              <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 2 }}>Generating thread ideas...</Typography>
-            </Box>
-          )}
-
-          {threadIdeas.length > 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {threadIdeas.map((idea, i) => (
-                <IdeaCard key={i} idea={idea} isDark={isDark} />
-              ))}
-            </Box>
-          )}
-        </Box>
-      )}
-
-      {/* ── Tab 1: Trending Topics ── */}
-      {activeTab === 1 && (
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
             <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
@@ -437,7 +453,7 @@ export function KarmaFarming() {
             </Typography>
             <Button size="small" variant="contained"
               startIcon={loading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <RefreshCwIcon size={12} />}
-              disabled={loading} onClick={fetchTrending}
+              disabled={loading} onClick={() => fetchTrending(true)}
               sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
             >
               {topics.length === 0 ? 'Load Trending' : 'Refresh'}
@@ -492,6 +508,52 @@ export function KarmaFarming() {
               <TopicCard key={`${topic.url}-${i}`} topic={topic} isDark={isDark} />
             ))}
           </Box>
+        </Box>
+      )}
+
+      {/* ── Tab 1: AI Thread Ideas ── */}
+      {activeTab === 1 && (
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
+              Generate original thread ideas inspired by trending news and topics. Post these to build karma.
+              {threadIdeas.length > 0 && <span style={{ color: '#10b981', marginLeft: '8px' }}>✓ {threadIdeas.length} ideas cached</span>}
+            </Typography>
+            <Button size="small" variant="contained"
+              startIcon={ideasLoading ? <CircularProgress size={12} sx={{ color: '#fff' }} /> : <SparklesIcon size={12} />}
+              disabled={ideasLoading} onClick={generateIdeas}
+              sx={{ bgcolor: '#f97316', '&:hover': { bgcolor: '#ea6c0a' }, fontSize: '12px', fontWeight: 600, px: 2, borderRadius: '8px' }}
+            >
+              {ideasLoading ? 'Generating...' : threadIdeas.length > 0 ? 'Refresh Ideas' : 'Generate Ideas'}
+            </Button>
+          </Box>
+
+          {ideasError && <Alert severity="error" sx={{ mb: 1.5, fontSize: '12px' }} onClose={() => setIdeasError(null)}>{ideasError}</Alert>}
+
+          {threadIdeas.length === 0 && !ideasLoading && (
+            <Paper sx={{ textAlign: 'center', py: 6, px: 3, bgcolor: isDark ? '#0f172a' : '#f8fafc', border: `1px solid ${isDark ? '#1e293b' : '#e2e8f0'}`, borderRadius: '12px' }}>
+              <Box sx={{ fontSize: 40, mb: 1.5 }}>✍️</Box>
+              <Typography sx={{ fontSize: '16px', fontWeight: 600, color: 'text.primary', mb: 1 }}>AI Thread Ideas</Typography>
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 420, mx: 'auto', lineHeight: 1.6 }}>
+                Click "Generate Ideas" to get AI-crafted thread ideas for popular subreddits. Each idea comes with a title, hook, and suggested subreddit.
+              </Typography>
+            </Paper>
+          )}
+
+          {ideasLoading && threadIdeas.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <CircularProgress size={32} sx={{ color: '#f97316' }} />
+              <Typography sx={{ fontSize: '13px', color: 'text.secondary', mt: 2 }}>Generating thread ideas...</Typography>
+            </Box>
+          )}
+
+          {threadIdeas.length > 0 && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              {threadIdeas.map((idea, i) => (
+                <IdeaCard key={i} idea={idea} isDark={isDark} />
+              ))}
+            </Box>
+          )}
         </Box>
       )}
     </Box>

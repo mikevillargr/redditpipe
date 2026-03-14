@@ -75,7 +75,10 @@ export async function generateReplyDraft(params: GenerateReplyParams): Promise<s
   if (params.accountUsername) {
     systemPrompt = `You are writing a Reddit reply as the user u/${params.accountUsername}.
 
-ACCOUNT PERSONA:
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS (HIGHEST PRIORITY - FOLLOW THESE FIRST):
+${specialInstructions}
+
+` : ''}ACCOUNT PERSONA:
 ${params.accountPersonality || "No persona notes available."}
 
 STYLE NOTES:
@@ -84,16 +87,18 @@ ${params.accountStyleNotes || "No style notes available."}
 SAMPLE COMMENTS BY THIS USER (match this voice exactly):
 ${params.accountSampleComments || "No sample comments available."}
 
-${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}\n` : ''}
 CORE RULES:
 - Match this user's writing style EXACTLY — sentence length, punctuation, casualness, vocabulary
 - Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
 - Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
 - Do NOT make it the only recommendation — mention 1-2 other options
 - Do NOT use marketing language or superlatives
-- Do NOT start with "Hey!" or "Great question!"
+- Do NOT start with "Hey!", "Great question!", or any acknowledgment phrases like "You're right", "That's a great point", etc.
+- Jump straight into the helpful content without preambles or validating the OP's statement
 - Keep it 2-4 short paragraphs max
 - Sound like a real person sharing genuine experience
+- Keep replies SHORT (2-4 sentences typical for Reddit)
+- Match persona's punctuation habits, emoji usage, Reddit slang (imo, tbh, fwiw)
 
 REDDIT MARKDOWN FORMAT (critical — output must be copy-pasteable into Reddit):
 - Use Reddit markdown syntax: **bold**, *italic*, ~~strikethrough~~
@@ -112,13 +117,16 @@ ANTI-DETECTION RULES (critical):
   } else {
     systemPrompt = `You are writing a Reddit reply as a helpful community member.
 
-${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}\n` : ''}
-CORE RULES:
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS (HIGHEST PRIORITY - FOLLOW THESE FIRST):
+${specialInstructions}
+
+` : ''}CORE RULES:
 - Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
 - Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
 - Do NOT make it the only recommendation — mention 1-2 other options
 - Do NOT use marketing language or superlatives
-- Do NOT start with "Hey!" or "Great question!"
+- Do NOT start with "Hey!", "Great question!", or any acknowledgment phrases like "You're right", "That's a great point", etc.
+- Jump straight into the helpful content without preambles or validating the OP's statement
 - Keep it 2-4 short paragraphs max
 - Sound like a real person sharing genuine experience
 - Keep replies SHORT (2-4 sentences typical for Reddit)
@@ -201,9 +209,14 @@ export async function rewriteReply(
     ? "Do NOT include URLs or links - just mention product/service names as plain text."
     : "Always use Reddit markdown: [links](url), **bold**, *italic*, bullet points with \"- \". Include clickable URLs for any product/service mentioned.";
 
-  let systemPrompt = `You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else. ${urlGuidance}
+  let systemPrompt = `You are a Reddit reply editor. Return ONLY the rewritten reply text, nothing else.
 
-${specialInstructions ? `CRITICAL WRITING REQUIREMENTS:\n${specialInstructions}` : ''}`;
+${specialInstructions ? `CRITICAL WRITING REQUIREMENTS (HIGHEST PRIORITY - FOLLOW THESE FIRST):
+${specialInstructions}
+
+` : ''}${urlGuidance}
+
+Avoid preambles and acknowledgment phrases like "You're right", "That's a great point", "Great question", etc. Jump straight into the content.`;
 
   const response = await client.messages.create({
     model: getReplyModel(),
