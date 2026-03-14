@@ -65,6 +65,8 @@ interface ReportOpportunity {
   publishedAt: string | null
   deletedAt: string | null
   createdAt: string
+  opportunityType: string
+  parentThreadTitle: string | null
 }
 
 export function Reports() {
@@ -157,6 +159,8 @@ export function Reports() {
         'Thread Title': opp.threadTitle,
         'Thread URL': opp.threadUrl,
         'Subreddit': opp.subreddit,
+        'Type': opp.opportunityType === 'pile_on' ? 'Pile-On' : 'Primary',
+        'Parent Thread': opp.parentThreadTitle ?? 'N/A',
         'Heuristic Score': opp.heuristicScore ?? 'N/A',
         'AI Score': opp.aiScore ?? 'N/A',
         'Status': opp.status,
@@ -165,6 +169,8 @@ export function Reports() {
         'Citation Anchor Text': opp.citationAnchorText ?? 'N/A',
         'Comment Permalink': opp.commentPermalink ?? 'N/A',
         'Discovered': new Date(opp.createdAt).toLocaleDateString(),
+        'Published': opp.publishedAt ? new Date(opp.publishedAt).toLocaleDateString() : 'N/A',
+        'Deleted': opp.deletedAt ? new Date(opp.deletedAt).toLocaleDateString() : 'No',
       }))
 
       const ws = XLSX.utils.json_to_sheet(exportData)
@@ -422,6 +428,7 @@ export function Reports() {
               >
                 {[
                   'Thread Title',
+                  'Type',
                   'Scores',
                   'Status',
                   'Deleted',
@@ -514,7 +521,26 @@ export function Reports() {
                             r/{opp.subreddit}
                           </Typography>
                         </Box>
+                        {opp.parentThreadTitle && (
+                          <Typography sx={{ fontSize: '10px', color: 'text.disabled', mt: 0.25, fontStyle: 'italic' }}>
+                            Parent: {opp.parentThreadTitle.length > 40 ? opp.parentThreadTitle.substring(0, 40) + '...' : opp.parentThreadTitle}
+                          </Typography>
+                        )}
                       </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={opp.opportunityType === 'pile_on' ? 'Pile-On' : 'Primary'}
+                        size="small"
+                        sx={{
+                          fontSize: '10px',
+                          height: 20,
+                          bgcolor: opp.opportunityType === 'pile_on' ? 'rgba(168,85,247,0.1)' : 'rgba(59,130,246,0.1)',
+                          color: opp.opportunityType === 'pile_on' ? '#a855f7' : '#3b82f6',
+                          border: `1px solid ${opp.opportunityType === 'pile_on' ? 'rgba(168,85,247,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                          fontWeight: 600,
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Box>

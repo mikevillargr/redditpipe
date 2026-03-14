@@ -62,6 +62,7 @@ interface DeletionInsights {
     hoursUntilDeletion: number
     createdAt: string
     clientName: string
+    opportunityType: string
   }>
 }
 

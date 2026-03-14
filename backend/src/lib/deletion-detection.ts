@@ -216,7 +216,7 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - deletionCheckDays);
 
-    // Fetch published opportunities with permalinks from the last N days
+    // Fetch published opportunities (both primary and pile-on) with permalinks from the last N days
     // Use createdAt since publishedAt may be null for older opportunities
     const opportunities = await prisma.opportunity.findMany({
       where: {
@@ -229,6 +229,7 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
         permalinkUrl: true,
         title: true,
         subreddit: true,
+        opportunityType: true,
       },
     });
 
@@ -250,7 +251,8 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
             },
           });
           deleted++;
-          console.log(`[DeletionDetection] Marked as deleted: ${opp.title} (r/${opp.subreddit})`);
+          const oppType = opp.opportunityType === 'pile_on' ? 'pile-on' : 'primary';
+          console.log(`[DeletionDetection] Marked as deleted (${oppType}): ${opp.title} (r/${opp.subreddit})`);
         }
 
         // Add delay between checks to avoid rate limiting (2 seconds)

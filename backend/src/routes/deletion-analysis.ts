@@ -170,6 +170,7 @@ app.get("/insights", async (c) => {
       include: {
         opportunity: {
           select: {
+            opportunityType: true,
             client: {
               select: {
                 name: true,
@@ -247,6 +248,7 @@ app.get("/insights", async (c) => {
         hoursUntilDeletion: a.hoursUntilDeletion,
         createdAt: a.createdAt,
         clientName: a.opportunity.client.name,
+        opportunityType: a.opportunity.opportunityType || 'primary',
       })),
     });
   } catch (error) {
