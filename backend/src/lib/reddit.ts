@@ -329,6 +329,7 @@ export interface RedditUserComment {
   score: number;
   created_utc: number;
   link_id: string;
+  permalink: string;
 }
 
 export async function getUserComments(username: string, limit: number = 25): Promise<RedditUserComment[]> {
@@ -339,12 +340,13 @@ export async function getUserComments(username: string, limit: number = 25): Pro
   if (!response.ok) throw new Error(`Reddit user comments fetch failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
   return (data.data?.children || []).map(
-    (child: { data: { subreddit: string; body: string; score: number; created_utc: number; link_id: string } }) => ({
+    (child: { data: { subreddit: string; body: string; score: number; created_utc: number; link_id: string; permalink: string } }) => ({
       subreddit: child.data.subreddit,
       body: child.data.body,
       score: child.data.score,
       created_utc: child.data.created_utc,
       link_id: child.data.link_id,
+      permalink: child.data.permalink,
     })
   );
 }
@@ -356,7 +358,7 @@ export async function verifyCommentOnThread(
   try {
     const comments = await getUserComments(username, 25);
     const match = comments.find((c) => c.link_id === `t3_${threadId}`);
-    if (match) return { found: true, permalink: `https://www.reddit.com/user/${username}/comments/` };
+    if (match) return { found: true, permalink: `https://www.reddit.com${match.permalink}` };
     return { found: false };
   } catch (error) {
     console.error("Verification failed:", error);
