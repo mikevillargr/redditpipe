@@ -96,8 +96,6 @@ model Opportunity {
   parentOpportunity Opportunity?       @relation("PileOnRelation", fields: [parentOpportunityId], references: [id], onDelete: Cascade)
   childPileOns      Opportunity[]      @relation("PileOnRelation")
   deletionAnalysis  DeletionAnalysis?
-
-  @@unique([threadId, clientId])
 }
 
 model DismissalLog {
