@@ -50,11 +50,7 @@ reports.get("/clients/:clientId", async (c) => {
     });
 
     const opportunities = await db.opportunity.findMany({
-      where: { 
-        clientId,
-        // Only show primary opportunities in reports, not pile-ons
-        opportunityType: { not: "pile_on" },
-      },
+      where: { clientId },
       orderBy: { createdAt: "desc" },
       include: {
         parentOpportunity: {
