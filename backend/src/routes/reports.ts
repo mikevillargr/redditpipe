@@ -43,8 +43,18 @@ reports.get("/clients/:clientId", async (c) => {
   const db = createPrismaClient();
 
   try {
+    // Fetch client to get mention terms for citation extraction
+    const client = await db.client.findUnique({
+      where: { id: clientId },
+      select: { mentionTerms: true, name: true },
+    });
+
     const opportunities = await db.opportunity.findMany({
-      where: { clientId },
+      where: { 
+        clientId,
+        // Only show primary opportunities in reports, not pile-ons
+        opportunityType: { not: "pile_on" },
+      },
       orderBy: { createdAt: "desc" },
       include: {
         parentOpportunity: {
@@ -79,14 +89,37 @@ reports.get("/clients/:clientId", async (c) => {
 
       // Extract citation anchor text from aiDraftReply
       let citationAnchorText = null;
-      if (opp.aiDraftReply) {
-        // Look for markdown links like [text](url) or plain URLs
+      if (opp.aiDraftReply && client) {
+        // First, look for markdown links like [text](url)
         const linkMatches = opp.aiDraftReply.match(/\[([^\]]+)\]\([^)]+\)/g);
         if (linkMatches) {
           citationAnchorText = linkMatches
             .map((match) => match.match(/\[([^\]]+)\]/)?.[1])
             .filter(Boolean)
             .join(", ");
+        }
+        
+        // If no markdown links found, look for plain text mentions of client name or mention terms
+        if (!citationAnchorText) {
+          const mentionTerms = client.mentionTerms ? client.mentionTerms.split(",").map(t => t.trim()) : [];
+          const allTerms = [client.name, ...mentionTerms];
+          
+          // Find all mentions in the text (case-insensitive)
+          const foundMentions: string[] = [];
+          for (const term of allTerms) {
+            if (term) {
+              const regex = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+              const matches = opp.aiDraftReply.match(regex);
+              if (matches && matches.length > 0) {
+                // Use the actual matched text (preserves case)
+                foundMentions.push(matches[0]);
+              }
+            }
+          }
+          
+          if (foundMentions.length > 0) {
+            citationAnchorText = [...new Set(foundMentions)].join(", ");
+          }
         }
       }
 
