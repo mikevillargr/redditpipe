@@ -340,6 +340,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   // Pile-on dialog
   const [pileOnOppId, setPileOnOppId] = useState<string | null>(null)
   const [pileOnOppTitle, setPileOnOppTitle] = useState('')
+  const [pileOnThreadUrl, setPileOnThreadUrl] = useState('')
   const [showPileOnDialog, setShowPileOnDialog] = useState(false)
   const [pileOnOpportunity, setPileOnOpportunity] = useState<Opportunity | null>(null)
   const [showDeletionAnalysis, setShowDeletionAnalysis] = useState(false)
@@ -487,9 +488,10 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     setPublishingId(null)
     setPublishPermalink('')
   }
-  const handlePileOn = (id: string, title: string) => {
+  const handlePileOn = (id: string, title: string, threadUrl: string) => {
     setPileOnOppId(id)
     setPileOnOppTitle(title)
+    setPileOnThreadUrl(threadUrl)
     setShowPileOnDialog(true)
   }
   const handlePileOnSuccess = () => {
@@ -1505,7 +1507,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             }
             onDismiss={() => handleDismiss(opp.id)}
             onUpdateDraft={(text) => handleUpdateDraft(opp.id, text)}
-            onPileOn={() => handlePileOn(opp.id, opp.title)}
+            onPileOn={() => handlePileOn(opp.id, opp.title, opp.threadUrl)}
             onPreview={() => setPreviewOpp(opp)}
             onReassign={() => handleReassign(opp.id)}
             onAssignAccount={(accountId) => handleAssignAccount(opp.id, accountId)}
@@ -1971,9 +1973,11 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             setShowPileOnDialog(false)
             setPileOnOppId(null)
             setPileOnOppTitle('')
+            setPileOnThreadUrl('')
           }}
           opportunityId={pileOnOppId}
           opportunityTitle={pileOnOppTitle}
+          threadUrl={pileOnThreadUrl}
           onSuccess={handlePileOnSuccess}
         />
       )}

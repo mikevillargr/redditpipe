@@ -15,7 +15,7 @@ import {
   FormControl,
   InputLabel,
 } from '@mui/material';
-import { RefreshCwIcon, CheckIcon, XIcon, LinkIcon } from 'lucide-react';
+import { RefreshCwIcon, CheckIcon, XIcon, LinkIcon, ExternalLinkIcon } from 'lucide-react';
 
 interface Account {
   id: string;
@@ -28,6 +28,7 @@ interface PileOnDialogProps {
   onClose: () => void;
   opportunityId: string;
   opportunityTitle: string;
+  threadUrl: string;
   onSuccess: () => void;
 }
 
@@ -36,6 +37,7 @@ export function PileOnDialog({
   onClose,
   opportunityId,
   opportunityTitle,
+  threadUrl,
   onSuccess,
 }: PileOnDialogProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -91,7 +93,7 @@ export function PileOnDialog({
       if (res.ok) {
         const data = await res.json();
         setDraftReply(data.draftReply);
-        setPileOnId(data.pileOnId);
+        setPileOnId(data.opportunityId || data.pileOnId);
       } else {
         const errData = await res.json();
         setError(errData.error || 'Failed to generate pile-on');
@@ -179,9 +181,26 @@ export function PileOnDialog({
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
-        <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 3 }}>
-          Thread: <strong>{opportunityTitle}</strong>
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Typography sx={{ fontSize: '13px', color: 'text.secondary', flex: 1 }}>
+            Thread: <strong>{opportunityTitle}</strong>
+          </Typography>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<ExternalLinkIcon size={12} />}
+            onClick={() => window.open(threadUrl, '_blank')}
+            sx={{
+              fontSize: '11px',
+              textTransform: 'none',
+              borderColor: '#334155',
+              color: 'text.secondary',
+              '&:hover': { borderColor: '#3b82f6', color: '#3b82f6' },
+            }}
+          >
+            Go to Thread
+          </Button>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 2, fontSize: '13px' }}>

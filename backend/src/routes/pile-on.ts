@@ -10,9 +10,10 @@ const app = new Hono();
 /**
  * POST /api/opportunities/:id/pile-on/generate
  * Generate a +1/agreement response for a published opportunity
+ * Creates a new Opportunity record with opportunityType='pile_on'
  */
 app.post("/:id/pile-on/generate", async (c) => {
-  const opportunityId = c.req.param("id");
+  const parentOpportunityId = c.req.param("id");
   const body = await c.req.json();
   const { accountId } = body;
   
@@ -23,29 +24,29 @@ app.post("/:id/pile-on/generate", async (c) => {
   const db = createPrismaClient();
 
   try {
-    // Get the opportunity with its published reply
-    const opportunity = await db.opportunity.findUnique({
-      where: { id: opportunityId },
+    // Get the parent opportunity with its published reply
+    const parentOpportunity = await db.opportunity.findUnique({
+      where: { id: parentOpportunityId },
       include: {
         client: true,
         account: true,
       },
     });
 
-    if (!opportunity) {
+    if (!parentOpportunity) {
       return c.json({ error: "Opportunity not found" }, 404);
     }
 
-    if (opportunity.status !== "published") {
+    if (parentOpportunity.status !== "published") {
       return c.json({ error: "Can only pile-on to published opportunities" }, 400);
     }
 
-    if (!opportunity.aiDraftReply) {
+    if (!parentOpportunity.aiDraftReply) {
       return c.json({ error: "No reply found for this opportunity" }, 400);
     }
 
     // Prevent pile-on from same account
-    if (opportunity.accountId === accountId) {
+    if (parentOpportunity.accountId === accountId) {
       return c.json({ error: "Cannot pile-on to your own comment" }, 400);
     }
 
@@ -58,56 +59,68 @@ app.post("/:id/pile-on/generate", async (c) => {
       return c.json({ error: "Account not found" }, 404);
     }
 
-    // Check if pile-on already exists for this account
-    const existing = await db.pileOnComment.findUnique({
+    // Check if pile-on opportunity already exists for this account
+    const existing = await db.opportunity.findFirst({
       where: {
-        opportunityId_pileOnAccountId: {
-          opportunityId,
-          pileOnAccountId: accountId,
-        },
+        parentOpportunityId: parentOpportunityId,
+        accountId: accountId,
+        opportunityType: "pile_on",
       },
     });
 
     if (existing) {
-      // Return existing draft
+      // Return existing pile-on opportunity
       return c.json({
         success: true,
         draftReply: existing.aiDraftReply,
         pileOnId: existing.id,
+        opportunityId: existing.id,
+        threadUrl: existing.threadUrl,
         status: existing.status,
       });
     }
 
     // Generate a +1/agreement response using AI
     const draftReply = await generatePileOnComment({
-      primaryComment: opportunity.aiDraftReply,
-      threadTitle: opportunity.title,
-      threadBody: opportunity.bodySnippet || "",
-      clientName: opportunity.client.name,
-      clientDescription: opportunity.client.description || "",
+      primaryComment: parentOpportunity.aiDraftReply,
+      threadTitle: parentOpportunity.title,
+      threadBody: parentOpportunity.bodySnippet || "",
+      clientName: parentOpportunity.client.name,
+      clientDescription: parentOpportunity.client.description || "",
       pileOnAccountPersonality: account.personalitySummary,
       pileOnAccountWritingStyle: account.writingStyleNotes,
     });
 
-    // Get the primary comment ID from the opportunity's permalink
-    const primaryCommentId = opportunity.permalinkUrl?.split('/').pop() || "";
-
-    // Create pile-on record
-    const pileOn = await db.pileOnComment.create({
+    // Create pile-on as a real Opportunity record
+    const pileOnOpportunity = await db.opportunity.create({
       data: {
-        opportunityId,
-        pileOnAccountId: accountId,
-        primaryCommentId,
+        clientId: parentOpportunity.clientId,
+        accountId: accountId,
+        threadId: parentOpportunity.threadId,
+        threadUrl: parentOpportunity.threadUrl,
+        subreddit: parentOpportunity.subreddit,
+        title: parentOpportunity.title,
+        bodySnippet: parentOpportunity.bodySnippet,
+        topComments: parentOpportunity.topComments,
+        score: parentOpportunity.score,
+        commentCount: parentOpportunity.commentCount,
+        threadAge: parentOpportunity.threadAge,
+        threadCreatedAt: parentOpportunity.threadCreatedAt,
         aiDraftReply: draftReply,
-        status: "draft",
+        status: "new",
+        opportunityType: "pile_on",
+        parentOpportunityId: parentOpportunityId,
+        discoveredVia: "pile_on",
       },
     });
 
     return c.json({
       success: true,
       draftReply,
-      pileOnId: pileOn.id,
-      status: "draft",
+      pileOnId: pileOnOpportunity.id,
+      opportunityId: pileOnOpportunity.id,
+      threadUrl: pileOnOpportunity.threadUrl,
+      status: "new",
     });
   } catch (error) {
     console.error("Error generating pile-on:", error);
@@ -145,14 +158,15 @@ app.put("/:id/pile-on/:pileOnId", async (c) => {
 
 /**
  * DELETE /api/opportunities/:id/pile-on/:pileOnId
- * Dismiss/delete a pile-on draft
+ * Dismiss/delete a pile-on opportunity
  */
 app.delete("/:id/pile-on/:pileOnId", async (c) => {
   const pileOnId = c.req.param("pileOnId");
   const db = createPrismaClient();
 
   try {
-    await db.pileOnComment.delete({
+    // Delete the pile-on opportunity
+    await db.opportunity.delete({
       where: { id: pileOnId },
     });
 
@@ -167,10 +181,10 @@ app.delete("/:id/pile-on/:pileOnId", async (c) => {
 
 /**
  * POST /api/opportunities/:id/pile-on/:pileOnId/publish
- * Mark pile-on as published (manual verification workflow)
+ * Mark pile-on opportunity as published (manual verification workflow)
  */
 app.post("/:id/pile-on/:pileOnId/publish", async (c) => {
-  const opportunityId = c.req.param("id");
+  const parentOpportunityId = c.req.param("id");
   const pileOnId = c.req.param("pileOnId");
   const body = await c.req.json();
   const { permalinkUrl } = body;
@@ -178,47 +192,47 @@ app.post("/:id/pile-on/:pileOnId/publish", async (c) => {
   const db = createPrismaClient();
 
   try {
-    // Get pile-on comment
-    const pileOn = await db.pileOnComment.findUnique({
+    // Get pile-on opportunity
+    const pileOnOpportunity = await db.opportunity.findUnique({
       where: { id: pileOnId },
       include: {
-        opportunity: {
+        parentOpportunity: {
           include: {
             account: true,
           },
         },
-        pileOnAccount: true,
+        account: true,
       },
     });
 
-    if (!pileOn || pileOn.opportunityId !== opportunityId) {
-      return c.json({ error: "Pile-on comment not found" }, 404);
+    if (!pileOnOpportunity || pileOnOpportunity.parentOpportunityId !== parentOpportunityId) {
+      return c.json({ error: "Pile-on opportunity not found" }, 404);
     }
 
-    if (pileOn.status === "posted") {
-      return c.json({ error: "Pile-on already posted" }, 400);
+    if (pileOnOpportunity.status === "published") {
+      return c.json({ error: "Pile-on already published" }, 400);
     }
 
     // Manual workflow: user provides permalink after posting manually
-    // Update pile-on status to posted
-    await db.pileOnComment.update({
+    // Update pile-on opportunity status to published
+    await db.opportunity.update({
       where: { id: pileOnId },
       data: {
-        status: "posted",
-        pileOnCommentId: permalinkUrl || "",
-        postedAt: new Date(),
+        status: "published",
+        permalinkUrl: permalinkUrl || "",
+        publishedAt: new Date(),
       },
     });
 
-    // Log interaction
-    if (pileOn.opportunity.accountId) {
+    // Log interaction between parent account and pile-on account
+    if (pileOnOpportunity.parentOpportunity?.accountId && pileOnOpportunity.accountId) {
       await db.accountInteractionLog.create({
         data: {
-          account1Id: pileOn.opportunity.accountId,
-          account2Id: pileOn.pileOnAccountId,
+          account1Id: pileOnOpportunity.parentOpportunity.accountId,
+          account2Id: pileOnOpportunity.accountId,
           interactionType: "pile_on",
-          threadId: pileOn.opportunity.threadId,
-          subreddit: pileOn.opportunity.subreddit,
+          threadId: pileOnOpportunity.threadId,
+          subreddit: pileOnOpportunity.subreddit,
         },
       });
     }
