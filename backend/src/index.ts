@@ -15,6 +15,7 @@ import pileOnRoutes from "./routes/pile-on.js";
 import extensionRoutes from "./routes/extension.js";
 import deletionCheckRoutes from "./routes/deletion-check.js";
 import deletionAnalysisRoutes from "./routes/deletion-analysis.js";
+import reclassifyRoutes from "./routes/reclassify.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -44,6 +45,7 @@ app.route("/api/reports", reportsRoutes);
 app.route("/api/extension", extensionRoutes);
 app.route("/api/deletion-check", deletionCheckRoutes);
 app.route("/api/deletion-analysis", deletionAnalysisRoutes);
+app.route("/api/reclassify", reclassifyRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);
