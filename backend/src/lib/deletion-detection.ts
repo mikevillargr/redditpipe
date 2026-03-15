@@ -109,7 +109,41 @@ export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: 
       return false;
     }
 
-    const commentData = commentListing.data.children[0]?.data;
+    // Extract comment ID from permalink to find the exact comment
+    // Permalink format: /r/subreddit/comments/threadid/title/commentid/
+    const commentIdMatch = permalinkUrl.match(/\/comments\/[^\/]+\/[^\/]+\/([^\/]+)/);
+    const targetCommentId = commentIdMatch ? commentIdMatch[1] : null;
+
+    // Recursively search for the comment with matching ID
+    const findCommentById = (children: any[], commentId: string): any => {
+      for (const child of children) {
+        if (child?.data?.id === commentId) {
+          return child.data;
+        }
+        // Check replies
+        if (child?.data?.replies?.data?.children) {
+          const found = findCommentById(child.data.replies.data.children, commentId);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+
+    let commentData;
+    if (targetCommentId) {
+      // Try to find comment by ID
+      commentData = findCommentById(commentListing.data.children, targetCommentId);
+      if (!commentData) {
+        console.log(`[DeletionDetection] Could not find comment with ID ${targetCommentId} in tree`);
+        // Fall back to first child (old behavior) but log it
+        commentData = commentListing.data.children[0]?.data;
+        console.log(`[DeletionDetection] Falling back to first child for ${permalinkUrl}`);
+      }
+    } else {
+      // No comment ID found in URL, use first child
+      commentData = commentListing.data.children[0]?.data;
+    }
+
     if (!commentData) {
       console.log(`[DeletionDetection] No comment data for ${permalinkUrl}`);
       return false;
@@ -125,7 +159,7 @@ export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: 
 
     // If expectedAuthor is provided, verify it matches
     if (expectedAuthor && author !== expectedAuthor) {
-      console.log(`[DeletionDetection] Author mismatch: expected="${expectedAuthor}", actual="${author}"`);
+      console.log(`[DeletionDetection] Author mismatch: expected="${expectedAuthor}", actual="${author}" for comment ID ${targetCommentId || 'unknown'}`);
       return false;
     }
 
