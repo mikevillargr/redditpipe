@@ -402,10 +402,8 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
     const opportunities = await prisma.opportunity.findMany({
       where: {
         status: "published",
-        NOT: [
-          { permalinkUrl: null },
-          { threadUrl: null }
-        ],
+        permalinkUrl: { not: { equals: null } },
+        threadUrl: { not: { equals: null } },
         createdAt: { gte: cutoffDate },
       },
       select: {
