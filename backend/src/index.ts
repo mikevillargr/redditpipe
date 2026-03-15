@@ -47,6 +47,7 @@ app.route("/api/extension", extensionRoutes);
 app.route("/api/deletion-check", deletionCheckRoutes);
 app.route("/api/deletion-analysis", deletionAnalysisRoutes);
 app.route("/api/reclassify", reclassifyRoutes);
+app.route("/api/fix-permalinks", fixPermalinksRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);
