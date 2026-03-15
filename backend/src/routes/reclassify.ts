@@ -1,7 +1,7 @@
 // API endpoint to reclassify false positive deletions
 import { Hono } from "hono";
 import { createPrismaClient } from "../lib/prisma.js";
-import { checkCommentExists } from "../lib/deletion-detection.js";
+import { getRedditConfig } from "../lib/reddit.js";
 
 const app = new Hono();
 
@@ -27,7 +27,6 @@ app.post("/deletions", async (c) => {
     const deletedOpportunities = await prisma.opportunity.findMany({
       where: {
         status: "deleted_by_mod",
-        permalinkUrl: { not: null },
       },
       include: {
         account: {
@@ -65,12 +64,72 @@ app.post("/deletions", async (c) => {
       console.log(`[${checked}/${deletedOpportunities.length}] Checking: ${opp.title.substring(0, 50)}...`);
 
       try {
-        // Check if comment exists from ANY of our accounts
-        const exists = await checkCommentExists(opp.permalinkUrl, validAuthors);
+        // Check the entire thread for comments from any of our accounts
+        if (!opp.threadUrl) {
+          results.push({
+            id: opp.id,
+            title: opp.title,
+            status: "skipped",
+            reason: "no thread URL",
+          });
+          continue;
+        }
+
+        const threadJsonUrl = opp.threadUrl.replace(/\/$/, "") + "/.json?limit=500&depth=10";
+        const config = await getRedditConfig();
+        const headers: Record<string, string> = {
+          "User-Agent": "RedditPipe/2.0",
+        };
+
+        if (config.mode === "oauth" && config.token) {
+          headers["Authorization"] = `Bearer ${config.token}`;
+        }
+
+        const response = await fetch(threadJsonUrl, { headers });
+        if (!response.ok) {
+          errors++;
+          results.push({
+            id: opp.id,
+            title: opp.title,
+            status: "error",
+            error: `Reddit API returned ${response.status}`,
+          });
+          continue;
+        }
+
+        const data = await response.json();
+
+        // Recursively search for comments from our accounts
+        const findOurComments = (children: any[]): boolean => {
+          for (const child of children || []) {
+            if (child.kind === "t1") {
+              const commentData = child.data;
+              const author = commentData.author || "";
+              const body = commentData.body || "";
+
+              if (body === "[removed]" || body === "[deleted]" || author === "[deleted]") {
+                continue;
+              }
+
+              if (validAuthors.includes(author)) {
+                return true;
+              }
+
+              if (commentData.replies?.data?.children) {
+                if (findOurComments(commentData.replies.data.children)) {
+                  return true;
+                }
+              }
+            }
+          }
+          return false;
+        };
+
+        const exists = findOurComments(data[1]?.data?.children || []);
 
         if (exists) {
-          // Comment still exists from one of our accounts - this was a false positive!
-          console.log(`  ✓ COMMENT EXISTS (from one of our accounts) - Reclassifying to published`);
+          // Comment still exists from one of our accounts on the thread - this was a false positive!
+          console.log(`  ✓ COMMENT EXISTS (from one of our accounts on thread) - Reclassifying to published`);
 
           await prisma.opportunity.update({
             where: { id: opp.id },
