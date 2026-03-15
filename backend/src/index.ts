@@ -16,6 +16,7 @@ import extensionRoutes from "./routes/extension.js";
 import deletionCheckRoutes from "./routes/deletion-check.js";
 import deletionAnalysisRoutes from "./routes/deletion-analysis.js";
 import reclassifyRoutes from "./routes/reclassify.js";
+import fixPermalinksRoutes from "./routes/fix-permalinks.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
