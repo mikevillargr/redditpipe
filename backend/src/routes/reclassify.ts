@@ -125,11 +125,55 @@ app.post("/deletions", async (c) => {
           return false;
         };
 
-        const exists = findOurComments(data[1]?.data?.children || []);
+        let exists = findOurComments(data[1]?.data?.children || []);
+
+        // Fallback: If not found in thread JSON, check user comment histories
+        if (!exists) {
+          const threadId = opp.threadUrl.match(/\/comments\/([^\/]+)\//)?.[1];
+          if (threadId) {
+            console.log(`  Comment not found in thread JSON, checking user histories for thread ${threadId}`);
+            
+            for (const username of validAuthors) {
+              try {
+                const userCommentsUrl = `https://www.reddit.com/user/${username}/comments.json?limit=100`;
+                const userResponse = await fetch(userCommentsUrl, { headers });
+                
+                if (!userResponse.ok) {
+                  continue;
+                }
+
+                const userData = await userResponse.json();
+                const userComments = userData?.data?.children || [];
+
+                for (const comment of userComments) {
+                  if (comment.kind === "t1") {
+                    const commentData = comment.data;
+                    const linkId = commentData.link_id || "";
+                    
+                    if (linkId === `t3_${threadId}`) {
+                      const body = commentData.body || "";
+                      
+                      if (body !== "[removed]" && body !== "[deleted]" && body) {
+                        console.log(`  ✓ Found comment from ${username} via user history`);
+                        exists = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+                
+                if (exists) break;
+              } catch (error) {
+                console.warn(`  Error checking ${username} history:`, error);
+                continue;
+              }
+            }
+          }
+        }
 
         if (exists) {
-          // Comment still exists from one of our accounts on the thread - this was a false positive!
-          console.log(`  ✓ COMMENT EXISTS (from one of our accounts on thread) - Reclassifying to published`);
+          // Comment still exists from one of our accounts - this was a false positive!
+          console.log(`  ✓ COMMENT EXISTS - Reclassifying to published`);
 
           await prisma.opportunity.update({
             where: { id: opp.id },
