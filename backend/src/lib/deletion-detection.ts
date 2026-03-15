@@ -299,6 +299,9 @@ async function checkThreadForOurComments(
 
     console.log(`[DeletionDetection] Comment not found in thread JSON, checking user histories for thread ${threadId}`);
 
+    // Add small delay before user history checks
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     for (const username of validAuthors) {
       try {
         const userCommentsUrl = `https://www.reddit.com/user/${username}/comments.json?limit=100`;
@@ -417,6 +420,12 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
     for (const opp of opportunities) {
       try {
         checked++;
+        
+        // Add delay between opportunities to avoid rate limits
+        if (checked > 1) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+        
         const result = await checkOpportunityDeletion(opp.id);
 
         if (result.deleted) {
