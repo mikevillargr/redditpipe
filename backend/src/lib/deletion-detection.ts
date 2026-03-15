@@ -402,8 +402,6 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
     const opportunities = await prisma.opportunity.findMany({
       where: {
         status: "published",
-        permalinkUrl: { not: { equals: null } },
-        threadUrl: { not: { equals: null } },
         createdAt: { gte: cutoffDate },
       },
       select: {
@@ -416,10 +414,13 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
       },
     });
 
-    console.log(`[DeletionDetection] Checking ${opportunities.length} published opportunities from last ${deletionCheckDays} days...`);
+    // Filter to only opportunities with both permalinkUrl and threadUrl
+    const validOpportunities = opportunities.filter(opp => opp.permalinkUrl && opp.threadUrl);
+    
+    console.log(`[DeletionDetection] Checking ${validOpportunities.length} published opportunities from last ${deletionCheckDays} days...`);
 
     // Check each opportunity
-    for (const opp of opportunities) {
+    for (const opp of validOpportunities) {
       try {
         checked++;
         
