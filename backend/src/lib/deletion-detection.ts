@@ -328,6 +328,9 @@ async function checkThreadForOurComments(
                 const permalinkUrl = `https://www.reddit.com/r/${commentData.subreddit}/comments/${threadId}/comment/${commentId}/.json`;
                 
                 try {
+                  // Add delay to avoid rate limits
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  
                   const permalinkResponse = await fetch(permalinkUrl, { headers });
                   if (permalinkResponse.ok) {
                     const permalinkData = await permalinkResponse.json();
@@ -339,6 +342,9 @@ async function checkThreadForOurComments(
                     } else {
                       console.log(`[DeletionDetection] Comment ${commentId} in user history but deleted from thread`);
                     }
+                  } else if (permalinkResponse.status === 429) {
+                    console.warn(`[DeletionDetection] Rate limited verifying ${commentId}, assuming exists to avoid false positive`);
+                    return true; // Assume exists on rate limit
                   }
                 } catch (error) {
                   console.warn(`[DeletionDetection] Error verifying permalink for ${commentId}:`, error);
