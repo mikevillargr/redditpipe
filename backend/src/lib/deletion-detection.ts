@@ -319,11 +319,31 @@ async function checkThreadForOurComments(
             // Check if this comment is on our thread (link_id format: t3_threadid)
             if (linkId === `t3_${threadId}`) {
               const body = commentData.body || "";
+              const commentId = commentData.id || "";
               
-              // Make sure it's not deleted
+              // Make sure it's not deleted in user history
               if (body !== "[removed]" && body !== "[deleted]" && body) {
-                console.log(`[DeletionDetection] Found comment from ${username} on thread via user history`);
-                return true;
+                // Verify the comment is actually accessible via its permalink
+                // Reddit keeps deleted comments in user history, so we need to double-check
+                const permalinkUrl = `https://www.reddit.com/r/${commentData.subreddit}/comments/${threadId}/comment/${commentId}/.json`;
+                
+                try {
+                  const permalinkResponse = await fetch(permalinkUrl, { headers });
+                  if (permalinkResponse.ok) {
+                    const permalinkData = await permalinkResponse.json();
+                    const hasChildren = permalinkData?.[1]?.data?.children?.length > 0;
+                    
+                    if (hasChildren) {
+                      console.log(`[DeletionDetection] Found comment from ${username} on thread via user history (verified via permalink)`);
+                      return true;
+                    } else {
+                      console.log(`[DeletionDetection] Comment ${commentId} in user history but deleted from thread`);
+                    }
+                  }
+                } catch (error) {
+                  console.warn(`[DeletionDetection] Error verifying permalink for ${commentId}:`, error);
+                  // Don't return true if we can't verify
+                }
               }
             }
           }

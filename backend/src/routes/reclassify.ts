@@ -152,11 +152,31 @@ app.post("/deletions", async (c) => {
                     
                     if (linkId === `t3_${threadId}`) {
                       const body = commentData.body || "";
+                      const commentId = commentData.id || "";
                       
                       if (body !== "[removed]" && body !== "[deleted]" && body) {
-                        console.log(`  ✓ Found comment from ${username} via user history`);
-                        exists = true;
-                        break;
+                        // Verify the comment is actually accessible via its permalink
+                        // Reddit keeps deleted comments in user history
+                        const subreddit = commentData.subreddit || "";
+                        const permalinkUrl = `https://www.reddit.com/r/${subreddit}/comments/${threadId}/comment/${commentId}/.json`;
+                        
+                        try {
+                          const permalinkResponse = await fetch(permalinkUrl, { headers });
+                          if (permalinkResponse.ok) {
+                            const permalinkData = await permalinkResponse.json();
+                            const hasChildren = permalinkData?.[1]?.data?.children?.length > 0;
+                            
+                            if (hasChildren) {
+                              console.log(`  ✓ Found comment from ${username} via user history (verified via permalink)`);
+                              exists = true;
+                              break;
+                            } else {
+                              console.log(`  Comment ${commentId} in user history but deleted from thread`);
+                            }
+                          }
+                        } catch (error) {
+                          console.warn(`  Error verifying permalink for ${commentId}:`, error);
+                        }
                       }
                     }
                   }
