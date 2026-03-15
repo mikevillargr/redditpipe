@@ -12,10 +12,10 @@ let lastCheckResult: DeletionCheckResult | null = null;
 let isRunning = false;
 
 /**
- * Check if a comment exists at the given permalink and matches the expected author
- * Returns true if comment exists and author matches, false if deleted/removed or author mismatch
+ * Check if a comment exists at the given permalink from any of our valid authors
+ * Returns true if comment exists from any valid author, false if deleted/removed or no valid author found
  */
-export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: string): Promise<boolean> {
+export async function checkCommentExists(permalinkUrl: string, validAuthors?: string[]): Promise<boolean> {
   try {
     // Parse permalink to get the JSON endpoint
     // Reddit permalink format: https://www.reddit.com/r/subreddit/comments/threadid/title/commentid/
@@ -75,22 +75,22 @@ export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: 
           continue;
         }
         
-        // If expectedAuthor is provided, check if this comment is from them
-        if (expectedAuthor) {
-          if (author === expectedAuthor) {
+        // If validAuthors is provided, check if this comment is from any of them
+        if (validAuthors && validAuthors.length > 0) {
+          if (validAuthors.includes(author)) {
             foundMatchingComment = true;
-            console.log(`[DeletionDetection] Found comment from ${expectedAuthor} in user profile`);
+            console.log(`[DeletionDetection] Found comment from ${author} (one of our accounts) in user profile`);
             break;
           }
         } else {
-          // No expected author, just check if any valid comment exists
+          // No valid authors specified, just check if any valid comment exists
           foundMatchingComment = true;
           break;
         }
       }
       
       if (!foundMatchingComment) {
-        console.log(`[DeletionDetection] No matching comment found in user profile for ${expectedAuthor || 'any author'}`);
+        console.log(`[DeletionDetection] No matching comment found in user profile for ${validAuthors ? validAuthors.join(', ') : 'any author'}`);
         return false;
       }
       
@@ -157,13 +157,16 @@ export async function checkCommentExists(permalinkUrl: string, expectedAuthor?: 
       return false;
     }
 
-    // If expectedAuthor is provided, verify it matches
-    if (expectedAuthor && author !== expectedAuthor) {
-      console.log(`[DeletionDetection] Author mismatch: expected="${expectedAuthor}", actual="${author}" for comment ID ${targetCommentId || 'unknown'}`);
-      return false;
+    // If validAuthors is provided, verify author is one of them
+    if (validAuthors && validAuthors.length > 0) {
+      if (!validAuthors.includes(author)) {
+        console.log(`[DeletionDetection] Author not in our pool: actual="${author}", valid authors=[${validAuthors.join(', ')}] for comment ID ${targetCommentId || 'unknown'}`);
+        return false;
+      }
+      console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}, author="${author}" (one of our accounts)`);
+    } else {
+      console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}, author="${author}"`);
     }
-
-    console.log(`[DeletionDetection] Comment exists for ${permalinkUrl}, author="${author}"`);
     return true;
   } catch (error) {
     console.error("[DeletionDetection] Error checking comment:", error);
@@ -197,26 +200,32 @@ export async function checkOpportunityDeletion(
     }
 
     const urlToCheck = opportunity.permalinkUrl;
-    const expectedAuthor = opportunity.account?.username;
+    const assignedAuthor = opportunity.account?.username;
 
-    if (!expectedAuthor) {
+    if (!assignedAuthor) {
       console.warn(`[DeletionDetection] No account username found for ${opportunityId}, skipping`);
       return { deleted: false, retried: false };
     }
 
-    // First check - verify our account's comment exists
-    const firstCheck = await checkCommentExists(urlToCheck, expectedAuthor);
+    // Get all account usernames to check if ANY of our accounts has a comment
+    const allAccounts = await prisma.redditAccount.findMany({
+      select: { username: true },
+    });
+    const validAuthors = allAccounts.map(acc => acc.username);
+
+    // First check - verify a comment from any of our accounts exists
+    const firstCheck = await checkCommentExists(urlToCheck, validAuthors);
     if (firstCheck) {
-      // Comment exists and author matches, no deletion
+      // Comment exists from one of our accounts, no deletion
       return { deleted: false, retried: false };
     }
 
-    // Comment appears deleted or author mismatch, wait 30 seconds and retry
-    console.log(`[DeletionDetection] Comment appears deleted for ${opportunityId} (author: ${expectedAuthor}), retrying in 30s...`);
+    // Comment appears deleted, wait 30 seconds and retry
+    console.log(`[DeletionDetection] Comment appears deleted for ${opportunityId} (assigned: ${assignedAuthor}), retrying in 30s...`);
     await new Promise((resolve) => setTimeout(resolve, 30000));
 
     // Second check (retry)
-    const secondCheck = await checkCommentExists(urlToCheck, expectedAuthor);
+    const secondCheck = await checkCommentExists(urlToCheck, validAuthors);
     return { deleted: !secondCheck, retried: true };
   } finally {
     await prisma.$disconnect().catch(() => {});

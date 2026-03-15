@@ -16,6 +16,13 @@ app.post("/deletions", async (c) => {
   try {
     console.log("[Reclassify] Starting reclassification...");
 
+    // Get all account usernames to check if ANY of our accounts has a comment
+    const allAccounts = await prisma.redditAccount.findMany({
+      select: { username: true },
+    });
+    const validAuthors = allAccounts.map(acc => acc.username);
+    console.log(`[Reclassify] Checking against ${validAuthors.length} accounts: ${validAuthors.join(', ')}`);
+
     // Get all opportunities marked as deleted_by_mod
     const deletedOpportunities = await prisma.opportunity.findMany({
       where: {
@@ -58,12 +65,12 @@ app.post("/deletions", async (c) => {
       console.log(`[${checked}/${deletedOpportunities.length}] Checking: ${opp.title.substring(0, 50)}...`);
 
       try {
-        // Check if comment actually exists
-        const exists = await checkCommentExists(opp.permalinkUrl, opp.account.username);
+        // Check if comment exists from ANY of our accounts
+        const exists = await checkCommentExists(opp.permalinkUrl, validAuthors);
 
         if (exists) {
-          // Comment still exists - this was a false positive!
-          console.log(`  ✓ COMMENT EXISTS - Reclassifying to published`);
+          // Comment still exists from one of our accounts - this was a false positive!
+          console.log(`  ✓ COMMENT EXISTS (from one of our accounts) - Reclassifying to published`);
 
           await prisma.opportunity.update({
             where: { id: opp.id },
