@@ -403,11 +403,13 @@ export async function runDeletionDetection(): Promise<DeletionCheckResult> {
       where: {
         status: "published",
         permalinkUrl: { not: null },
+        threadUrl: { not: null },
         createdAt: { gte: cutoffDate },
       },
       select: {
         id: true,
         permalinkUrl: true,
+        threadUrl: true,
         title: true,
         subreddit: true,
         opportunityType: true,
