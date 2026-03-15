@@ -284,7 +284,57 @@ async function checkThreadForOurComments(
       return false;
     };
 
-    return findOurComments(data[1]?.data?.children || []);
+    const foundInThread = findOurComments(data[1]?.data?.children || []);
+    
+    if (foundInThread) {
+      return true;
+    }
+
+    // Fallback: Reddit's JSON API doesn't always return all comments
+    // Check each account's recent comment history to see if they commented on this thread
+    const threadId = threadJsonUrl.match(/\/comments\/([^\/]+)\//)?.[1];
+    if (!threadId) {
+      return false;
+    }
+
+    console.log(`[DeletionDetection] Comment not found in thread JSON, checking user histories for thread ${threadId}`);
+
+    for (const username of validAuthors) {
+      try {
+        const userCommentsUrl = `https://www.reddit.com/user/${username}/comments.json?limit=100`;
+        const userResponse = await fetch(userCommentsUrl, { headers });
+        
+        if (!userResponse.ok) {
+          continue;
+        }
+
+        const userData = await userResponse.json();
+        const userComments = userData?.data?.children || [];
+
+        for (const comment of userComments) {
+          if (comment.kind === "t1") {
+            const commentData = comment.data;
+            const linkId = commentData.link_id || "";
+            
+            // Check if this comment is on our thread (link_id format: t3_threadid)
+            if (linkId === `t3_${threadId}`) {
+              const body = commentData.body || "";
+              
+              // Make sure it's not deleted
+              if (body !== "[removed]" && body !== "[deleted]" && body) {
+                console.log(`[DeletionDetection] Found comment from ${username} on thread via user history`);
+                return true;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`[DeletionDetection] Error checking ${username} history:`, error);
+        continue;
+      }
+    }
+
+    return false;
   } catch (error) {
     console.error("[DeletionDetection] Error checking thread:", error);
     return true; // Assume exists on error to avoid false positives
