@@ -136,7 +136,10 @@ jobs:
 
             # Fast rebuild with BuildKit and layer caching
             echo "=== Building and deploying ==="
-            DOCKER_BUILDKIT=1 docker compose -f docker-compose.production.yml up -d --build --remove-orphans
+            export DOCKER_BUILDKIT=1
+            export COMPOSE_DOCKER_CLI_BUILD=1
+            docker compose -f docker-compose.production.yml build --build-arg BUILDKIT_INLINE_CACHE=1
+            docker compose -f docker-compose.production.yml up -d --remove-orphans
 
             # Quick health check
             echo "=== Waiting for backend ==="

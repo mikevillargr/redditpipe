@@ -195,40 +195,99 @@ export async function checkOpportunityDeletion(
       },
     });
 
-    if (!opportunity?.permalinkUrl) {
+    if (!opportunity?.threadUrl) {
+      console.warn(`[DeletionDetection] No thread URL found for ${opportunityId}, skipping`);
       return { deleted: false, retried: false };
     }
 
-    const urlToCheck = opportunity.permalinkUrl;
-    const assignedAuthor = opportunity.account?.username;
-
-    if (!assignedAuthor) {
-      console.warn(`[DeletionDetection] No account username found for ${opportunityId}, skipping`);
-      return { deleted: false, retried: false };
-    }
-
-    // Get all account usernames to check if ANY of our accounts has a comment
+    // Get all account usernames to check if ANY of our accounts has a comment on the thread
     const allAccounts = await prisma.redditAccount.findMany({
       select: { username: true },
     });
     const validAuthors = allAccounts.map(acc => acc.username);
 
-    // First check - verify a comment from any of our accounts exists
-    const firstCheck = await checkCommentExists(urlToCheck, validAuthors);
+    // Check the entire thread for comments from any of our accounts
+    const threadUrl = opportunity.threadUrl.replace(/\/$/, "") + "/.json?limit=500&depth=10";
+    const config = await getRedditConfig();
+    const headers: Record<string, string> = {
+      "User-Agent": "RedditPipe/2.0",
+    };
+
+    if (config.mode === "oauth" && config.token) {
+      headers["Authorization"] = `Bearer ${config.token}`;
+    }
+
+    // First check
+    const firstCheck = await checkThreadForOurComments(threadUrl, headers, validAuthors);
     if (firstCheck) {
-      // Comment exists from one of our accounts, no deletion
+      // Found comment from one of our accounts on the thread
       return { deleted: false, retried: false };
     }
 
-    // Comment appears deleted, wait 30 seconds and retry
-    console.log(`[DeletionDetection] Comment appears deleted for ${opportunityId} (assigned: ${assignedAuthor}), retrying in 30s...`);
+    // No comments found, wait 30 seconds and retry
+    console.log(`[DeletionDetection] No comments found on thread for ${opportunityId}, retrying in 30s...`);
     await new Promise((resolve) => setTimeout(resolve, 30000));
 
     // Second check (retry)
-    const secondCheck = await checkCommentExists(urlToCheck, validAuthors);
+    const secondCheck = await checkThreadForOurComments(threadUrl, headers, validAuthors);
     return { deleted: !secondCheck, retried: true };
   } finally {
     await prisma.$disconnect().catch(() => {});
+  }
+}
+
+/**
+ * Check if any comments from our accounts exist anywhere on the thread
+ */
+async function checkThreadForOurComments(
+  threadJsonUrl: string,
+  headers: Record<string, string>,
+  validAuthors: string[]
+): Promise<boolean> {
+  try {
+    const response = await fetch(threadJsonUrl, { headers });
+    
+    if (!response.ok) {
+      console.warn(`[DeletionDetection] Reddit API returned ${response.status}`);
+      return true; // Assume exists on error to avoid false positives
+    }
+
+    const data = await response.json();
+
+    // Recursively search for comments from our accounts
+    const findOurComments = (children: any[]): boolean => {
+      for (const child of children || []) {
+        if (child.kind === "t1") {
+          const commentData = child.data;
+          const author = commentData.author || "";
+          const body = commentData.body || "";
+
+          // Skip deleted/removed comments
+          if (body === "[removed]" || body === "[deleted]" || author === "[deleted]") {
+            continue;
+          }
+
+          // Check if this is from one of our accounts
+          if (validAuthors.includes(author)) {
+            console.log(`[DeletionDetection] Found comment from ${author} on thread`);
+            return true;
+          }
+
+          // Check replies
+          if (commentData.replies?.data?.children) {
+            if (findOurComments(commentData.replies.data.children)) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    };
+
+    return findOurComments(data[1]?.data?.children || []);
+  } catch (error) {
+    console.error("[DeletionDetection] Error checking thread:", error);
+    return true; // Assume exists on error to avoid false positives
   }
 }
 
