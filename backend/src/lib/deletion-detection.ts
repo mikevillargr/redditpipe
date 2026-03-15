@@ -224,9 +224,9 @@ export async function checkOpportunityDeletion(
       return { deleted: false, retried: false };
     }
 
-    // No comments found, wait 30 seconds and retry
-    console.log(`[DeletionDetection] No comments found on thread for ${opportunityId}, retrying in 30s...`);
-    await new Promise((resolve) => setTimeout(resolve, 30000));
+    // No comments found, wait 10 seconds and retry (reduced from 30s)
+    console.log(`[DeletionDetection] No comments found on thread for ${opportunityId}, retrying in 10s...`);
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
     // Second check (retry)
     const secondCheck = await checkThreadForOurComments(threadUrl, headers, validAuthors);
@@ -328,8 +328,8 @@ async function checkThreadForOurComments(
                 const permalinkUrl = `https://www.reddit.com/r/${commentData.subreddit}/comments/${threadId}/comment/${commentId}/.json`;
                 
                 try {
-                  // Add delay to avoid rate limits
-                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  // Add delay to avoid rate limits (2.5s to stay well under Reddit's limits)
+                  await new Promise(resolve => setTimeout(resolve, 2500));
                   
                   const permalinkResponse = await fetch(permalinkUrl, { headers });
                   if (permalinkResponse.ok) {

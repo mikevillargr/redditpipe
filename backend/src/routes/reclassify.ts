@@ -161,8 +161,8 @@ app.post("/deletions", async (c) => {
                         const permalinkUrl = `https://www.reddit.com/r/${subreddit}/comments/${threadId}/comment/${commentId}/.json`;
                         
                         try {
-                          // Add delay to avoid rate limits
-                          await new Promise(resolve => setTimeout(resolve, 1500));
+                          // Add delay to avoid rate limits (2.5s to stay well under Reddit's limits)
+                          await new Promise(resolve => setTimeout(resolve, 2500));
                           
                           const permalinkResponse = await fetch(permalinkUrl, { headers });
                           if (permalinkResponse.ok) {
