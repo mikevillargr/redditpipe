@@ -46,47 +46,40 @@ app.post("/on-demand", async (c) => {
       return c.json({ error: "Account not found" }, 404);
     }
 
-    // Fetch client details (use first active client if not specified)
-    let client;
+    // Fetch client details ONLY if explicitly specified
+    // For casual browsing/organic posts, no client means no citation
+    let client = null;
     if (clientId) {
       client = await prisma.client.findUnique({
         where: { id: clientId },
         select: { id: true, name: true, websiteUrl: true, description: true, mentionTerms: true },
       });
-    } else {
-      // Get first active client as default
-      const clients = await prisma.client.findMany({
-        where: { status: "active" },
-        select: { id: true, name: true, websiteUrl: true, description: true, mentionTerms: true },
-        take: 1,
-      });
-      client = clients[0] || null;
-    }
-
-    if (!client) {
-      return c.json({ error: "No active client found. Please specify a clientId or activate a client." }, 400);
+      
+      if (!client) {
+        return c.json({ error: "Client not found" }, 404);
+      }
     }
 
     // Build context for AI generation
-    let contextBody = threadBody;
-    let contextNote = "";
-
+    // If replying to a comment, modify the thread body to include that context
+    let effectiveThreadBody = threadBody;
+    
     if (parentCommentBody) {
-      // Replying to a comment
-      contextNote = `\n\nYou are replying to this comment by u/${parentCommentAuthor || "unknown"}:\n"${parentCommentBody}"`;
-      contextBody = threadBody + contextNote;
+      // Replying to a comment - prepend the parent comment context
+      effectiveThreadBody = `CONTEXT: You are replying to this comment by u/${parentCommentAuthor}:\n"${parentCommentBody}"\n\nOriginal thread: ${threadBody}`;
     }
 
-    // Generate AI draft using the same logic as opportunities
+    // Generate AI draft
     const aiDraftReply = await generateReplyDraft({
       threadTitle,
-      threadBody: contextBody,
+      threadBody: effectiveThreadBody,
       topComments: "", // Not available for on-demand generation
       subreddit,
-      clientName: client.name,
-      clientUrl: client.websiteUrl || "",
-      clientDescription: client.description || "",
-      clientMentionTerms: client.mentionTerms || client.name,
+      // Only include client info if a client was specified
+      clientName: client?.name || "",
+      clientUrl: client?.websiteUrl || "",
+      clientDescription: client?.description || "",
+      clientMentionTerms: client?.mentionTerms || "",
       accountUsername: account.username,
       accountPersonality: account.personalitySummary || undefined,
       accountStyleNotes: account.writingStyleNotes || undefined,
@@ -99,10 +92,10 @@ app.post("/on-demand", async (c) => {
         id: account.id,
         username: account.username,
       },
-      client: {
+      client: client ? {
         id: client.id,
         name: client.name,
-      },
+      } : null,
       context: {
         threadTitle,
         threadUrl,
