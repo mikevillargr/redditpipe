@@ -17,6 +17,7 @@ import deletionCheckRoutes from "./routes/deletion-check.js";
 import deletionAnalysisRoutes from "./routes/deletion-analysis.js";
 import reclassifyRoutes from "./routes/reclassify.js";
 import fixPermalinksRoutes from "./routes/fix-permalinks.js";
+import generateRoutes from "./routes/generate.js";
 import { initCronJobs } from "./lib/cron.js";
 
 const app = new Hono();
@@ -48,6 +49,7 @@ app.route("/api/deletion-check", deletionCheckRoutes);
 app.route("/api/deletion-analysis", deletionAnalysisRoutes);
 app.route("/api/reclassify", reclassifyRoutes);
 app.route("/api/fix-permalinks", fixPermalinksRoutes);
+app.route("/api/generate", generateRoutes);
 
 // Start server
 const port = parseInt(process.env.PORT || "8000", 10);
