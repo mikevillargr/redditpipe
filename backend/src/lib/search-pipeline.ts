@@ -345,11 +345,13 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           continue; // Skip this thread instead of using heuristic score
         }
       } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
-        if (heuristicScore < relevanceThreshold) {
-          skippedLowScore++;
-          continue;
-        }
-      } else if (heuristicScore < relevanceThreshold) {
+        // AI budget exhausted - skip all remaining threads to ensure 100% AI validation
+        console.log(`[Search] AI budget exhausted (${MAX_AI_CALLS_TOTAL} calls), skipping ${thread.threadId}`);
+        skippedLowScore++;
+        continue;
+      } else if (!hasAiKey) {
+        // No AI key configured - skip all threads to ensure 100% AI validation
+        console.log(`[Search] No AI key configured, skipping ${thread.threadId}`);
         skippedLowScore++;
         continue;
       }
