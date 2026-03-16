@@ -230,27 +230,44 @@ app.post("/:id/rewrite", async (c) => {
 
     const opportunity = await prisma.opportunity.findUnique({
       where: { id },
-      include: { client: true, account: true },
+      include: { client: true, account: true, parentOpportunity: true },
     });
     if (!opportunity) return c.json({ error: "Not found" }, 404);
 
     let newDraft: string;
 
     if (!opportunity.aiDraftReply || action === "regenerate") {
-      newDraft = await generateReplyDraft({
-        threadTitle: opportunity.title,
-        threadBody: opportunity.bodySnippet || "",
-        topComments: opportunity.topComments || "",
-        subreddit: opportunity.subreddit,
-        clientName: opportunity.client?.name || "the client",
-        clientUrl: opportunity.client?.websiteUrl || "",
-        clientDescription: opportunity.client?.description || "",
-        clientMentionTerms: opportunity.client?.mentionTerms || opportunity.client?.name || "",
-        accountUsername: opportunity.account?.username,
-        accountPersonality: opportunity.account?.personalitySummary || undefined,
-        accountStyleNotes: opportunity.account?.writingStyleNotes || undefined,
-        accountSampleComments: opportunity.account?.sampleComments || undefined,
-      });
+      // Check if this is a pile-on opportunity
+      if (opportunity.opportunityType === "pile_on" && opportunity.parentOpportunity) {
+        // Import generatePileOnComment dynamically
+        const { generatePileOnComment } = await import("../lib/ai-pile-on.js");
+        
+        newDraft = await generatePileOnComment({
+          primaryComment: opportunity.parentOpportunity.aiDraftReply || "",
+          threadTitle: opportunity.title,
+          threadBody: opportunity.bodySnippet || "",
+          clientName: opportunity.client?.name || "the client",
+          clientDescription: opportunity.client?.description || "",
+          pileOnAccountPersonality: opportunity.account?.personalitySummary || null,
+          pileOnAccountWritingStyle: opportunity.account?.writingStyleNotes || null,
+        });
+      } else {
+        // Standard primary opportunity reply
+        newDraft = await generateReplyDraft({
+          threadTitle: opportunity.title,
+          threadBody: opportunity.bodySnippet || "",
+          topComments: opportunity.topComments || "",
+          subreddit: opportunity.subreddit,
+          clientName: opportunity.client?.name || "the client",
+          clientUrl: opportunity.client?.websiteUrl || "",
+          clientDescription: opportunity.client?.description || "",
+          clientMentionTerms: opportunity.client?.mentionTerms || opportunity.client?.name || "",
+          accountUsername: opportunity.account?.username,
+          accountPersonality: opportunity.account?.personalitySummary || undefined,
+          accountStyleNotes: opportunity.account?.writingStyleNotes || undefined,
+          accountSampleComments: opportunity.account?.sampleComments || undefined,
+        });
+      }
     } else {
       newDraft = await rewriteReply(
         opportunity.aiDraftReply,
