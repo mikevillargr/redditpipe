@@ -48,7 +48,7 @@ export async function createPileOnOpportunities(
       },
     });
 
-    const maxPileOns = settings.pileOnMaxPerPrimary || 2;
+    const maxPileOns = settings.pileOnMaxPerPrimary || 1;
     const toCreate = Math.max(0, maxPileOns - existingPileOns);
 
     if (toCreate === 0) {

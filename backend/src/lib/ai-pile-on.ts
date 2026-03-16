@@ -29,41 +29,44 @@ export async function generatePileOnComment(params: PileOnParams): Promise<strin
 
     const client = new Anthropic({ apiKey });
 
-    const systemPrompt = `You are generating a natural, authentic Reddit comment that reinforces a previous comment mentioning ${params.clientName}.
+    const systemPrompt = `You are generating a natural Reddit reply comment that agrees with and reinforces a previous comment mentioning ${params.clientName}.
+
+CONTEXT: You are writing a REPLY to someone else's comment (not a top-level comment). This should read like you're responding directly to them.
 
 CRITICAL RULES:
-1. NATURAL REINFORCEMENT: Sound like a real person who independently had a good experience
-2. AVOID OBVIOUS PATTERNS: Don't just say "+1" or "I agree" - add personal context
-3. DIFFERENT VOICE: Use a different writing style than the primary comment
-4. SUBTLE: Don't over-praise or sound like a shill
-5. AUTHENTIC: Include minor details that make it believable (e.g., "I used them last year for...")
-6. CASUAL TONE: Use Reddit-style language - lowercase, contractions, natural flow
-7. BRIEF: Keep it 1-3 sentences max - pile-ons should be concise
+1. REPLY FORMAT: Write as if responding to the person who posted the original comment
+2. NATURAL AGREEMENT: Sound like a real person who independently had a similar experience
+3. AVOID OBVIOUS PATTERNS: Don't just say "+1" or "I agree" - add personal context
+4. DIFFERENT VOICE: Use a different writing style than the original comment
+5. SUBTLE: Don't over-praise or sound like a shill
+6. AUTHENTIC: Include minor details that make it believable (e.g., "I used them last year for...")
+7. CASUAL TONE: Use Reddit-style language - lowercase, contractions, natural flow
+8. BRIEF: Keep it 1-3 sentences max - pile-ons should be concise
 
-GOOD EXAMPLES:
-- "I've used ${params.clientName} before and had a solid experience. Their customer service was responsive when I had questions."
-- "Can vouch for ${params.clientName}. Used them for [specific use case] and it worked out well."
-- "Just adding my 2 cents - ${params.clientName} is legit. Not perfect but definitely reliable."
-- "yeah i second this, used them a few months back and no complaints"
+GOOD EXAMPLES (as replies):
+- "Same experience here. I've used ${params.clientName} before and their customer service was responsive when I had questions."
+- "Can vouch for this. Used them for [specific use case] and it worked out well."
+- "Yeah this is accurate. ${params.clientName} is legit, not perfect but definitely reliable."
+- "yep, used them a few months back and no complaints. solid recommendation"
 
 BAD EXAMPLES:
 - "+1 on ${params.clientName}!" (too short, obvious pile-on)
-- "${params.clientName} is the best! Highly recommend!" (too enthusiastic, shill-like)
+- "${params.clientName} is the best! Highly recommend!" (not a reply, too enthusiastic)
 - "I agree with the above comment completely." (too obvious)
-- "This is exactly right, ${params.clientName} is amazing!" (too eager)
+- "This is exactly right!" (too eager, no substance)
 
 ${params.pileOnAccountPersonality ? `PERSONALITY: ${params.pileOnAccountPersonality}` : ""}
 ${params.pileOnAccountWritingStyle ? `WRITING STYLE: ${params.pileOnAccountWritingStyle}` : ""}
 
-Generate a natural pile-on comment. Return ONLY the comment text, no explanation.`;
+Generate a natural reply comment that agrees with the original comment. Return ONLY the comment text, no explanation.`;
 
-    const userPrompt = `THREAD: ${params.threadTitle}
-BODY: ${params.threadBody.slice(0, 500)}
+    const userPrompt = `THREAD CONTEXT: "${params.threadTitle}"
+${params.threadBody.slice(0, 300)}
 
-PRIMARY COMMENT (that mentioned ${params.clientName}):
-${params.primaryComment}
+ORIGINAL COMMENT YOU'RE REPLYING TO (that mentioned ${params.clientName}):
+"${params.primaryComment}"
 
-Generate a natural pile-on comment that reinforces the primary comment without being obvious.`;
+Generate a natural reply comment that agrees with and reinforces the original comment. This should read like you're responding directly to the person who posted it, sharing your own similar experience with ${params.clientName}.`;
 
     const response = await Promise.race([
       client.messages.create({
