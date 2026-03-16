@@ -57,7 +57,7 @@ export async function createPileOnOpportunities(
     }
 
     // Calculate eligible time (when pile-on can be published)
-    const minDelayHours = settings.pileOnDelayMinHours || 2;
+    const minDelayHours = settings.pileOnDelayMinHours || 24;
     const pileOnEligibleAt = new Date(Date.now() + minDelayHours * 60 * 60 * 1000);
 
     // Create pile-on opportunities
@@ -134,7 +134,7 @@ export async function createManualPileOn(
     }
 
     // Calculate eligible time
-    const minDelayHours = settings.pileOnDelayMinHours || 2;
+    const minDelayHours = settings.pileOnDelayMinHours || 24;
     const pileOnEligibleAt = new Date(Date.now() + minDelayHours * 60 * 60 * 1000);
 
     // Create pile-on opportunity
