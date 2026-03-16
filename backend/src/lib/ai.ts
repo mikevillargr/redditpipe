@@ -71,6 +71,7 @@ export async function generateReplyDraft(params: GenerateReplyParams): Promise<s
   }
 
   let systemPrompt: string;
+  const hasClient = params.clientName && params.clientName.trim().length > 0;
 
   if (params.accountUsername) {
     systemPrompt = `You are writing a Reddit reply as the user u/${params.accountUsername}.
@@ -89,9 +90,9 @@ ${params.accountSampleComments || "No sample comments available."}
 
 CORE RULES:
 - Match this user's writing style EXACTLY — sentence length, punctuation, casualness, vocabulary
-- Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
-- Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
-- Do NOT make it the only recommendation — mention 1-2 other options
+- Be genuinely helpful and provide useful information${hasClient ? ` — answer the question FIRST, then naturally work in the recommendation` : ''}
+${hasClient ? `- Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
+- Do NOT make it the only recommendation — mention 1-2 other options` : '- Provide helpful advice without promoting any specific products or services'}
 - Do NOT use marketing language or superlatives
 - Do NOT start with "Hey!", "Great question!", or any acknowledgment phrases like "You're right", "That's a great point", etc.
 - Jump straight into the helpful content without preambles or validating the OP's statement
@@ -121,9 +122,9 @@ ${specialInstructions ? `CRITICAL WRITING REQUIREMENTS (HIGHEST PRIORITY - FOLLO
 ${specialInstructions}
 
 ` : ''}CORE RULES:
-- Be genuinely helpful — answer the question FIRST, then naturally work in the recommendation
-- Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
-- Do NOT make it the only recommendation — mention 1-2 other options
+- Be genuinely helpful and provide useful information${hasClient ? ` — answer the question FIRST, then naturally work in the recommendation` : ''}
+${hasClient ? `- Mention ${params.clientName} using one of these terms naturally: ${params.clientMentionTerms}
+- Do NOT make it the only recommendation — mention 1-2 other options` : '- Provide helpful advice without promoting any specific products or services'}
 - Do NOT use marketing language or superlatives
 - Do NOT start with "Hey!", "Great question!", or any acknowledgment phrases like "You're right", "That's a great point", etc.
 - Jump straight into the helpful content without preambles or validating the OP's statement
@@ -147,13 +148,13 @@ Title: ${params.threadTitle}
 Thread body: ${params.threadBody}
 Top comments: ${params.topComments}
 
-CLIENT TO REFERENCE:
+${hasClient ? `CLIENT TO REFERENCE:
 Name: ${params.clientName}
 URL: ${params.clientUrl}
 Description: ${params.clientDescription}
 Mention terms (use the most natural one): ${params.clientMentionTerms}
 
-Write a Reddit reply now.`;
+` : ''}Write a helpful, natural Reddit reply now.`;
 
   const response = await client.messages.create({
     model: getReplyModel(),
