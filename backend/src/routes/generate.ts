@@ -22,6 +22,8 @@ app.post("/on-demand", async (c) => {
     const body = await c.req.json() as OnDemandGenerateRequest;
     const { accountId, clientId, threadTitle, threadBody, threadUrl, subreddit, parentCommentBody, parentCommentAuthor } = body;
 
+    console.log('[Generate On-Demand] Request received:', { accountId, threadTitle, subreddit, hasParentComment: !!parentCommentBody });
+
     if (!accountId || !threadTitle || !threadUrl || !subreddit) {
       return c.json({ error: "Missing required fields: accountId, threadTitle, threadUrl, subreddit" }, 400);
     }
@@ -37,6 +39,8 @@ app.post("/on-demand", async (c) => {
         sampleComments: true,
       },
     });
+
+    console.log('[Generate On-Demand] Account lookup result:', account ? `Found: ${account.username}` : 'Not found');
 
     if (!account) {
       return c.json({ error: "Account not found" }, 404);
