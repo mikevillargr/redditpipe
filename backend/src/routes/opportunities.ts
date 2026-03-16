@@ -29,6 +29,22 @@ app.get("/", async (c) => {
       if (startDate) (where.createdAt as Record<string, unknown>).gte = new Date(startDate);
       if (endDate) (where.createdAt as Record<string, unknown>).lte = new Date(endDate + "T23:59:59.999Z");
     }
+    
+    // Filter pile-on opportunities: only show if pileOnEligibleAt has passed
+    where.OR = [
+      { opportunityType: { not: "pile_on" } }, // Show all non-pile-on opportunities
+      { 
+        AND: [
+          { opportunityType: "pile_on" },
+          { 
+            OR: [
+              { pileOnEligibleAt: null }, // Show if no eligible time set
+              { pileOnEligibleAt: { lte: new Date() } } // Show if eligible time has passed
+            ]
+          }
+        ]
+      }
+    ];
 
     // Sort published opportunities by publishedAt (most recent first), others by createdAt
     const orderBy = status === "published" 
