@@ -104,7 +104,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const MAX_AI_CALLS_TOTAL = settings?.maxAiCallsTotal ?? 200;
     const MAX_OPPS_PER_CLIENT = settings?.maxOppsPerClient ?? 20;
     const MAX_OPPS_TOTAL = settings?.maxOppsTotal ?? 50;
-    const HEURISTIC_PRE_FILTER = 0.25; // threads below this skip AI entirely
+    const HEURISTIC_PRE_FILTER = 0.40; // threads below this skip AI entirely
 
     clearConfigCache();
     const redditConfig = await getRedditConfig();
@@ -340,7 +340,9 @@ export async function runSearchPipeline(): Promise<SearchResult> {
             continue;
           }
         } catch (err) {
-          console.error(`AI scoring failed for ${thread.threadId}/${client.name}, using heuristic:`, err);
+          console.error(`AI scoring failed for ${thread.threadId}/${client.name}, skipping:`, err);
+          skippedLowScore++;
+          continue; // Skip this thread instead of using heuristic score
         }
       } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
         if (heuristicScore < relevanceThreshold) {

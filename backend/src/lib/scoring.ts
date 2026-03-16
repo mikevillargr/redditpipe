@@ -57,7 +57,7 @@ export function computeRelevanceScore(params: ScoringParams): number {
       const words = kwLower.split(/\s+/).filter((w) => w.length > 2);
       if (words.length > 0) {
         const matched = words.filter((w) => text.includes(w)).length;
-        kwScore = matched / words.length * 0.6; // partial match worth up to 60%
+        kwScore = matched / words.length * 0.4; // partial match worth up to 40%
       }
     }
     if (kwScore > 0.3) matchedKeywords++;
