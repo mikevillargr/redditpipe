@@ -40,15 +40,21 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
     });
     if (res.ok) {
       const xml = await res.text();
-      const titleMatches = xml.matchAll(/<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<description><!\[CDATA\[(.*?)\]\]><\/description>[\s\S]*?<\/item>/gi);
+      // Match title and link separately - description is complex with nested HTML
+      const titleMatches = xml.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<\/item>/gi);
       let count = 0;
       for (const m of titleMatches) {
         if (count >= 15) break;
-        // Extract snippet from description (remove HTML tags)
-        const snippet = m[3]?.replace(/<[^>]*>/g, '').slice(0, 200) || "";
+        // Remove CDATA wrapper if present
+        let title = m[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim();
+        const url = m[2].trim();
+        
+        // Extract first sentence as snippet from title
+        const snippet = title.split(/[.!?]/)[0].slice(0, 150);
+        
         items.push({ 
-          title: m[1], 
-          url: m[2], 
+          title, 
+          url, 
           snippet, 
           source: "Google News" 
         });
