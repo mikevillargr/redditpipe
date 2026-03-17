@@ -81,10 +81,20 @@ app.get("/trending", async (c) => {
     const topics: TrendingTopic[] = [];
 
     // Get Reddit OAuth token for authenticated requests
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
     const { getRedditAccessToken } = await import("../lib/reddit.js");
     let redditToken: string | null = null;
     try {
-      redditToken = await getRedditAccessToken();
+      if (settings?.redditClientId && settings?.redditClientSecret && settings?.redditUsername && settings?.redditPassword) {
+        redditToken = await getRedditAccessToken(
+          settings.redditClientId,
+          settings.redditClientSecret,
+          settings.redditUsername,
+          settings.redditPassword
+        );
+      } else {
+        console.warn("[Warming] Reddit OAuth credentials not configured in settings");
+      }
     } catch (err) {
       console.warn("[Warming] Failed to get Reddit OAuth token:", err);
     }
