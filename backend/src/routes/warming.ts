@@ -17,212 +17,86 @@ interface TrendingTopic {
   commentCount: number;
   snippet: string;
   suggestedAction: "reply" | "new_thread";
-  category: "trending" | "discussion" | "question" | "news";
-  source: "reddit" | "news";
+  category: "trending" | "discussion" | "question";
 }
 
-// ── News fetching via DuckDuckGo ────────────────────────────────────────────
-interface NewsItem {
-  title: string;
-  url: string;
-  snippet: string;
-  source: string;
-}
-
-async function fetchTrendingNews(): Promise<NewsItem[]> {
-  const items: NewsItem[] = [];
-  
-  // Try Google News RSS first (most reliable, no auth needed)
-  try {
-    const res = await fetch("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; RedditPipe/2.0)" },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (res.ok) {
-      const xml = await res.text();
-      // Match title and link separately - description is complex with nested HTML
-      const titleMatches = xml.matchAll(/<item>[\s\S]*?<title>(.*?)<\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<\/item>/gi);
-      let count = 0;
-      for (const m of titleMatches) {
-        if (count >= 15) break;
-        // Remove CDATA wrapper if present
-        let title = m[1].replace(/<!\[CDATA\[(.*?)\]\]>/g, '$1').trim();
-        const url = m[2].trim();
-        
-        // Extract first sentence as snippet from title
-        const snippet = title.split(/[.!?]/)[0].slice(0, 150);
-        
-        items.push({ 
-          title, 
-          url, 
-          snippet, 
-          source: "Google News" 
-        });
-        count++;
-      }
-      console.log(`[Warming] Fetched ${items.length} news items from Google News RSS`);
-    } else {
-      console.warn(`[Warming] Google News RSS fetch failed: ${res.status}`);
-    }
-  } catch (err) {
-    console.error("[Warming] Google News RSS fetch error:", err);
-  }
-  
-  return items;
-}
-
-// GET /api/warming/trending — fetch trending Reddit topics + news for account warming
+// GET /api/warming/trending — fetch trending Reddit topics for account warming
 app.get("/trending", async (c) => {
   try {
-    const subreddits = c.req.query("subreddits")?.split(",").filter(Boolean) || [];
-
-    const defaultSubs = [
-      "AskReddit", "todayilearned", "LifeProTips", "explainlikeimfive",
-      "CasualConversation", "NoStupidQuestions", "technology", "personalfinance",
-      "productivity", "books", "movies", "gaming", "fitness", "cooking",
-      "DIY", "smallbusiness", "Entrepreneur",
-    ];
-    const targetSubs = subreddits.length > 0 ? subreddits : defaultSubs;
-
     const topics: TrendingTopic[] = [];
 
-    // Get Reddit OAuth token for authenticated requests
-    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-    const { getRedditAccessToken } = await import("../lib/reddit.js");
-    let redditToken: string | null = null;
-    let useOAuth = false;
+    // Fetch trending posts from r/popular only
+    const apiUrl = "https://www.reddit.com/r/popular/hot.json?limit=40";
     
     try {
-      if (settings?.redditClientId && settings?.redditClientSecret && settings?.redditUsername && settings?.redditPassword) {
-        redditToken = await getRedditAccessToken(
-          settings.redditClientId,
-          settings.redditClientSecret,
-          settings.redditUsername,
-          settings.redditPassword
-        );
-        useOAuth = true;
-      } else {
-        console.log("[Warming] Using public JSON endpoints (OAuth not configured)");
-      }
-    } catch (err) {
-      console.warn("[Warming] Failed to get Reddit OAuth token, falling back to public JSON:", err);
-    }
-
-    // Fetch Reddit trending - use OAuth or public JSON based on credentials
-    const redditUrls = useOAuth
-      ? [
-          "https://oauth.reddit.com/r/popular/hot?limit=15",
-          ...targetSubs.slice(0, 5).map((s) => `https://oauth.reddit.com/r/${s}/hot?limit=5`),
-        ]
-      : [
-          "https://www.reddit.com/r/popular/hot.json?limit=15",
-          ...targetSubs.slice(0, 5).map((s) => `https://www.reddit.com/r/${s}/hot.json?limit=5`),
-        ];
-
-    const [newsItems] = await Promise.all([
-      fetchTrendingNews(),
-    ]);
-
-    // Add news items as topics
-    for (const news of newsItems) {
-      topics.push({
-        title: news.title,
-        subreddit: news.source,
-        url: news.url,
-        score: 0,
-        commentCount: 0,
-        snippet: news.snippet,
-        suggestedAction: "new_thread",
-        category: "news",
-        source: "news",
+      const headers: Record<string, string> = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      };
+      
+      const res = await fetch(apiUrl, {
+        headers,
+        signal: AbortSignal.timeout(10_000),
       });
-    }
-
-    // Fetch Reddit topics
-    for (const apiUrl of redditUrls) {
-      try {
-        const headers: Record<string, string> = {
-          "User-Agent": "Mozilla/5.0 (compatible; RedditPipe/2.0)",
-        };
-        if (useOAuth && redditToken) {
-          headers["Authorization"] = `Bearer ${redditToken}`;
-        }
-        
-        const res = await fetch(apiUrl, {
-          headers,
-          signal: AbortSignal.timeout(8_000),
-        });
-        if (!res.ok) {
-          console.warn(`[Warming] Reddit fetch failed for ${apiUrl}: ${res.status}`);
-          continue;
-        }
-        const data = await res.json() as {
-          data: {
-            children: Array<{
-              data: {
-                title: string;
-                subreddit: string;
-                permalink: string;
-                score: number;
-                num_comments: number;
-                selftext: string;
-                link_flair_text: string | null;
-                over_18: boolean;
-                stickied: boolean;
-              };
-            }>;
-          };
-        };
-
-        for (const child of data.data.children) {
-          const post = child.data;
-          if (post.over_18 || post.stickied) continue;
-
-          const titleLower = post.title.toLowerCase();
-          let category: TrendingTopic["category"] = "trending";
-          if (/\?|how|what|why|should|recommend|help|advice|looking for/i.test(titleLower)) {
-            category = "question";
-          } else if (post.num_comments > 50) {
-            category = "discussion";
-          }
-
-          topics.push({
-            title: post.title,
-            subreddit: post.subreddit,
-            url: `https://www.reddit.com${post.permalink}`,
-            score: post.score,
-            commentCount: post.num_comments,
-            snippet: post.selftext?.slice(0, 200) || "",
-            suggestedAction: category === "question" ? "reply" : "reply",
-            category,
-            source: "reddit",
-          });
-        }
-
-        await new Promise((r) => setTimeout(r, 1500));
-      } catch (err) {
-        console.error(`[Warming] Reddit fetch error for ${apiUrl}:`, err);
+      if (!res.ok) {
+        console.error(`[Warming] Reddit fetch failed: ${res.status}`);
+        return c.json({ error: "Failed to fetch trending topics" }, 500);
       }
-    }
-    
-    console.log(`[Warming] Total topics before dedup: ${topics.length} (${topics.filter(t => t.source === 'news').length} news, ${topics.filter(t => t.source === 'reddit').length} reddit)`);
+      
+      const data = await res.json() as {
+        data: {
+          children: Array<{
+            data: {
+              title: string;
+              subreddit: string;
+              permalink: string;
+              score: number;
+              num_comments: number;
+              selftext: string;
+              link_flair_text: string | null;
+              over_18: boolean;
+              stickied: boolean;
+            };
+          }>;
+        };
+      };
 
-    // Dedupe and sort
-    const seen = new Set<string>();
-    const unique = topics.filter((t) => {
-      if (seen.has(t.url)) return false;
-      seen.add(t.url);
-      return true;
-    });
-    // News first, then by engagement
-    unique.sort((a, b) => {
-      if (a.source === "news" && b.source !== "news") return -1;
-      if (a.source !== "news" && b.source === "news") return 1;
+      for (const child of data.data.children) {
+        const post = child.data;
+        if (post.over_18 || post.stickied) continue;
+
+        const titleLower = post.title.toLowerCase();
+        let category: TrendingTopic["category"] = "trending";
+        if (/\?|how|what|why|should|recommend|help|advice|looking for/i.test(titleLower)) {
+          category = "question";
+        } else if (post.num_comments > 50) {
+          category = "discussion";
+        }
+
+        topics.push({
+          title: post.title,
+          subreddit: post.subreddit,
+          url: `https://www.reddit.com${post.permalink}`,
+          score: post.score,
+          commentCount: post.num_comments,
+          snippet: post.selftext?.slice(0, 200) || "",
+          suggestedAction: category === "question" ? "reply" : "reply",
+          category,
+        });
+      }
+      
+      console.log(`[Warming] Fetched ${topics.length} trending topics from r/popular`);
+    } catch (err) {
+      console.error("[Warming] Reddit fetch error:", err);
+      return c.json({ error: "Failed to fetch trending topics" }, 500);
+    }
+
+    // Sort by engagement
+    topics.sort((a, b) => {
       return (b.score + b.commentCount * 2) - (a.score + a.commentCount * 2);
     });
 
     return c.json({
-      topics: unique.slice(0, 40),
+      topics,
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
