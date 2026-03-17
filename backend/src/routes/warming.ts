@@ -42,8 +42,12 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
       for (const r of (data.results || []).slice(0, 10)) {
         items.push({ title: r.title, url: r.url, snippet: r.excerpt || "", source: r.source || "News" });
       }
+      console.log(`[Warming] Fetched ${items.length} news items from DuckDuckGo`);
+    } else {
+      console.warn(`[Warming] DuckDuckGo news fetch failed: ${res.status}`);
     }
-  } catch {
+  } catch (err) {
+    console.error("[Warming] DuckDuckGo news fetch error:", err);
     // Fallback: try RSS-style approach via Google News
     try {
       const res = await fetch("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", {
@@ -59,8 +63,13 @@ async function fetchTrendingNews(): Promise<NewsItem[]> {
           items.push({ title: m[1], url: m[2], snippet: "", source: "Google News" });
           count++;
         }
+        console.log(`[Warming] Fetched ${items.length} news items from Google News RSS`);
+      } else {
+        console.warn(`[Warming] Google News RSS fetch failed: ${res.status}`);
       }
-    } catch { /* ignore */ }
+    } catch (fallbackErr) {
+      console.error("[Warming] Google News RSS fetch error:", fallbackErr);
+    }
   }
   return items;
 }
@@ -112,7 +121,10 @@ app.get("/trending", async (c) => {
           headers: { "User-Agent": "RedditPipe/2.0 (warming)" },
           signal: AbortSignal.timeout(8_000),
         });
-        if (!res.ok) continue;
+        if (!res.ok) {
+          console.warn(`[Warming] Reddit fetch failed for ${apiUrl}: ${res.status}`);
+          continue;
+        }
         const data = await res.json() as {
           data: {
             children: Array<{
@@ -157,8 +169,12 @@ app.get("/trending", async (c) => {
         }
 
         await new Promise((r) => setTimeout(r, 1500));
-      } catch { /* skip */ }
+      } catch (err) {
+        console.error(`[Warming] Reddit fetch error for ${apiUrl}:`, err);
+      }
     }
+    
+    console.log(`[Warming] Total topics before dedup: ${topics.length} (${topics.filter(t => t.source === 'news').length} news, ${topics.filter(t => t.source === 'reddit').length} reddit)`);
 
     // Dedupe and sort
     const seen = new Set<string>();
