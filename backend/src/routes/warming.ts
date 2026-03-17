@@ -90,6 +90,8 @@ app.get("/trending", async (c) => {
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
     const { getRedditAccessToken } = await import("../lib/reddit.js");
     let redditToken: string | null = null;
+    let useOAuth = false;
+    
     try {
       if (settings?.redditClientId && settings?.redditClientSecret && settings?.redditUsername && settings?.redditPassword) {
         redditToken = await getRedditAccessToken(
@@ -98,18 +100,24 @@ app.get("/trending", async (c) => {
           settings.redditUsername,
           settings.redditPassword
         );
+        useOAuth = true;
       } else {
-        console.warn("[Warming] Reddit OAuth credentials not configured in settings");
+        console.log("[Warming] Using public JSON endpoints (OAuth not configured)");
       }
     } catch (err) {
-      console.warn("[Warming] Failed to get Reddit OAuth token:", err);
+      console.warn("[Warming] Failed to get Reddit OAuth token, falling back to public JSON:", err);
     }
 
-    // Fetch Reddit trending in parallel with news
-    const redditUrls = [
-      "https://oauth.reddit.com/r/popular/hot?limit=15",
-      ...targetSubs.slice(0, 5).map((s) => `https://oauth.reddit.com/r/${s}/hot?limit=5`),
-    ];
+    // Fetch Reddit trending - use OAuth or public JSON based on credentials
+    const redditUrls = useOAuth
+      ? [
+          "https://oauth.reddit.com/r/popular/hot?limit=15",
+          ...targetSubs.slice(0, 5).map((s) => `https://oauth.reddit.com/r/${s}/hot?limit=5`),
+        ]
+      : [
+          "https://www.reddit.com/r/popular/hot.json?limit=15",
+          ...targetSubs.slice(0, 5).map((s) => `https://www.reddit.com/r/${s}/hot.json?limit=5`),
+        ];
 
     const [newsItems] = await Promise.all([
       fetchTrendingNews(),
@@ -134,9 +142,9 @@ app.get("/trending", async (c) => {
     for (const apiUrl of redditUrls) {
       try {
         const headers: Record<string, string> = {
-          "User-Agent": "RedditPipe/2.0 (warming)",
+          "User-Agent": "Mozilla/5.0 (compatible; RedditPipe/2.0)",
         };
-        if (redditToken) {
+        if (useOAuth && redditToken) {
           headers["Authorization"] = `Bearer ${redditToken}`;
         }
         
