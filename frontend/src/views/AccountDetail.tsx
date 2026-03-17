@@ -828,8 +828,11 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 <TextField
                   label="Max posts per day"
                   type="number"
-                  value={maxPostsPerDay}
-                  onChange={(e) => setMaxPostsPerDay(Number(e.target.value))}
+                  value={maxPostsPerDay || ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value)
+                    setMaxPostsPerDay(val)
+                  }}
                   size="small"
                   fullWidth
                   inputProps={{
@@ -841,8 +844,11 @@ export function AccountDetail({ accountId, onBack }: AccountDetailProps) {
                 <TextField
                   label="Min hours between posts"
                   type="number"
-                  value={minHoursBetween}
-                  onChange={(e) => setMinHoursBetween(Number(e.target.value))}
+                  value={minHoursBetween || ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value)
+                    setMinHoursBetween(val)
+                  }}
                   size="small"
                   fullWidth
                   inputProps={{

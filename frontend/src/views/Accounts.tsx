@@ -560,8 +560,11 @@ function AddAccountModal({ open, onClose, onSave }: AddAccountModalProps) {
           <TextField
             label="Max Posts Per Day"
             type="number"
-            value={maxPostsPerDay}
-            onChange={(e) => setMaxPostsPerDay(Number(e.target.value))}
+            value={maxPostsPerDay || ''}
+            onChange={(e) => {
+              const val = e.target.value === '' ? 0 : Number(e.target.value)
+              setMaxPostsPerDay(val)
+            }}
             fullWidth
             size="small"
             inputProps={{

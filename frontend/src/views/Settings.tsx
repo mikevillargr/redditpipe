@@ -1352,8 +1352,11 @@ export function Settings() {
               <TextField
                 label="Max Pile-Ons Per Primary"
                 type="number"
-                value={pileOnMaxPerPrimary}
-                onChange={(e) => setPileOnMaxPerPrimary(Number(e.target.value))}
+                value={pileOnMaxPerPrimary || ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value)
+                  setPileOnMaxPerPrimary(val)
+                }}
                 fullWidth
                 size="small"
                 inputProps={{ min: 1, max: 5 }}
@@ -1365,8 +1368,11 @@ export function Settings() {
                 <TextField
                   label="Min Delay (hours)"
                   type="number"
-                  value={pileOnDelayMinHours}
-                  onChange={(e) => setPileOnDelayMinHours(Number(e.target.value))}
+                  value={pileOnDelayMinHours || ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value)
+                    setPileOnDelayMinHours(val)
+                  }}
                   size="small"
                   inputProps={{ min: 1, max: 48 }}
                   helperText="Minimum hours before pile-on"
@@ -1375,8 +1381,11 @@ export function Settings() {
                 <TextField
                   label="Max Delay (hours)"
                   type="number"
-                  value={pileOnDelayMaxHours}
-                  onChange={(e) => setPileOnDelayMaxHours(Number(e.target.value))}
+                  value={pileOnDelayMaxHours || ''}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Number(e.target.value)
+                    setPileOnDelayMaxHours(val)
+                  }}
                   size="small"
                   inputProps={{ min: 1, max: 72 }}
                   helperText="Maximum hours for pile-on"
@@ -1387,8 +1396,11 @@ export function Settings() {
               <TextField
                 label="Max Pile-Ons Per Opportunity (Legacy)"
                 type="number"
-                value={pileOnMaxPerOpportunity}
-                onChange={(e) => setPileOnMaxPerOpportunity(Number(e.target.value))}
+                value={pileOnMaxPerOpportunity || ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value)
+                  setPileOnMaxPerOpportunity(val)
+                }}
                 fullWidth
                 size="small"
                 inputProps={{ min: 1, max: 5 }}
@@ -1399,8 +1411,11 @@ export function Settings() {
               <TextField
                 label="Cooldown Period (days)"
                 type="number"
-                value={pileOnCooldownDays}
-                onChange={(e) => setPileOnCooldownDays(Number(e.target.value))}
+                value={pileOnCooldownDays || ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value)
+                  setPileOnCooldownDays(val)
+                }}
                 fullWidth
                 size="small"
                 inputProps={{ min: 1, max: 90 }}
@@ -1487,8 +1502,11 @@ export function Settings() {
               <TextField
                 label="Days to Check Back"
                 type="number"
-                value={deletionCheckDays}
-                onChange={(e) => setDeletionCheckDays(Number(e.target.value))}
+                value={deletionCheckDays || ''}
+                onChange={(e) => {
+                  const val = e.target.value === '' ? 0 : Number(e.target.value)
+                  setDeletionCheckDays(val)
+                }}
                 fullWidth
                 size="small"
                 inputProps={{ min: 1, max: 365 }}
