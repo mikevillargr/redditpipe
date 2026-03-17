@@ -31,46 +31,37 @@ interface NewsItem {
 
 async function fetchTrendingNews(): Promise<NewsItem[]> {
   const items: NewsItem[] = [];
+  
+  // Try Google News RSS first (most reliable, no auth needed)
   try {
-    // DuckDuckGo news API (no key required)
-    const res = await fetch("https://duckduckgo.com/news.js?q=trending+today&df=d&iar=news", {
-      headers: { "User-Agent": "RedditPipe/2.0" },
-      signal: AbortSignal.timeout(8_000),
+    const res = await fetch("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; RedditPipe/2.0)" },
+      signal: AbortSignal.timeout(10_000),
     });
     if (res.ok) {
-      const data = await res.json() as { results?: Array<{ title: string; url: string; excerpt: string; source: string }> };
-      for (const r of (data.results || []).slice(0, 10)) {
-        items.push({ title: r.title, url: r.url, snippet: r.excerpt || "", source: r.source || "News" });
+      const xml = await res.text();
+      const titleMatches = xml.matchAll(/<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<description><!\[CDATA\[(.*?)\]\]><\/description>[\s\S]*?<\/item>/gi);
+      let count = 0;
+      for (const m of titleMatches) {
+        if (count >= 15) break;
+        // Extract snippet from description (remove HTML tags)
+        const snippet = m[3]?.replace(/<[^>]*>/g, '').slice(0, 200) || "";
+        items.push({ 
+          title: m[1], 
+          url: m[2], 
+          snippet, 
+          source: "Google News" 
+        });
+        count++;
       }
-      console.log(`[Warming] Fetched ${items.length} news items from DuckDuckGo`);
+      console.log(`[Warming] Fetched ${items.length} news items from Google News RSS`);
     } else {
-      console.warn(`[Warming] DuckDuckGo news fetch failed: ${res.status}`);
+      console.warn(`[Warming] Google News RSS fetch failed: ${res.status}`);
     }
   } catch (err) {
-    console.error("[Warming] DuckDuckGo news fetch error:", err);
-    // Fallback: try RSS-style approach via Google News
-    try {
-      const res = await fetch("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", {
-        headers: { "User-Agent": "RedditPipe/2.0" },
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (res.ok) {
-        const xml = await res.text();
-        const titleMatches = xml.matchAll(/<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>[\s\S]*?<link>(.*?)<\/link>[\s\S]*?<\/item>/gi);
-        let count = 0;
-        for (const m of titleMatches) {
-          if (count >= 10) break;
-          items.push({ title: m[1], url: m[2], snippet: "", source: "Google News" });
-          count++;
-        }
-        console.log(`[Warming] Fetched ${items.length} news items from Google News RSS`);
-      } else {
-        console.warn(`[Warming] Google News RSS fetch failed: ${res.status}`);
-      }
-    } catch (fallbackErr) {
-      console.error("[Warming] Google News RSS fetch error:", fallbackErr);
-    }
+    console.error("[Warming] Google News RSS fetch error:", err);
   }
+  
   return items;
 }
 
@@ -89,10 +80,19 @@ app.get("/trending", async (c) => {
 
     const topics: TrendingTopic[] = [];
 
+    // Get Reddit OAuth token for authenticated requests
+    const { getRedditAccessToken } = await import("../lib/reddit.js");
+    let redditToken: string | null = null;
+    try {
+      redditToken = await getRedditAccessToken();
+    } catch (err) {
+      console.warn("[Warming] Failed to get Reddit OAuth token:", err);
+    }
+
     // Fetch Reddit trending in parallel with news
     const redditUrls = [
-      "https://www.reddit.com/r/popular/hot.json?limit=15",
-      ...targetSubs.slice(0, 5).map((s) => `https://www.reddit.com/r/${s}/hot.json?limit=5`),
+      "https://oauth.reddit.com/r/popular/hot?limit=15",
+      ...targetSubs.slice(0, 5).map((s) => `https://oauth.reddit.com/r/${s}/hot?limit=5`),
     ];
 
     const [newsItems] = await Promise.all([
@@ -117,8 +117,15 @@ app.get("/trending", async (c) => {
     // Fetch Reddit topics
     for (const apiUrl of redditUrls) {
       try {
+        const headers: Record<string, string> = {
+          "User-Agent": "RedditPipe/2.0 (warming)",
+        };
+        if (redditToken) {
+          headers["Authorization"] = `Bearer ${redditToken}`;
+        }
+        
         const res = await fetch(apiUrl, {
-          headers: { "User-Agent": "RedditPipe/2.0 (warming)" },
+          headers,
           signal: AbortSignal.timeout(8_000),
         });
         if (!res.ok) {
