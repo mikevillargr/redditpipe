@@ -47,6 +47,65 @@ app.post("/verify", async (c) => {
   }
 });
 
+// POST /api/accounts/generate-persona - Generate AI persona from Reddit history
+app.post("/generate-persona", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { username } = body;
+
+    if (!username) {
+      return c.json({ error: "Username required" }, 400);
+    }
+
+    // Fetch user's recent comments
+    const comments = await getUserComments(username, 25);
+    
+    if (!comments || comments.length === 0) {
+      return c.json({ 
+        personaNotes: "New account with minimal activity. Consider building karma through organic engagement before using for outreach."
+      });
+    }
+
+    // Get settings for AI model
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    
+    // Check if AI is configured
+    if (!settings?.anthropicApiKey && !settings?.zaiApiKey) {
+      return c.json({ 
+        personaNotes: "Unable to generate persona - AI API key not configured. Add your Anthropic or Z.ai key in Settings."
+      });
+    }
+
+    // Import AI client helper
+    const { callAISimple } = await import("../lib/ai-client.js");
+    const { getValidModel } = await import("../lib/models.js");
+
+    // Build prompt from comments
+    const commentTexts = comments.slice(0, 15).map(c => c.body).join("\n\n");
+    
+    const model = getValidModel(settings?.aiModelDetection);
+    const personaNotes = await callAISimple(
+      `Analyze this Reddit user's writing style and create a brief persona description (2-3 paragraphs) that captures their voice, interests, and background. This will be used to help AI write replies that match their style.
+
+Recent comments:
+${commentTexts}
+
+Return ONLY the persona description, no preamble.`,
+      model,
+      undefined,
+      500
+    );
+
+    return c.json({ personaNotes });
+  } catch (error) {
+    console.error("POST /api/accounts/generate-persona error:", error);
+    return c.json({ 
+      error: "Failed to generate persona", 
+      details: error instanceof Error ? error.message : "Unknown error" 
+    }, 500);
+  }
+});
+
 // GET /api/accounts
 app.get("/", async (c) => {
   try {
