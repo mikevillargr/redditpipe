@@ -1286,6 +1286,24 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.6 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Good</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.7">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.7 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Better</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#a855f7', ml: 2 }}>Best Z.ai</Typography>
+                </Box>
+              </MenuItem>
             </Select>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
               Used for scoring every thread that passes heuristic pre-filter. Haiku or GLM-4.5-Flash recommended for cost.
@@ -1345,10 +1363,22 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.5-flash">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Flash (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.5-air">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Air (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                </Box>
+              </MenuItem>
               <MenuItem value="glm-4.5">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>GLM-4.5 (Z.ai)</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Budget</Typography>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
                 </Box>
               </MenuItem>
               <MenuItem value="glm-4.6">
@@ -1428,16 +1458,40 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.5-flash">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Flash (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.5-air">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Air (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                </Box>
+              </MenuItem>
               <MenuItem value="glm-4.5">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>GLM-4.5 (Z.ai)</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.6 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Good</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.7">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.7 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Better</Typography>
                 </Box>
               </MenuItem>
               <MenuItem value="glm-5">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>GLM-5 (Z.ai)</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Best Z.ai</Typography>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#a855f7', ml: 2 }}>Best Z.ai</Typography>
                 </Box>
               </MenuItem>
             </Select>
