@@ -61,10 +61,10 @@ jobs:
             PATCH=$((PATCH + 1))
             RELEASE_TYPE="patch"
           else
-            # No release for other commits (docs, chore, etc.)
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping release for commit type: $COMMIT_MSG"
-            exit 0
+            # Patch version for all other commits (docs, chore, etc.)
+            PATCH=$((PATCH + 1))
+            RELEASE_TYPE="patch"
+            echo "Creating patch release for: $COMMIT_MSG"
           fi
           
           NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
