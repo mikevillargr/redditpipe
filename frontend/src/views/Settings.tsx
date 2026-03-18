@@ -695,10 +695,10 @@ export function Settings() {
             label="Z.ai API Key (Optional)"
             value={zaiKey}
             onChange={setZaiKey}
-            placeholder="Enter Z.ai API key..."
+            placeholder="id.secret (e.g., 72fdd31c...2ce.NRV7v...NSBt)"
           />
           <Typography sx={{ fontSize: '12px', color: '#64748b', mt: -1 }}>
-            💡 You can use either Anthropic or Z.ai models. Z.ai GLM models are cheaper. Configure one or both API keys.
+            💡 Z.ai API key format: <strong>id.secret</strong> (two parts separated by a dot). Z.ai GLM models are cheaper than Anthropic.
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Box sx={{ flex: 1 }}>
