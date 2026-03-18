@@ -82,18 +82,17 @@ jobs:
           RELEASE_TYPE="${{ steps.version.outputs.release_type }}"
           COMMIT_MSG=$(git log -1 --pretty=%B)
           COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
           
           # Create tag
           git tag "$VERSION"
           git push origin "$VERSION"
           
-          # Generate release notes with commit details
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          
-          # Create release notes file
-          cat > /tmp/release-notes.md << EOF
-## 🚀 Changes
+          # Create release with custom notes
+          gh release create "$VERSION" \
+            --title "$VERSION - ${COMMIT_MSG}" \
+            --notes "## 🚀 Changes
 
 **Type**: ${RELEASE_TYPE} release
 
@@ -103,16 +102,7 @@ ${COMMIT_MSG}
 ### Details
 - **Author**: ${COMMIT_AUTHOR}
 - **Commit**: \`${SHORT_SHA}\`
-- **Deployed**: ${DEPLOY_TIME}
-
----
-
-EOF
-          
-          # Create release with custom notes and auto-generated changelog
-          gh release create "$VERSION" \
-            --title "$VERSION" \
-            --notes-file /tmp/release-notes.md \
+- **Deployed**: ${DEPLOY_TIME}" \
             --generate-notes \
             --latest
 
