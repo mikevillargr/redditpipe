@@ -173,7 +173,7 @@ async function callZai(
   // Z.ai GLM models return both reasoning_content and content
   // We want the actual content, not the reasoning
   const message = response.choices[0]?.message;
-  const content = message?.content || message?.reasoning_content;
+  const content = message?.content || (message as any)?.reasoning_content;
   
   if (!content) {
     console.error("[Z.ai] No content in response:", JSON.stringify(message));
