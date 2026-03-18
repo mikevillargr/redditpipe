@@ -49,7 +49,7 @@ export const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps
             'translate-x-[-50%] translate-y-[-50%]',
             'w-full max-w-lg',
             'rounded-lg border-2 shadow-lg',
-            'bg-white border-[#e2e8f0]',
+            'bg-[#ffffff] border-[#e2e8f0]',
             'dark:bg-[#1e293b] dark:border-[#334155]',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',

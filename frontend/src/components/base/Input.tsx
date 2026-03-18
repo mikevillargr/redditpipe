@@ -34,10 +34,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             'placeholder:text-[#94a3b8]',
             'focus:outline-none focus:ring-2 focus:ring-offset-2',
             // Light mode
-            'bg-white text-[#0f172a]',
+            'bg-[#ffffff] text-[#0f172a]',
             'border-[#e2e8f0]',
             'hover:border-[#cbd5e1]',
-            'focus:border-[#f97316] focus:ring-[#f97316] focus:ring-offset-[#f1f5f9]',
+            'focus:border-[#f97316] focus:ring-[#f97316] focus:ring-offset-[#ffffff]',
             // Dark mode
             'dark:bg-[#1e293b] dark:text-[#f1f5f9]',
             'dark:border-[#334155]',

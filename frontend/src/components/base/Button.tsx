@@ -52,11 +52,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'dark:focus:ring-offset-[#0f172a]'
       ),
       ghost: cn(
-        // Light mode: dark text on light background
-        'text-[#0f172a] bg-transparent font-medium',
-        'hover:bg-[#e2e8f0]',
-        'active:bg-[#cbd5e1]',
-        'focus:ring-[#94a3b8] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Light mode: very dark text on light background for maximum contrast
+        'text-[#1e293b] bg-transparent font-medium',
+        'hover:bg-[#f1f5f9]',
+        'active:bg-[#e2e8f0]',
+        'focus:ring-[#94a3b8] focus:ring-offset-2 focus:ring-offset-[#ffffff]',
         // Dark mode: light text on dark background
         'dark:text-[#f1f5f9]',
         'dark:hover:bg-[#334155]',

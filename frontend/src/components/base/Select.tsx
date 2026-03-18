@@ -46,10 +46,10 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
               'focus:outline-none focus:ring-2 focus:ring-offset-2',
               'flex items-center justify-between',
               // Light mode
-              'bg-white text-[#0f172a]',
+              'bg-[#ffffff] text-[#0f172a]',
               'border-[#e2e8f0]',
               'hover:border-[#cbd5e1]',
-              'focus:border-[#f97316] focus:ring-[#f97316] focus:ring-offset-[#f1f5f9]',
+              'focus:border-[#f97316] focus:ring-[#f97316] focus:ring-offset-[#ffffff]',
               // Dark mode
               'dark:bg-[#1e293b] dark:text-[#f1f5f9]',
               'dark:border-[#334155]',
@@ -70,7 +70,7 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
               <BaseSelect.Popup
                 className={cn(
                   'min-w-[200px] rounded-lg border-2 shadow-lg',
-                  'bg-white border-[#e2e8f0]',
+                  'bg-[#ffffff] border-[#e2e8f0]',
                   'dark:bg-[#1e293b] dark:border-[#334155]',
                   'max-h-[300px] overflow-auto',
                   'py-1'
