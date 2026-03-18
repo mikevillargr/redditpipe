@@ -90,7 +90,7 @@ jobs:
           git push origin "$VERSION"
           
           # Create release with custom notes
-          NOTES="## 🚀 Changes\n\n**Type**: ${RELEASE_TYPE} release\n\n### What's New\n${COMMIT_MSG}\n\n### Details\n- **Author**: ${COMMIT_AUTHOR}\n- **Commit**: \`${SHORT_SHA}\`\n- **Deployed**: ${DEPLOY_TIME}\n\n---\n"
+          NOTES=$(echo -e "## 🚀 Changes\n\n**Type**: ${RELEASE_TYPE} release\n\n### What's New\n${COMMIT_MSG}\n\n### Details\n- **Author**: ${COMMIT_AUTHOR}\n- **Commit**: \`${SHORT_SHA}\`\n- **Deployed**: ${DEPLOY_TIME}\n\n---\n")
           
           gh release create "$VERSION" \
             --title "$VERSION - ${COMMIT_MSG}" \
