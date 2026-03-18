@@ -43,18 +43,18 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
               'w-full px-3 py-2 rounded-lg',
               'border-2 transition-colors',
               'font-medium text-base text-left',
-              'focus:outline-none focus:ring-2 focus:ring-offset-2',
+              'focus:outline-none focus:ring-2',
               'flex items-center justify-between',
               // Light mode
               'bg-white text-slate-900',
               'border-slate-200',
               'hover:border-slate-300',
-              'focus:border-orange-500 focus:ring-orange-500 focus:ring-offset-white',
+              'focus:border-orange-500 focus:ring-orange-500',
               // Dark mode
               'dark:bg-slate-800 dark:text-slate-100',
               'dark:border-slate-700',
               'dark:hover:border-slate-600',
-              'dark:focus:border-orange-500 dark:focus:ring-offset-slate-900',
+              'dark:focus:border-orange-500',
               // Error state
               error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
               // Disabled state

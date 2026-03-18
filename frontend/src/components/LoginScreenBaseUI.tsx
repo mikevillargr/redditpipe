@@ -50,13 +50,13 @@ export function LoginScreenBaseUI({ onLogin }: LoginScreenProps) {
                   className="w-full h-full object-contain"
                 />
               </div>
-              <h1 className="text-xl font-bold text-slate-100 mb-1">
+              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
                 RedditPipe
               </h1>
-              <p className="text-[10px] text-slate-500 mb-2">
+              <p className="text-[10px] text-slate-600 dark:text-slate-500 mb-2">
                 by Growth Rocket AI Labs
               </p>
-              <p className="text-[13px] text-slate-400">
+              <p className="text-[13px] text-slate-700 dark:text-slate-400">
                 Sign in to access the dashboard
               </p>
             </div>
