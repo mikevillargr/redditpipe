@@ -160,25 +160,94 @@ app.post("/test-model-scoring", async (c) => {
   try {
     clearApiKeyCache();
     clearAIClientCache();
-    const { callAISimple } = await import("../lib/ai-client.js");
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
     const model = settings?.aiModelScoring || "claude-haiku-4-5-20251001";
     
-    const response = await callAISimple(
-      "Score this Reddit thread for relevance to a business software company. Thread: 'Looking for LLC formation tools'. Return only a JSON with score 0-1.",
-      model,
-      "You are an AI scorer. Return only valid JSON.",
-      200
-    );
+    // Try to fetch a real recently scored opportunity
+    const recentOpp = await prisma.opportunity.findFirst({
+      where: { 
+        relevanceScore: { not: null },
+        aiRelevanceNote: { not: null }
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { client: true }
+    });
+
+    let testOutput: any;
+
+    if (recentOpp) {
+      // Use real thread data
+      testOutput = {
+        model: model,
+        score: recentOpp.relevanceScore,
+        summary: recentOpp.aiRelevanceNote,
+        threadTitle: recentOpp.title,
+        subreddit: recentOpp.subreddit,
+        bodySnippet: recentOpp.bodySnippet?.substring(0, 200) || '(no body)',
+        clientName: recentOpp.client?.name || 'Unknown Client',
+        note: "✓ Using real scored thread from database"
+      };
+    } else {
+      // Fallback: Use simple AI call for test score
+      const { callAISimple } = await import("../lib/ai-client.js");
+      
+      const mockThread = {
+        title: "Looking for LLC formation tools and business software recommendations",
+        body: "I'm starting a new business and need help with LLC formation. Also looking for good accounting software and CRM tools. Any recommendations?",
+        subreddit: "smallbusiness",
+        author: "test_user",
+        created_utc: Math.floor(Date.now() / 1000),
+        permalink: "/r/smallbusiness/test",
+        score: 15,
+        num_comments: 8,
+        url: "https://reddit.com/r/smallbusiness/test"
+      };
+
+      const mockClient = {
+        id: "test",
+        name: "Test Business Software Company",
+        description: "Business automation and formation tools",
+        keywords: ["LLC formation", "business software", "accounting", "CRM"]
+      };
+
+      const prompt = `Analyze this Reddit thread for relevance to "${mockClient.name}" (${mockClient.description}).
+
+Thread: "${mockThread.title}"
+Body: ${mockThread.body}
+Subreddit: r/${mockThread.subreddit}
+
+Return JSON with:
+- score: 0-1 relevance score
+- summary: 2-3 sentence explanation of why this is/isn't relevant
+
+Format: {"score": 0.X, "summary": "..."}`;
+
+      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 500);
+      const parsed = JSON.parse(aiResponse.replace(/```json\n?/g, '').replace(/```/g, '').trim());
+      
+      testOutput = {
+        model: model,
+        score: parsed.score,
+        summary: parsed.summary,
+        threadTitle: mockThread.title,
+        subreddit: mockThread.subreddit,
+        bodySnippet: mockThread.body.substring(0, 200),
+        clientName: mockClient.name,
+        note: "⚠ Generated test score (no recent scored threads in database)"
+      };
+    }
     
     return c.json({ 
       success: true, 
       model, 
       activity: "scoring",
-      testOutput: response,
-      testPrompt: "Score this Reddit thread for relevance to a business software company. Thread: 'Looking for LLC formation tools'. Return only a JSON with score 0-1."
+      testOutput: JSON.stringify(testOutput, null, 2),
+      testPrompt: recentOpp 
+        ? `Real thread: "${recentOpp.title}" from r/${recentOpp.subreddit}`
+        : "Mock thread: LLC formation and business software recommendations"
     });
   } catch (error) {
+    console.error("[Scoring Test Error]", error);
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "scoring" });
   }
 });
