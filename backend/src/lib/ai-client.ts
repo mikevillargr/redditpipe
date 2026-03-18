@@ -111,18 +111,23 @@ function generateZaiToken(apiKey: string, expSeconds: number = 3600): string {
       throw new Error("Invalid Z.ai API key format. Expected format: id.secret");
     }
     
+    // Z.ai requires timestamps in milliseconds
+    const nowMs = Date.now();
     const payload = {
       api_key: id,
-      exp: Math.floor(Date.now()) + expSeconds * 1000,
-      timestamp: Math.floor(Date.now()),
+      exp: nowMs + expSeconds * 1000,
+      timestamp: nowMs,
     };
     
-    // Z.ai requires custom header with sign_type
+    // Z.ai requires sign_type in JWT header
     const token = jwt.sign(payload, secret, {
       algorithm: "HS256",
+      header: {
+        alg: "HS256",
+        sign_type: "SIGN",
+      } as any, // TypeScript doesn't know about custom headers
     });
     
-    // Note: The sign_type header is handled by Z.ai's backend
     return token;
   } catch (error) {
     throw new Error(`Failed to generate Z.ai token: ${error instanceof Error ? error.message : "Unknown error"}`);
