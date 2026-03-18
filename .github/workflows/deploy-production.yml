@@ -88,7 +88,11 @@ jobs:
           git push origin "$VERSION"
           
           # Generate release notes with commit details
-          cat > /tmp/release-notes.md << 'EOF'
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          # Create release notes file
+          cat > /tmp/release-notes.md << EOF
 ## 🚀 Changes
 
 **Type**: ${RELEASE_TYPE} release
@@ -98,22 +102,12 @@ ${COMMIT_MSG}
 
 ### Details
 - **Author**: ${COMMIT_AUTHOR}
-- **Commit**: `${SHORT_SHA}`
+- **Commit**: \`${SHORT_SHA}\`
 - **Deployed**: ${DEPLOY_TIME}
 
 ---
 
 EOF
-          
-          # Substitute variables
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          
-          sed -i "s/\${RELEASE_TYPE}/${RELEASE_TYPE}/g" /tmp/release-notes.md
-          sed -i "s/\${COMMIT_MSG}/${COMMIT_MSG}/g" /tmp/release-notes.md
-          sed -i "s/\${COMMIT_AUTHOR}/${COMMIT_AUTHOR}/g" /tmp/release-notes.md
-          sed -i "s/\${SHORT_SHA}/${SHORT_SHA}/g" /tmp/release-notes.md
-          sed -i "s/\${DEPLOY_TIME}/${DEPLOY_TIME}/g" /tmp/release-notes.md
           
           # Create release with custom notes and auto-generated changelog
           gh release create "$VERSION" \
