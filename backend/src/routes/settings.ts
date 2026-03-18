@@ -144,8 +144,9 @@ app.post("/test-zai", async (c) => {
     });
     
     console.error("[Z.ai Test] Response received:", JSON.stringify(response).substring(0, 100));
-    const content = response.choices[0]?.message?.content;
-    console.error("[Z.ai Test] Content:", content);
+    const message = response.choices[0]?.message as any;
+    const content = message?.content || message?.reasoning_content;
+    console.error("[Z.ai Test] Content:", content?.substring(0, 50));
     return c.json({ success: !!content, provider: "zai" });
   } catch (error) {
     console.error("[Z.ai Test] Error:", error);
