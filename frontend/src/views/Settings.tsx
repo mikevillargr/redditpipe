@@ -390,17 +390,26 @@ export function Settings() {
     setScoringTestStatus('testing')
     setScoringTestOutput('')
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
       const res = await fetch(`/api/settings/test-model-scoring?t=${Date.now()}&model=${encodeURIComponent(aiModelScoring)}`, { 
         method: 'POST',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
+      
       const data = await res.json()
       setScoringTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
         setScoringTestOutput(data.testOutput)
       }
-    } catch {
+    } catch (err) {
       setScoringTestStatus('error')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setScoringTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+      }
     }
   }
 
@@ -408,17 +417,26 @@ export function Settings() {
     setRepliesTestStatus('testing')
     setRepliesTestOutput('')
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
       const res = await fetch(`/api/settings/test-model-replies?t=${Date.now()}&model=${encodeURIComponent(aiModelReplies)}`, { 
         method: 'POST',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
+      
       const data = await res.json()
       setRepliesTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
         setRepliesTestOutput(data.testOutput)
       }
-    } catch {
+    } catch (err) {
       setRepliesTestStatus('error')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setRepliesTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+      }
     }
   }
 
@@ -426,17 +444,26 @@ export function Settings() {
     setDetectionTestStatus('testing')
     setDetectionTestOutput('')
     try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
       const res = await fetch(`/api/settings/test-model-detection?t=${Date.now()}&model=${encodeURIComponent(aiModelDetection)}`, { 
         method: 'POST',
-        cache: 'no-cache'
+        cache: 'no-cache',
+        signal: controller.signal
       })
+      clearTimeout(timeoutId)
+      
       const data = await res.json()
       setDetectionTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
         setDetectionTestOutput(data.testOutput)
       }
-    } catch {
+    } catch (err) {
       setDetectionTestStatus('error')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setDetectionTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+      }
     }
   }
 
