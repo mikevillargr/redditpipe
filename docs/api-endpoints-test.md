@@ -70,7 +70,7 @@ or
   "personaNotes": "AI-generated persona description"
 }
 ```
-**Status:** ⚠️ Need to verify endpoint exists in backend
+**Status:** ❌ Endpoint does NOT exist - needs to be created in backend
 
 ### Max Posts Per Day & Initial Status
 **Implementation:** Saved with account creation/update  
