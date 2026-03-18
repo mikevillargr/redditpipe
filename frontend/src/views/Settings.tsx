@@ -239,6 +239,7 @@ export function Settings() {
   const [redditStatus, setRedditStatus] = useState<ConnectionStatus>('idle')
   // AI
   const [anthropicKey, setAnthropicKey] = useState('')
+  const [zaiKey, setZaiKey] = useState('')
   const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
@@ -299,6 +300,7 @@ export function Settings() {
         setRedditUsername(data.redditUsername || '')
         setRedditPassword(data.redditPassword || '')
         setAnthropicKey(data.anthropicApiKey || '')
+        setZaiKey(data.zaiApiKey || '')
         setSpecialInstructions(data.specialInstructions || '')
         setSearchFrequency(data.searchFrequency || 'once_daily')
         setSearchScheduleTimes(data.searchScheduleTimes || '09:00')
@@ -448,6 +450,7 @@ export function Settings() {
       if (!redditClientSecret.startsWith('****')) payload.redditClientSecret = redditClientSecret
       if (!redditPassword.startsWith('****')) payload.redditPassword = redditPassword
       if (!anthropicKey.startsWith('****')) payload.anthropicApiKey = anthropicKey
+      if (!zaiKey.startsWith('****')) payload.zaiApiKey = zaiKey
       payload.redditUsername = redditUsername
 
       const res = await fetch('/api/settings', {
@@ -627,6 +630,15 @@ export function Settings() {
             onChange={setAnthropicKey}
             placeholder="sk-ant-..."
           />
+          <PasswordField
+            label="Z.ai API Key (Optional)"
+            value={zaiKey}
+            onChange={setZaiKey}
+            placeholder="Enter Z.ai API key..."
+          />
+          <Typography sx={{ fontSize: '12px', color: '#64748b', mt: -1 }}>
+            💡 You can use either Anthropic or Z.ai models. Z.ai GLM models are cheaper. Configure one or both API keys.
+          </Typography>
           <ConnectionTestButton
             onTest={handleTestAi}
             status={aiStatus}
@@ -1183,9 +1195,27 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.5-flash">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Flash (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest · Fast</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.5-air">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5-Air (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
+                </Box>
+              </MenuItem>
             </Select>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
-              Used for scoring every thread that passes heuristic pre-filter. Haiku recommended — 4x cheaper, fast.
+              Used for scoring every thread that passes heuristic pre-filter. Haiku or GLM-4.5-Flash recommended for cost.
             </Typography>
           </FormControl>
 
@@ -1232,9 +1262,33 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Budget</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.6">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.6 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Good</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-4.7">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.7 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Better</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Best Z.ai</Typography>
+                </Box>
+              </MenuItem>
             </Select>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
-              Used for drafting and rewriting Reddit replies. Better models produce more natural-sounding text.
+              Used for drafting and rewriting Reddit replies. Better models produce more natural-sounding text. Z.ai models are cheaper.
             </Typography>
           </FormControl>
 
