@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent, CardFooter } from '../components/base/Ca
 import { Input } from '../components/base/Input'
 import { Select } from '../components/base/Select'
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '../components/base/Dialog'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/base/Tabs'
 import { ColorModeContext } from '../App'
 import { Box, Typography, Card as MuiCard, CardContent as MuiCardContent, Button as MuiButton } from '@mui/material'
 import { SunIcon, UserIcon, MailIcon, BuildingIcon } from 'lucide-react'
@@ -211,12 +212,43 @@ export function BaseUITest() {
         </MuiCardContent>
       </MuiCard>
 
+      {/* Tabs */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Tabs</Typography>
+          <Tabs defaultValue="tab1">
+            <TabsList>
+              <TabsTrigger value="tab1">Account</TabsTrigger>
+              <TabsTrigger value="tab2">Settings</TabsTrigger>
+              <TabsTrigger value="tab3">Billing</TabsTrigger>
+            </TabsList>
+            <TabsContent value="tab1">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Account Information</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Manage your account settings and preferences here.</p>
+              </div>
+            </TabsContent>
+            <TabsContent value="tab2">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Settings</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Configure your application settings.</p>
+              </div>
+            </TabsContent>
+            <TabsContent value="tab3">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100 mb-2">Billing</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">View and manage your billing information.</p>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </MuiCardContent>
+      </MuiCard>
+
       {/* Info */}
       <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>✅ Phase 2 Complete</Typography>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>✅ Phase 4 Progress</Typography>
         <Typography variant="body2" color="text.secondary">
-          All Base UI components (Button, Card, Input, Select, Dialog) are now implemented with exact MUI color matching.
-          Toggle dark/light mode to test visual consistency.
+          Building additional components needed for Settings page migration: Tabs, Toggle, etc.
         </Typography>
       </Box>
     </Box>
