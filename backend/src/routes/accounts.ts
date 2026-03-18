@@ -79,35 +79,30 @@ app.get("/", async (c) => {
     }
 
     // Auto-refresh account data from Reddit if requested and accountAgeDays is null
+    // Run refreshes in background to avoid blocking the response
     if (autoRefresh) {
       const accountsToRefresh = accounts.filter(a => a.accountAgeDays === null);
-      for (const account of accountsToRefresh) {
-        try {
-          const profile = await getUserProfile(account.username);
-          if (profile && profile.created_utc) {
-            await prisma.redditAccount.update({
-              where: { id: account.id },
-              data: {
-                accountAgeDays: Math.floor((Date.now() / 1000 - profile.created_utc) / 86400),
-                postKarma: profile.link_karma || 0,
-                commentKarma: profile.comment_karma || 0,
-              },
-            });
-          }
-        } catch (err) {
-          console.error(`Failed to refresh account ${account.username}:`, err);
-        }
-      }
-      
-      // Re-fetch accounts after refresh
       if (accountsToRefresh.length > 0) {
-        accounts = await prisma.redditAccount.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          include: {
-            accountAssignments: { include: { client: { select: { id: true, name: true } } } },
-            _count: { select: { opportunities: true } },
-          },
+        // Fire and forget - refresh in background
+        Promise.all(accountsToRefresh.map(async (account) => {
+          try {
+            const profile = await getUserProfile(account.username);
+            if (profile && profile.created_utc) {
+              await prisma.redditAccount.update({
+                where: { id: account.id },
+                data: {
+                  accountAgeDays: Math.floor((Date.now() / 1000 - profile.created_utc) / 86400),
+                  postKarma: profile.link_karma || 0,
+                  commentKarma: profile.comment_karma || 0,
+                },
+              });
+            }
+          } catch (err) {
+            // Silently fail for deleted/suspended accounts
+            console.error(`Failed to refresh account ${account.username}:`, err);
+          }
+        })).catch(() => {
+          // Ignore errors - this is background refresh
         });
       }
     }
