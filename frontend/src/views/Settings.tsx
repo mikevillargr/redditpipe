@@ -1353,18 +1353,285 @@ export function Settings() {
             >
               <MenuItem value="disabled">Disabled</MenuItem>
               <MenuItem value="enabled">Enabled</MenuItem>
-              <MenuItem value="claude-sonnet-4-20250514">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Sonnet 4</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15</Typography>
-                </Box>
-              </MenuItem>
-              <MenuItem value="claude-sonnet-4-5-20250929">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Sonnet 4.5</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
-                </Box>
-              </MenuItem>
+            </Select>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+              Enable or disable the pile-on feature globally
+            </Typography>
+          </FormControl>
+
+          {pileOnEnabled && (
+            <>
+              <FormControl size="small" fullWidth sx={inputSx}>
+                <InputLabel>Auto-Create Pile-Ons</InputLabel>
+                <Select
+                  value={pileOnAutoCreate ? 'yes' : 'no'}
+                  onChange={(e) => setPileOnAutoCreate(e.target.value === 'yes')}
+                  label="Auto-Create Pile-Ons"
+                >
+                  <MenuItem value="no">No - Manual Only</MenuItem>
+                  <MenuItem value="yes">Yes - Automatic</MenuItem>
+                </Select>
+              </FormControl>
+
+              <TextField
+                label="Max Pile-Ons Per Primary"
+                type="number"
+                value={pileOnMaxPerPrimary}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  if (!isNaN(val)) setPileOnMaxPerPrimary(val)
+                }}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 5 }}
+                sx={inputSx}
+              />
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  label="Min Delay (hours)"
+                  type="number"
+                  value={pileOnDelayMinHours}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    if (!isNaN(val)) setPileOnDelayMinHours(val)
+                  }}
+                  fullWidth
+                  size="small"
+                  inputProps={{ min: 1, max: 48 }}
+                  sx={inputSx}
+                />
+                <TextField
+                  label="Max Delay (hours)"
+                  type="number"
+                  value={pileOnDelayMaxHours}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10)
+                    if (!isNaN(val)) setPileOnDelayMaxHours(val)
+                  }}
+                  fullWidth
+                  size="small"
+                  inputProps={{ min: 1, max: 72 }}
+                  sx={inputSx}
+                />
+              </Box>
+
+              <TextField
+                label="Max Pile-Ons Per Opportunity"
+                type="number"
+                value={pileOnMaxPerOpportunity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  if (!isNaN(val)) setPileOnMaxPerOpportunity(val)
+                }}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 10 }}
+                sx={inputSx}
+              />
+
+              <TextField
+                label="Cooldown Period (days)"
+                type="number"
+                value={pileOnCooldownDays}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  if (!isNaN(val)) setPileOnCooldownDays(val)
+                }}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 90 }}
+                sx={inputSx}
+              />
+            </>
+          )}
+        </Box>
+      </SectionCard>
+
+      {/* Deletion Detection */}
+      <SectionCard title="Deletion Detection">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 1 }}>
+              Enable Deletion Checks
+            </Typography>
+            <ToggleButtonGroup
+              value={deletionCheckEnabled ? 'enabled' : 'disabled'}
+              exclusive
+              onChange={(_, val) => val && setDeletionCheckEnabled(val === 'enabled')}
+              size="small"
+              fullWidth
+            >
+              <ToggleButton value="disabled">Disabled</ToggleButton>
+              <ToggleButton value="enabled">Enabled</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          {deletionCheckEnabled && (
+            <>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  label="Check Time (HH:MM)"
+                  value={deletionCheckTime}
+                  onChange={(e) => setDeletionCheckTime(e.target.value)}
+                  fullWidth
+                  size="small"
+                  placeholder="19:00"
+                  sx={inputSx}
+                />
+                <FormControl size="small" sx={{ minWidth: 220, ...inputSx }}>
+                  <InputLabel>Timezone</InputLabel>
+                  <Select
+                    value={deletionCheckTimezone}
+                    onChange={(e) => setDeletionCheckTimezone(e.target.value)}
+                    label="Timezone"
+                  >
+                    {[
+                      'Pacific/Honolulu', 'America/Anchorage', 'America/Los_Angeles', 'America/Denver',
+                      'America/Chicago', 'America/New_York', 'America/Sao_Paulo',
+                      'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+                      'Africa/Cairo', 'Asia/Dubai', 'Asia/Kolkata', 'Asia/Bangkok',
+                      'Asia/Shanghai', 'Asia/Manila', 'Asia/Tokyo', 'Asia/Seoul',
+                      'Australia/Sydney', 'Pacific/Auckland', 'UTC',
+                    ].map((tz: string) => (
+                      <MenuItem key={tz} value={tz}>{tz.replace(/_/g, ' ')}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <TextField
+                label="Check Comments From Last N Days"
+                type="number"
+                value={deletionCheckDays}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10)
+                  if (!isNaN(val)) setDeletionCheckDays(val)
+                }}
+                fullWidth
+                size="small"
+                inputProps={{ min: 1, max: 90 }}
+                sx={inputSx}
+              />
+            </>
+          )}
+        </Box>
+      </SectionCard>
+
+      {/* Dangerous Actions */}
+      <SectionCard title="Dangerous Actions">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Alert severity="warning" sx={{ fontSize: '12px' }}>
+            ⚠️ These actions cannot be undone. Use with extreme caution.
+          </Alert>
+
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => setNukeStep(1)}
+            sx={{ textTransform: 'none' }}
+          >
+            Clear All Opportunities
+          </Button>
+        </Box>
+      </SectionCard>
+        </>
+      )}
+
+      {/* Save Button */}
+      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: '#0f172a', pt: 2, pb: 2, borderTop: '1px solid #334155' }}>
+        {saveError && (
+          <Alert
+            severity="error"
+            onClose={() => setSaveError(null)}
+            sx={{ mb: 2, fontSize: '12px' }}
+          >
+            {saveError}
+          </Alert>
+        )}
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={handleSave}
+          disabled={saved}
+          sx={{
+            bgcolor: saved ? '#10b981' : '#f97316',
+            '&:hover': {
+              bgcolor: saved ? '#059669' : '#ea6c0a',
+            },
+            py: 1.5,
+            fontSize: '15px',
+          }}
+        >
+          {saved ? '✓ Saved' : 'Save All Settings'}
+        </Button>
+      </Box>
+
+      {/* Nuke Confirmation Dialogs */}
+      <Dialog open={nukeStep === 1} onClose={() => setNukeStep(0)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
+          <AlertTriangleIcon size={20} /> Clear All Opportunities?
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '14px', color: 'text.secondary', mb: 1 }}>
+            This will permanently delete <strong>all opportunities</strong> and <strong>all dismissal logs</strong> from the database.
+          </Typography>
+          <Typography sx={{ fontSize: '13px', color: '#ef4444', fontWeight: 600 }}>
+            This action is irreversible.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setNukeStep(0)} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => setNukeStep(2)}
+            sx={{ textTransform: 'none' }}
+          >
+            Yes, I'm Sure
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={nukeStep === 2} onClose={() => setNukeStep(0)}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#ef4444' }}>
+          <AlertTriangleIcon size={20} /> Final Confirmation
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ fontSize: '14px', color: 'text.secondary', mb: 2 }}>
+            Type <strong>DELETE</strong> below to confirm you want to permanently erase all opportunities.
+          </Typography>
+          <TextField
+            value={nukeConfirmText}
+            onChange={(e) => setNukeConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            fullWidth
+            size="small"
+            autoFocus
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '& fieldset': { borderColor: '#ef4444' },
+                '&:hover fieldset': { borderColor: '#dc2626' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => { setNukeStep(0); setNukeConfirmText('') }} sx={{ textTransform: 'none' }}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={nukeConfirmText !== 'DELETE' || nukeLoading}
+            onClick={handleNukeOpportunities}
+            sx={{ textTransform: 'none' }}
+          >
+            {nukeLoading ? 'Deleting...' : 'Permanently Delete All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  )
+}
               <MenuItem value="claude-sonnet-4-6">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>Claude Sonnet 4.6</span>
