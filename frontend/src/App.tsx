@@ -92,6 +92,15 @@ export default function App() {
 
   useEffect(() => { checkAuth() }, [checkAuth])
 
+  // Sync Tailwind dark mode with MUI theme
+  useEffect(() => {
+    if (mode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [mode])
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     setAuthenticated(false)
