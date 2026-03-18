@@ -161,7 +161,9 @@ app.post("/test-model-scoring", async (c) => {
     clearApiKeyCache();
     clearAIClientCache();
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-    const model = settings?.aiModelScoring || "claude-haiku-4-5-20251001";
+    // Use model from query param if provided, otherwise use saved setting
+    const queryModel = c.req.query('model');
+    const model = queryModel || settings?.aiModelScoring || "claude-haiku-4-5-20251001";
     
     // Try to fetch a real recently scored opportunity
     const recentOpp = await prisma.opportunity.findFirst({
@@ -259,7 +261,9 @@ app.post("/test-model-replies", async (c) => {
     clearAIClientCache();
     const { callAISimple } = await import("../lib/ai-client.js");
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-    const model = settings?.aiModelReplies || "claude-sonnet-4-20250514";
+    // Use model from query param if provided, otherwise use saved setting
+    const queryModel = c.req.query('model');
+    const model = queryModel || settings?.aiModelReplies || "claude-sonnet-4-20250514";
     
     const response = await callAISimple(
       "Write a short helpful Reddit reply about choosing business software. Keep it under 50 words.",
@@ -287,7 +291,9 @@ app.post("/test-model-detection", async (c) => {
     clearAIClientCache();
     const { callAISimple } = await import("../lib/ai-client.js");
     const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-    const model = settings?.aiModelDetection || "claude-sonnet-4-20250514";
+    // Use model from query param if provided, otherwise use saved setting
+    const queryModel = c.req.query('model');
+    const model = queryModel || settings?.aiModelDetection || "claude-sonnet-4-20250514";
     
     const response = await callAISimple(
       "Extract company info from this: 'Acme Corp - Business automation software at acme.com'. Return JSON with name, description, url.",

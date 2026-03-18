@@ -390,7 +390,7 @@ export function Settings() {
     setScoringTestStatus('testing')
     setScoringTestOutput('')
     try {
-      const res = await fetch(`/api/settings/test-model-scoring?t=${Date.now()}`, { 
+      const res = await fetch(`/api/settings/test-model-scoring?t=${Date.now()}&model=${encodeURIComponent(aiModelScoring)}`, { 
         method: 'POST',
         cache: 'no-cache'
       })
@@ -408,7 +408,7 @@ export function Settings() {
     setRepliesTestStatus('testing')
     setRepliesTestOutput('')
     try {
-      const res = await fetch(`/api/settings/test-model-replies?t=${Date.now()}`, { 
+      const res = await fetch(`/api/settings/test-model-replies?t=${Date.now()}&model=${encodeURIComponent(aiModelReplies)}`, { 
         method: 'POST',
         cache: 'no-cache'
       })
@@ -426,7 +426,7 @@ export function Settings() {
     setDetectionTestStatus('testing')
     setDetectionTestOutput('')
     try {
-      const res = await fetch(`/api/settings/test-model-detection?t=${Date.now()}`, { 
+      const res = await fetch(`/api/settings/test-model-detection?t=${Date.now()}&model=${encodeURIComponent(aiModelDetection)}`, { 
         method: 'POST',
         cache: 'no-cache'
       })
