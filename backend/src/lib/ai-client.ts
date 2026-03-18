@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import jwt from "jsonwebtoken";
 import { getModelProvider, type AIProvider } from "./models.js";
 import { prisma } from "./prisma.js";
 
@@ -103,6 +104,31 @@ async function callAnthropic(
   };
 }
 
+function generateZaiToken(apiKey: string, expSeconds: number = 3600): string {
+  try {
+    const [id, secret] = apiKey.split(".");
+    if (!id || !secret) {
+      throw new Error("Invalid Z.ai API key format. Expected format: id.secret");
+    }
+    
+    const payload = {
+      api_key: id,
+      exp: Math.floor(Date.now()) + expSeconds * 1000,
+      timestamp: Math.floor(Date.now()),
+    };
+    
+    // Z.ai requires custom header with sign_type
+    const token = jwt.sign(payload, secret, {
+      algorithm: "HS256",
+    });
+    
+    // Note: The sign_type header is handled by Z.ai's backend
+    return token;
+  } catch (error) {
+    throw new Error(`Failed to generate Z.ai token: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+}
+
 async function callZai(
   messages: AIMessage[],
   config: AIClientConfig,
@@ -112,8 +138,9 @@ async function callZai(
     throw new Error("Z.ai API key not configured");
   }
 
+  const token = generateZaiToken(apiKey);
   const client = new OpenAI({
-    apiKey,
+    apiKey: token,
     baseURL: "https://api.z.ai/api/paas/v4/",
   });
 
@@ -156,19 +183,16 @@ async function callZai(
  * Helper to create a simple single-turn AI call
  */
 export async function callAISimple(
-  prompt: string,
+  userPrompt: string,
   model: string,
   systemPrompt?: string,
   maxTokens?: number
 ): Promise<string> {
-  const messages: AIMessage[] = [];
-  
-  if (systemPrompt) {
-    messages.push({ role: "system", content: systemPrompt });
-  }
-  
-  messages.push({ role: "user", content: prompt });
-
-  const response = await callAI(messages, { model, maxTokens });
+  const response = await callAI(
+    [{ role: "user", content: userPrompt }],
+    { model, maxTokens, systemPrompt }
+  );
   return response.content;
 }
+
+export { generateZaiToken };

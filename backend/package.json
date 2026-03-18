@@ -16,7 +16,9 @@
     "@libsql/client": "^0.17.0",
     "@prisma/adapter-libsql": "^7.4.2",
     "@prisma/client": "^7.4.2",
+    "@types/jsonwebtoken": "^9.0.10",
     "hono": "^4.7.4",
+    "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
     "prisma": "^7.4.2"

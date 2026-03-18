@@ -125,9 +125,12 @@ app.post("/test-zai", async (c) => {
       return c.json({ success: false, error: "Z.ai API key not configured" });
     }
 
+    const { generateZaiToken } = await import("../lib/ai-client.js");
+    const token = generateZaiToken(apiKey);
+    
     const OpenAI = (await import("openai")).default;
     const client = new OpenAI({
-      apiKey,
+      apiKey: token,
       baseURL: "https://api.z.ai/api/paas/v4/",
     });
     
