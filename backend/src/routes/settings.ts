@@ -143,10 +143,11 @@ app.post("/test-zai", async (c) => {
       max_tokens: 50,
     });
     
-    console.error("[Z.ai Test] Response received:", JSON.stringify(response).substring(0, 100));
+    console.error("[Z.ai Test] Response received");
     const message = response.choices[0]?.message as any;
+    console.error("[Z.ai Test] Message:", JSON.stringify(message));
     const content = message?.content || message?.reasoning_content;
-    console.error("[Z.ai Test] Content:", content?.substring(0, 50));
+    console.error("[Z.ai Test] Final content:", !!content);
     return c.json({ success: !!content, provider: "zai" });
   } catch (error) {
     console.error("[Z.ai Test] Error:", error);
