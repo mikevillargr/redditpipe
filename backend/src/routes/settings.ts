@@ -95,7 +95,7 @@ app.post("/test-ai", async (c) => {
         apiKey = body.apiKey;
       }
     } catch { /* no body */ }
-    const result = await testConnection(apiKey);
+    const result = await testConnection();
     return c.json(result);
   } catch (error) {
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });

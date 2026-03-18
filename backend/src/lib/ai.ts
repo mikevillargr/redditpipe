@@ -1,41 +1,24 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma.js";
 import { getValidModel } from "./models.js";
+import { callAI, clearAIClientCache } from "./ai-client.js";
 
-let cachedApiKey: string | null = null;
 let cachedReplyModel: string | null = null;
 let cachedSpecialInstructions: string | null = null;
 
-async function getApiKey(): Promise<string> {
-  if (cachedApiKey) return cachedApiKey;
+async function getConfig(): Promise<{ model: string; specialInstructions: string | null }> {
+  if (cachedReplyModel && cachedSpecialInstructions !== null) {
+    return { model: cachedReplyModel, specialInstructions: cachedSpecialInstructions };
+  }
   const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-  const key = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("Anthropic API key not configured. Set it in Settings or ANTHROPIC_API_KEY env var.");
-  cachedApiKey = key;
   cachedReplyModel = getValidModel((settings as Record<string, unknown>)?.aiModelReplies as string | undefined);
   cachedSpecialInstructions = settings?.specialInstructions || null;
-  return key;
-}
-
-async function getSpecialInstructions(): Promise<string | null> {
-  if (cachedSpecialInstructions !== null) return cachedSpecialInstructions;
-  const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-  cachedSpecialInstructions = settings?.specialInstructions || null;
-  return cachedSpecialInstructions;
-}
-
-function getReplyModel(): string {
-  return cachedReplyModel || getValidModel();
-}
-
-function getClient(apiKey: string): Anthropic {
-  return new Anthropic({ apiKey });
+  return { model: cachedReplyModel, specialInstructions: cachedSpecialInstructions };
 }
 
 export function clearApiKeyCache(): void {
-  cachedApiKey = null;
   cachedReplyModel = null;
   cachedSpecialInstructions = null;
+  clearAIClientCache();
 }
 
 interface GenerateReplyParams {
@@ -54,11 +37,8 @@ interface GenerateReplyParams {
 }
 
 export async function generateReplyDraft(params: GenerateReplyParams): Promise<string> {
-  const apiKey = await getApiKey();
-  const client = getClient(apiKey);
-
-  // Get special instructions first to integrate them properly
-  const specialInstructions = await getSpecialInstructions();
+  const config = await getConfig();
+  const specialInstructions = config.specialInstructions;
   const noUrlsRequested = specialInstructions?.toLowerCase().includes('no url') || 
                           specialInstructions?.toLowerCase().includes('without url') ||
                           specialInstructions?.toLowerCase().includes('do not mention url');
@@ -156,16 +136,12 @@ Mention terms (use the most natural one): ${params.clientMentionTerms}
 
 ` : ''}Write a helpful, natural Reddit reply now.`;
 
-  const response = await client.messages.create({
-    model: getReplyModel(),
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userPrompt }],
-  });
+  const response = await callAI(
+    [{ role: "user", content: userPrompt }],
+    { model: config.model, maxTokens: 1024, systemPrompt }
+  );
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("No text response from Claude");
-  return textBlock.text;
+  return response.content;
 }
 
 type RewriteAction = "regenerate" | "shorter" | "casual" | "formal";
@@ -181,11 +157,8 @@ export async function rewriteReply(
   action: RewriteAction,
   context?: RewriteContext
 ): Promise<string> {
-  const apiKey = await getApiKey();
-  const client = getClient(apiKey);
-
-  // Get special instructions first
-  const specialInstructions = await getSpecialInstructions();
+  const config = await getConfig();
+  const specialInstructions = config.specialInstructions;
   const noUrlsRequested = specialInstructions?.toLowerCase().includes('no url') || 
                           specialInstructions?.toLowerCase().includes('without url') ||
                           specialInstructions?.toLowerCase().includes('do not mention url');
@@ -219,27 +192,21 @@ ${specialInstructions}
 
 Avoid preambles and acknowledgment phrases like "You're right", "That's a great point", "Great question", etc. Jump straight into the content.`;
 
-  const response = await client.messages.create({
-    model: getReplyModel(),
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: "user", content: `${actionPrompts[action]}${userInstruction}\n\nCurrent reply:\n${currentDraft}` }],
-  });
+  const response = await callAI(
+    [{ role: "user", content: `${actionPrompts[action]}${userInstruction}\n\nCurrent reply:\n${currentDraft}` }],
+    { model: config.model, maxTokens: 1024, systemPrompt }
+  );
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") throw new Error("No text response from Claude");
-  return textBlock.text;
+  return response.content;
 }
 
-export async function testConnection(overrideApiKey?: string): Promise<{ success: boolean; error?: string }> {
+export async function testConnection(): Promise<{ success: boolean; error?: string }> {
   try {
-    const apiKey = overrideApiKey || await getApiKey();
-    const client = getClient(apiKey);
-    const response = await client.messages.create({
-      model: getReplyModel(),
-      max_tokens: 50,
-      messages: [{ role: "user", content: "Say hello in one word." }],
-    });
+    const config = await getConfig();
+    const response = await callAI(
+      [{ role: "user", content: "Say hello in one word." }],
+      { model: config.model, maxTokens: 50 }
+    );
     return { success: response.content.length > 0 };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
