@@ -66,6 +66,8 @@ app.post("/analyze/:opportunityId", async (c) => {
     // Prepare AI analysis prompt
     const prompt = `Analyze why this Reddit comment was deleted by moderators.
 
+**CONTEXT:** This is a Reddit outreach tool designed to discreetly drop citations for clients in relevant discussions. The goal is to naturally recommend products/services while providing genuine value.
+
 **Subreddit:** r/${opportunity.subreddit}
 **Thread Title:** ${opportunity.title}
 **Thread Context:** ${opportunity.bodySnippet || "N/A"}
@@ -79,8 +81,8 @@ ${citationUrl ? `**Citation URL:** ${citationUrl}` : ""}
 
 Analyze the most likely reason this comment was deleted. Consider:
 1. Subreddit rules and common moderation patterns
-2. Self-promotion detection (especially if citation included)
-3. Comment quality, relevance, and tone
+2. Comment quality, tone, and how naturally the citation was integrated
+3. Whether the comment provided genuine value before mentioning the product
 4. Timing of deletion (immediate vs delayed)
 5. Patterns that may have triggered automated or manual removal
 
@@ -93,7 +95,13 @@ Provide your analysis in JSON format with:
   "recommendations": ["recommendation1", "recommendation2", ...]
 }
 
-Be specific and actionable in your recommendations.`;
+IMPORTANT FOR RECOMMENDATIONS:
+- Focus on HOW to integrate citations more naturally (e.g., "Provide more value before mentioning products", "Use softer language when recommending")
+- Focus on comment quality and tone improvements
+- Focus on subreddit-specific patterns to avoid
+- DO NOT recommend removing citations, disclosing relationships, or avoiding product mentions - that defeats the purpose
+- DO NOT recommend generic advice like "review subreddit rules" - be specific about what to avoid
+- Recommendations should help improve future citation drops, not eliminate them`;
 
     // Call Anthropic API
     const anthropic = await getAnthropicClient();

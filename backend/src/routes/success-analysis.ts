@@ -72,6 +72,8 @@ app.post("/analyze/:opportunityId", async (c) => {
     // Prepare AI analysis prompt
     const prompt = `Analyze why this Reddit comment was successful (not deleted or auto-moderated).
 
+**CONTEXT:** This is a Reddit outreach tool designed to discreetly drop citations for clients across multiple industries. Recommendations must be UNIVERSAL and applicable to all clients, not specific to this particular client or industry.
+
 **Subreddit:** r/${opportunity.subreddit}
 **Thread Title:** ${opportunity.title}
 **Thread Context:** ${opportunity.bodySnippet || "N/A"}
@@ -101,9 +103,20 @@ Provide your analysis in JSON format with:
   "analysis": "2-3 sentence summary of why this comment succeeded"
 }
 
-Be specific and actionable in your recommendations.
-- "filtering" recommendations should help identify similar successful opportunities in the future
-- "generation" recommendations should guide how to write similar successful comments`;
+CRITICAL REQUIREMENTS FOR RECOMMENDATIONS:
+- "filtering" recommendations must be UNIVERSAL patterns applicable across ALL industries and clients
+  * Focus on thread characteristics (e.g., "Prioritize threads with specific questions", "Avoid news/announcement threads")
+  * Focus on engagement patterns (e.g., "Look for threads with 10+ comments", "Prioritize threads under 6 hours old")
+  * DO NOT include client-specific filters (e.g., vehicle years, specific product types, industry-specific terms)
+  * DO NOT include subreddit-specific rules (those are already handled per-subreddit)
+  
+- "generation" recommendations must be UNIVERSAL writing patterns applicable to all citation drops
+  * Focus on tone and structure (e.g., "Lead with helpful advice before mentioning products", "Use casual, conversational tone")
+  * Focus on integration techniques (e.g., "Mention 2-3 options including the client", "Frame recommendations as personal experience")
+  * DO NOT include industry-specific advice (e.g., "Focus on legal concepts" - that's only for law firms)
+  * DO NOT include product-specific guidance (e.g., "Mention warranty details" - that's only for certain products)
+
+Think: "Would this recommendation help improve citation drops for a fitness coach, a law firm, AND a SaaS company?" If not, it's too specific.`;
 
     // Call Anthropic API
     const anthropic = await getAnthropicClient();

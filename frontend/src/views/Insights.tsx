@@ -101,6 +101,7 @@ export function Insights() {
   const [loadingSuccess, setLoadingSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [appliedItems, setAppliedItems] = useState<Set<string>>(new Set())
+  const [selectedDismissalRecs, setSelectedDismissalRecs] = useState<Set<number>>(new Set())
   const [selectedDeletionRecs, setSelectedDeletionRecs] = useState<Set<number>>(new Set())
   const [selectedFilteringRecs, setSelectedFilteringRecs] = useState<Set<number>>(new Set())
   const [selectedGenerationRecs, setSelectedGenerationRecs] = useState<Set<number>>(new Set())
@@ -207,6 +208,35 @@ export function Insights() {
       setSnackbar({ open: true, message: `Applied ${analysis.recommendations.length} recommendations to search context` })
     } catch {
       setSnackbar({ open: true, message: 'Failed to apply' })
+    }
+  }
+
+  const applySelectedDismissalRecs = async () => {
+    if (!analysis || selectedDismissalRecs.size === 0) return
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const selectedRecs = Array.from(selectedDismissalRecs)
+        .map(i => analysis.recommendations[i])
+        .filter(Boolean)
+      
+      const current = settings.aiSearchContext || ''
+      const newContext = selectedRecs.join('\n')
+      const separator = current.trim() ? '\n\n' : ''
+      const updated = current.trim() + separator + newContext
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiSearchContext: updated }),
+      })
+      
+      setSelectedDismissalRecs(new Set())
+      setSnackbar({ open: true, message: `Applied ${selectedRecs.length} recommendation(s) to AI Search Context` })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply recommendations' })
     }
   }
 
@@ -416,73 +446,76 @@ export function Insights() {
               {analysis.recommendations.length > 0 && (
                 <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
                   <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary' }}>
-                        Recommendations
-                      </Typography>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<ZapIcon size={12} />}
-                        onClick={applyAllRecommendations}
-                        sx={{
-                          fontSize: '11px',
-                          borderColor: '#f97316',
-                          color: '#f97316',
-                          '&:hover': { bgcolor: 'rgba(249,115,22,0.08)' },
-                        }}
-                      >
-                        Apply All to Search
-                      </Button>
-                    </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary', mb: 2 }}>
+                      Recommendations
+                    </Typography>
                     <Typography sx={{ fontSize: '12px', color: 'text.secondary', mb: 2 }}>
-                      Click "Apply" on individual items or "Apply All" to inject these rules into your AI search scoring context.
+                      Select recommendations to apply to your <strong>AI Search Context</strong> setting:
                     </Typography>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {analysis.recommendations.map((rec, i) => {
-                        const key = `rec-${i}`
-                        const applied = appliedItems.has(key)
+                        const isSelected = selectedDismissalRecs.has(i)
                         return (
                           <Box
                             key={i}
+                            onClick={() => {
+                              setSelectedDismissalRecs(prev => {
+                                const next = new Set(prev)
+                                if (next.has(i)) {
+                                  next.delete(i)
+                                } else {
+                                  next.add(i)
+                                }
+                                return next
+                              })
+                            }}
                             sx={{
                               display: 'flex',
                               alignItems: 'flex-start',
                               gap: 1.5,
                               p: 1.5,
-                              bgcolor: applied ? 'rgba(16,185,129,0.04)' : 'rgba(249,115,22,0.04)',
-                              border: `1px solid ${applied ? 'rgba(16,185,129,0.2)' : 'rgba(249,115,22,0.12)'}`,
+                              bgcolor: isSelected ? 'rgba(249,115,22,0.08)' : 'rgba(0,0,0,0.02)',
+                              border: `1px solid ${isSelected ? 'rgba(249,115,22,0.3)' : (isDark ? '#334155' : '#e2e8f0')}`,
                               borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                bgcolor: isSelected ? 'rgba(249,115,22,0.12)' : 'rgba(249,115,22,0.04)',
+                                borderColor: '#f97316',
+                              },
                             }}
                           >
-                            <Typography sx={{ fontSize: '14px', fontWeight: 700, color: applied ? '#10b981' : '#f97316', mt: '1px', flexShrink: 0 }}>
-                              {i + 1}.
-                            </Typography>
-                            <Typography sx={{ fontSize: '14px', color: 'text.primary', lineHeight: 1.6, flex: 1 }}>
+                            <Checkbox
+                              checked={isSelected}
+                              size="small"
+                              sx={{
+                                p: 0,
+                                color: isDark ? '#64748b' : '#94a3b8',
+                                '&.Mui-checked': { color: '#f97316' },
+                              }}
+                            />
+                            <Typography sx={{ fontSize: '13px', color: 'text.primary', lineHeight: 1.6, flex: 1 }}>
                               {rec}
                             </Typography>
-                            <Button
-                              size="small"
-                              variant={applied ? 'contained' : 'outlined'}
-                              disabled={applied}
-                              startIcon={applied ? <CheckCircleIcon size={12} /> : <ZapIcon size={12} />}
-                              onClick={() => applyToSearchContext(rec, key)}
-                              sx={{
-                                fontSize: '11px',
-                                minWidth: 80,
-                                bgcolor: applied ? '#10b981' : 'transparent',
-                                borderColor: applied ? '#10b981' : '#f97316',
-                                color: applied ? '#fff' : '#f97316',
-                                '&:hover': { bgcolor: applied ? '#059669' : 'rgba(249,115,22,0.08)' },
-                                '&:disabled': { bgcolor: '#10b981', color: '#fff', opacity: 0.7 },
-                              }}
-                            >
-                              {applied ? 'Applied' : 'Apply'}
-                            </Button>
                           </Box>
                         )
                       })}
                     </Box>
+                    {selectedDismissalRecs.size > 0 && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={applySelectedDismissalRecs}
+                        sx={{
+                          mt: 2,
+                          bgcolor: '#f97316',
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: '#ea580c' },
+                        }}
+                      >
+                        Apply {selectedDismissalRecs.size} to Search Context
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               )}
