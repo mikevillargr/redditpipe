@@ -20,51 +20,58 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const variantStyles = {
       primary: cn(
-        'bg-primary-600 text-white font-medium',
-        'hover:bg-primary-700',
-        'active:bg-primary-800',
-        'focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-50',
-        'dark:bg-primary-500 dark:hover:bg-primary-600 dark:active:bg-primary-700',
-        'dark:focus:ring-offset-slate-900',
-        'shadow-sm'
+        // Light mode: #f97316 (MUI primary)
+        'bg-[#f97316] text-white font-medium',
+        'hover:bg-[#ea580c]',
+        'active:bg-[#c2410c]',
+        'focus:ring-[#f97316] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Dark mode: same color, different background
+        'dark:bg-[#f97316] dark:hover:bg-[#ea580c] dark:active:bg-[#c2410c]',
+        'dark:focus:ring-offset-[#0f172a]'
       ),
       secondary: cn(
-        'bg-secondary-600 text-white font-medium',
-        'hover:bg-secondary-700',
-        'active:bg-secondary-800',
-        'focus:ring-secondary-500 focus:ring-offset-2 focus:ring-offset-slate-50',
-        'dark:bg-secondary-500 dark:hover:bg-secondary-600 dark:active:bg-secondary-700',
-        'dark:focus:ring-offset-slate-900',
-        'shadow-sm'
+        // Light mode: #3b82f6 (MUI secondary)
+        'bg-[#3b82f6] text-white font-medium',
+        'hover:bg-[#2563eb]',
+        'active:bg-[#1d4ed8]',
+        'focus:ring-[#3b82f6] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Dark mode: same color
+        'dark:bg-[#3b82f6] dark:hover:bg-[#2563eb] dark:active:bg-[#1d4ed8]',
+        'dark:focus:ring-offset-[#0f172a]'
       ),
       outlined: cn(
-        'border-2 border-primary-600 text-primary-700 bg-transparent font-medium',
-        'hover:bg-primary-100 hover:border-primary-700',
-        'active:bg-primary-200',
-        'focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-50',
-        'dark:border-primary-400 dark:text-primary-400',
-        'dark:hover:bg-primary-500/20 dark:hover:border-primary-300',
-        'dark:active:bg-primary-500/30',
-        'dark:focus:ring-offset-slate-900'
+        // Light mode: #f97316 border and text
+        'border-2 border-[#f97316] text-[#f97316] bg-transparent font-medium',
+        'hover:bg-[#f97316]/10 hover:border-[#ea580c]',
+        'active:bg-[#f97316]/20',
+        'focus:ring-[#f97316] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Dark mode: lighter for visibility
+        'dark:border-[#f97316] dark:text-[#f97316]',
+        'dark:hover:bg-[#f97316]/20 dark:hover:border-[#fb923c]',
+        'dark:active:bg-[#f97316]/30',
+        'dark:focus:ring-offset-[#0f172a]'
       ),
       ghost: cn(
-        'text-slate-800 bg-transparent font-medium',
-        'hover:bg-slate-100',
-        'active:bg-slate-200',
-        'focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-50',
-        'dark:text-slate-200',
-        'dark:hover:bg-slate-800',
-        'dark:active:bg-slate-700',
-        'dark:focus:ring-offset-slate-900'
+        // Light mode: dark text on light background
+        'text-[#0f172a] bg-transparent font-medium',
+        'hover:bg-[#e2e8f0]',
+        'active:bg-[#cbd5e1]',
+        'focus:ring-[#94a3b8] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Dark mode: light text on dark background
+        'dark:text-[#f1f5f9]',
+        'dark:hover:bg-[#334155]',
+        'dark:active:bg-[#475569]',
+        'dark:focus:ring-offset-[#0f172a]'
       ),
       danger: cn(
-        'bg-danger-600 text-white font-medium',
-        'hover:bg-danger-700',
-        'active:bg-danger-800',
-        'focus:ring-danger-500 focus:ring-offset-2 focus:ring-offset-slate-50',
-        'dark:bg-danger-500 dark:hover:bg-danger-600 dark:active:bg-danger-700',
-        'dark:focus:ring-offset-slate-900',
-        'shadow-sm'
+        // Light mode: #ef4444 (MUI error)
+        'bg-[#ef4444] text-white font-medium',
+        'hover:bg-[#dc2626]',
+        'active:bg-[#b91c1c]',
+        'focus:ring-[#ef4444] focus:ring-offset-2 focus:ring-offset-[#f1f5f9]',
+        // Dark mode: same color
+        'dark:bg-[#ef4444] dark:hover:bg-[#dc2626] dark:active:bg-[#b91c1c]',
+        'dark:focus:ring-offset-[#0f172a]'
       ),
     }
     
