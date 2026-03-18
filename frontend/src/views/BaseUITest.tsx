@@ -5,6 +5,13 @@ import { Input } from '../components/base/Input'
 import { Select } from '../components/base/Select'
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogBody, DialogFooter } from '../components/base/Dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/base/Tabs'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/base/Table'
+import { Badge } from '../components/base/Badge'
+import { Switch } from '../components/base/Switch'
+import { Tooltip } from '../components/base/Tooltip'
+import { Alert } from '../components/base/Alert'
+import { Spinner } from '../components/base/Spinner'
+import { IconButton } from '../components/base/IconButton'
 import { ColorModeContext } from '../App'
 import { Box, Typography, Card as MuiCard, CardContent as MuiCardContent, Button as MuiButton } from '@mui/material'
 import { SunIcon, UserIcon, MailIcon, BuildingIcon } from 'lucide-react'
@@ -12,6 +19,7 @@ import { SunIcon, UserIcon, MailIcon, BuildingIcon } from 'lucide-react'
 export function BaseUITest() {
   const { toggleColorMode } = useContext(ColorModeContext)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [switchChecked, setSwitchChecked] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -244,11 +252,126 @@ export function BaseUITest() {
         </MuiCardContent>
       </MuiCard>
 
+      {/* Table */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Table</Typography>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-medium">John Doe</TableCell>
+                <TableCell><Badge variant="success">Active</Badge></TableCell>
+                <TableCell>Admin</TableCell>
+                <TableCell>
+                  <IconButton size="sm" variant="ghost">
+                    <UserIcon size={16} />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Jane Smith</TableCell>
+                <TableCell><Badge variant="warning">Pending</Badge></TableCell>
+                <TableCell>User</TableCell>
+                <TableCell>
+                  <IconButton size="sm" variant="ghost">
+                    <UserIcon size={16} />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Bob Johnson</TableCell>
+                <TableCell><Badge variant="danger">Inactive</Badge></TableCell>
+                <TableCell>User</TableCell>
+                <TableCell>
+                  <IconButton size="sm" variant="ghost">
+                    <UserIcon size={16} />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </MuiCardContent>
+      </MuiCard>
+
+      {/* Badges */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Badges</Typography>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="default">Default</Badge>
+            <Badge variant="success">Success</Badge>
+            <Badge variant="warning">Warning</Badge>
+            <Badge variant="danger">Danger</Badge>
+            <Badge variant="info">Info</Badge>
+          </div>
+        </MuiCardContent>
+      </MuiCard>
+
+      {/* Switch & Tooltip */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Switch & Tooltip</Typography>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Switch checked={switchChecked} onCheckedChange={setSwitchChecked} />
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                {switchChecked ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <Tooltip content="This is a helpful tooltip">
+              <Button variant="outlined" size="sm">Hover me</Button>
+            </Tooltip>
+          </div>
+        </MuiCardContent>
+      </MuiCard>
+
+      {/* Alerts */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Alerts</Typography>
+          <div className="flex flex-col gap-3">
+            <Alert variant="success">Your changes have been saved successfully!</Alert>
+            <Alert variant="error">An error occurred while processing your request.</Alert>
+            <Alert variant="warning">Please review your settings before continuing.</Alert>
+            <Alert variant="info">New features are now available in your dashboard.</Alert>
+          </div>
+        </MuiCardContent>
+      </MuiCard>
+
+      {/* Spinner & IconButton */}
+      <MuiCard sx={{ mb: 3 }}>
+        <MuiCardContent>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>Spinner & IconButton</Typography>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Spinner size="sm" />
+              <Spinner size="md" />
+              <Spinner size="lg" />
+            </div>
+            <div className="flex items-center gap-2">
+              <IconButton size="sm"><UserIcon size={14} /></IconButton>
+              <IconButton size="md"><MailIcon size={16} /></IconButton>
+              <IconButton size="lg"><BuildingIcon size={20} /></IconButton>
+              <IconButton variant="ghost"><SunIcon size={16} /></IconButton>
+            </div>
+          </div>
+        </MuiCardContent>
+      </MuiCard>
+
       {/* Info */}
       <Box sx={{ p: 3, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>✅ Phase 4 Progress</Typography>
+        <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>✅ Component Library Complete!</Typography>
         <Typography variant="body2" color="text.secondary">
-          Building additional components needed for Settings page migration: Tabs, Toggle, etc.
+          All 14 Base UI components built: Button, Card, Input, Select, Dialog, Tabs, Table, Badge, Switch, Tooltip, Alert, Spinner, IconButton, LoginScreen.
+          Ready to migrate all views!
         </Typography>
       </Box>
     </Box>
