@@ -99,6 +99,12 @@ const statusConfig = {
     bg: 'rgba(239, 68, 68, 0.12)',
     border: 'rgba(239, 68, 68, 0.3)',
   },
+  retired: {
+    label: 'Retired',
+    color: '#64748b',
+    bg: 'rgba(100, 116, 139, 0.12)',
+    border: 'rgba(100, 116, 139, 0.3)',
+  },
 }
 // ── Persona pool for AI simulation ──────────────────────────────────────────
 const PERSONA_POOL = [
