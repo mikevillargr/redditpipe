@@ -63,7 +63,14 @@ export default function App() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme-mode')
-    return (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    const initialMode = (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    // Immediately sync dark class on initial load
+    if (initialMode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    return initialMode
   })
 
   const theme = useAppTheme(mode)
