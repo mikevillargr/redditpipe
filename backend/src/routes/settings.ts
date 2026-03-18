@@ -192,7 +192,20 @@ Return JSON with:
 Format: {"score": 0.X, "summary": "..."}`;
 
       const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 500);
-      const parsed = JSON.parse(aiResponse.replace(/```json\n?/g, '').replace(/```/g, '').trim());
+      
+      // Clean and parse JSON response
+      let parsed;
+      try {
+        const cleaned = aiResponse
+          .replace(/```json\n?/g, '')
+          .replace(/```/g, '')
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+          .trim();
+        parsed = JSON.parse(cleaned);
+      } catch (parseError) {
+        console.error("[Scoring Test] Failed to parse AI response:", aiResponse.substring(0, 500));
+        throw new Error(`Invalid JSON from AI: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+      }
       
       testOutput = {
         model: model,
