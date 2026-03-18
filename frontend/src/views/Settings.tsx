@@ -22,6 +22,8 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
+  Tabs,
+  Tab,
 } from '@mui/material'
 import {
   EyeIcon,
@@ -230,6 +232,9 @@ const inputSx = {
   },
 }
 export function Settings() {
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0)
+  
   // Reddit API
   const [redditApiMode, setRedditApiMode] = useState<'public_json' | 'oauth'>('public_json')
   const [redditClientId, setRedditClientId] = useState('')
@@ -598,8 +603,38 @@ export function Settings() {
         Settings
       </Typography>
 
-      {/* Reddit API */}
-      <SectionCard title="Reddit API">
+      <Tabs
+        value={activeTab}
+        onChange={(_, newValue) => setActiveTab(newValue)}
+        sx={{
+          mb: 3,
+          borderBottom: '1px solid #334155',
+          '& .MuiTab-root': {
+            color: '#64748b',
+            textTransform: 'none',
+            fontSize: '14px',
+            fontWeight: 600,
+            minHeight: '48px',
+            '&.Mui-selected': {
+              color: '#f97316',
+            },
+          },
+          '& .MuiTabs-indicator': {
+            backgroundColor: '#f97316',
+          },
+        }}
+      >
+        <Tab label="API Keys" />
+        <Tab label="AI Models" />
+        <Tab label="Search & Scheduling" />
+        <Tab label="Advanced" />
+      </Tabs>
+
+      {/* Tab 0: API Keys */}
+      {activeTab === 0 && (
+        <>
+          {/* Reddit API */}
+          <SectionCard title="Reddit API">
         <Box
           sx={{
             display: 'flex',
@@ -718,8 +753,8 @@ export function Settings() {
         </Box>
       </SectionCard>
 
-      {/* AI Configuration */}
-      <SectionCard title="AI Configuration">
+          {/* AI Configuration */}
+          <SectionCard title="AI Configuration">
         <Box
           sx={{
             display: 'flex',
@@ -759,10 +794,15 @@ export function Settings() {
             </Box>
           </Box>
         </Box>
-      </SectionCard>
+          </SectionCard>
+        </>
+      )}
 
-      {/* Special Instructions */}
-      <SectionCard title="Special Instructions for AI Generation">
+      {/* Tab 1: AI Models */}
+      {activeTab === 1 && (
+        <>
+          {/* Special Instructions */}
+          <SectionCard title="Special Instructions for AI Generation">
         <Box
           sx={{
             display: 'flex',
@@ -925,9 +965,14 @@ export function Settings() {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
 
-      {/* Search Settings */}
-      <SectionCard title="Search Settings">
+      {/* Tab 2: Search & Scheduling */}
+      {activeTab === 2 && (
+        <>
+          {/* Search Settings */}
+          <SectionCard title="Search Settings">
         <Box
           sx={{
             display: 'flex',
@@ -1598,9 +1643,14 @@ export function Settings() {
           />
         </Box>
       </SectionCard>
+        </>
+      )}
 
-      {/* Pile-On Settings */}
-      <SectionCard title="Pile-On Settings">
+      {/* Tab 3: Advanced */}
+      {activeTab === 3 && (
+        <>
+          {/* Pile-On Settings */}
+          <SectionCard title="Pile-On Settings">
         <Box
           sx={{
             display: 'flex',
@@ -2059,6 +2109,8 @@ export function Settings() {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   )
 }
