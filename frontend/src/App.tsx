@@ -64,11 +64,14 @@ export default function App() {
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme-mode')
     const initialMode = (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    console.log('[Theme Init] Saved mode:', saved, 'Initial mode:', initialMode)
     // Immediately sync dark class on initial load
     if (initialMode === 'dark') {
       document.documentElement.classList.add('dark')
+      console.log('[Theme Init] Added dark class')
     } else {
       document.documentElement.classList.remove('dark')
+      console.log('[Theme Init] Removed dark class')
     }
     return initialMode
   })
@@ -101,11 +104,15 @@ export default function App() {
 
   // Sync Tailwind dark mode with MUI theme
   useEffect(() => {
+    console.log('[Theme Effect] Mode changed to:', mode)
     if (mode === 'dark') {
       document.documentElement.classList.add('dark')
+      console.log('[Theme Effect] Added dark class')
     } else {
       document.documentElement.classList.remove('dark')
+      console.log('[Theme Effect] Removed dark class')
     }
+    console.log('[Theme Effect] HTML classes:', document.documentElement.className)
   }, [mode])
 
   const handleLogout = async () => {

@@ -46,17 +46,17 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
               'focus:outline-none focus:ring-2 focus:ring-offset-2',
               'flex items-center justify-between',
               // Light mode
-              'bg-[#ffffff] text-[#0f172a]',
-              'border-[#e2e8f0]',
-              'hover:border-[#cbd5e1]',
-              'focus:border-[#f97316] focus:ring-[#f97316] focus:ring-offset-[#ffffff]',
+              'bg-white text-slate-900',
+              'border-slate-200',
+              'hover:border-slate-300',
+              'focus:border-orange-500 focus:ring-orange-500 focus:ring-offset-white',
               // Dark mode
-              'dark:bg-[#1e293b] dark:text-[#f1f5f9]',
-              'dark:border-[#334155]',
-              'dark:hover:border-[#475569]',
-              'dark:focus:border-[#f97316] dark:focus:ring-offset-[#0f172a]',
+              'dark:bg-slate-800 dark:text-slate-100',
+              'dark:border-slate-700',
+              'dark:hover:border-slate-600',
+              'dark:focus:border-orange-500 dark:focus:ring-offset-slate-900',
               // Error state
-              error && 'border-[#ef4444] focus:border-[#ef4444] focus:ring-[#ef4444]',
+              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
               // Disabled state
               'disabled:opacity-60 disabled:cursor-not-allowed',
               className
@@ -70,8 +70,8 @@ export const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
               <BaseSelect.Popup
                 className={cn(
                   'min-w-[200px] rounded-lg border-2 shadow-lg',
-                  'bg-[#ffffff] border-[#e2e8f0]',
-                  'dark:bg-[#1e293b] dark:border-[#334155]',
+                  'bg-white border-slate-200',
+                  'dark:bg-slate-800 dark:border-slate-700',
                   'max-h-[300px] overflow-auto',
                   'py-1'
                 )}
