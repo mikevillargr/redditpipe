@@ -79,14 +79,46 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_TYPE="${{ steps.version.outputs.release_type }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
           
           # Create tag
           git tag "$VERSION"
           git push origin "$VERSION"
           
-          # Create release with auto-generated notes
+          # Generate release notes with commit details
+          cat > /tmp/release-notes.md << 'EOF'
+## 🚀 Changes
+
+**Type**: ${RELEASE_TYPE} release
+
+### What's New
+${COMMIT_MSG}
+
+### Details
+- **Author**: ${COMMIT_AUTHOR}
+- **Commit**: `${SHORT_SHA}`
+- **Deployed**: ${DEPLOY_TIME}
+
+---
+
+EOF
+          
+          # Substitute variables
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DEPLOY_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          sed -i "s/\${RELEASE_TYPE}/${RELEASE_TYPE}/g" /tmp/release-notes.md
+          sed -i "s/\${COMMIT_MSG}/${COMMIT_MSG}/g" /tmp/release-notes.md
+          sed -i "s/\${COMMIT_AUTHOR}/${COMMIT_AUTHOR}/g" /tmp/release-notes.md
+          sed -i "s/\${SHORT_SHA}/${SHORT_SHA}/g" /tmp/release-notes.md
+          sed -i "s/\${DEPLOY_TIME}/${DEPLOY_TIME}/g" /tmp/release-notes.md
+          
+          # Create release with custom notes and auto-generated changelog
           gh release create "$VERSION" \
             --title "$VERSION" \
+            --notes-file /tmp/release-notes.md \
             --generate-notes \
             --latest
 
