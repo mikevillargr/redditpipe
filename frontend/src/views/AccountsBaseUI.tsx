@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFoo
 import { Input } from '../components/base/Input'
 import { IconButton } from '../components/base/IconButton'
 import { Alert } from '../components/base/Alert'
-import { PlusIcon, EyeIcon, EyeOffIcon, EditIcon, Trash2Icon, ActivityIcon } from 'lucide-react'
+import { PlusIcon, EyeIcon, EyeOffIcon, EditIcon, Trash2Icon, ActivityIcon, ClipboardIcon, CheckIcon, WandIcon } from 'lucide-react'
 
 interface Account {
   id: string
@@ -29,11 +29,18 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [showPassword, setShowPassword] = useState<Record<string, boolean>>({})
+  const [showPasswordTable, setShowPasswordTable] = useState<Record<string, boolean>>({})
 
   // Form state
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [personaNotes, setPersonaNotes] = useState('')
+  const [initialStatus, setInitialStatus] = useState<'active' | 'warming' | 'cooldown' | 'flagged'>('warming')
+  const [maxPostsPerDay, setMaxPostsPerDay] = useState(3)
+  const [verifying, setVerifying] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<{ valid: boolean; error?: string } | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -61,10 +68,53 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
     fetchAccounts()
   }, [fetchAccounts])
 
+  const handleVerifyCredentials = async () => {
+    if (!username.trim() || !password.trim()) return
+    setVerifying(true)
+    setVerificationResult(null)
+
+    try {
+      const res = await fetch('/api/accounts/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password: password.trim() }),
+      })
+      const data = await res.json()
+      setVerificationResult(data)
+    } catch {
+      setVerificationResult({ valid: false, error: 'Network error' })
+    }
+    setVerifying(false)
+  }
+
+  const handleRandomizePersona = async () => {
+    setIsGenerating(true)
+    try {
+      const res = await fetch('/api/accounts/generate-persona', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim() }),
+      })
+      const data = await res.json()
+      if (data.personaNotes) {
+        setPersonaNotes(data.personaNotes)
+      }
+    } catch (err) {
+      console.error('Failed to generate persona:', err)
+    }
+    setIsGenerating(false)
+  }
+
   const handleAdd = () => {
     setEditingAccount(null)
     setUsername('')
     setPassword('')
+    setShowPasswordModal(false)
+    setPersonaNotes('')
+    setInitialStatus('warming')
+    setMaxPostsPerDay(3)
+    setVerificationResult(null)
+    setIsGenerating(false)
     setModalOpen(true)
   }
 
@@ -72,6 +122,12 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
     setEditingAccount(account)
     setUsername(account.username)
     setPassword(account.password)
+    setShowPasswordModal(false)
+    setPersonaNotes('')
+    setInitialStatus(account.status)
+    setMaxPostsPerDay(3)
+    setVerificationResult(null)
+    setIsGenerating(false)
     setModalOpen(true)
   }
 
@@ -96,7 +152,9 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
       const payload = {
         username: username.trim(),
         password: password.trim(),
-        status: 'active',
+        status: initialStatus,
+        maxPostsPerDay,
+        personaNotes: personaNotes.trim(),
       }
 
       if (editingAccount) {
@@ -132,7 +190,7 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
   }
 
   const togglePasswordVisibility = (id: string) => {
-    setShowPassword(prev => ({ ...prev, [id]: !prev[id] }))
+    setShowPasswordTable(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   return (
@@ -184,15 +242,19 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">
-                        {showPassword[account.id] ? account.password : '••••••••'}
-                      </span>
+                      <input
+                        type={showPasswordModal ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Reddit password"
+                        className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
                       <IconButton
-                        size="sm"
+                        size="md"
                         variant="ghost"
-                        onClick={() => togglePasswordVisibility(account.id)}
+                        onClick={() => setShowPasswordModal(!showPasswordModal)}
                       >
-                        {showPassword[account.id] ? <EyeOffIcon size={14} /> : <EyeIcon size={14} />}
+                        {showPasswordModal ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
                       </IconButton>
                     </div>
                   </TableCell>

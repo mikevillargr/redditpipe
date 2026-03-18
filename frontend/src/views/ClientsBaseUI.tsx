@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFoo
 import { IconButton } from '../components/base/IconButton'
 import { Alert } from '../components/base/Alert'
 import { Spinner } from '../components/base/Spinner'
-import { PlusIcon, EditIcon, Trash2Icon, ExternalLinkIcon } from 'lucide-react'
+import { PlusIcon, EditIcon, Trash2Icon, ExternalLinkIcon, WandIcon } from 'lucide-react'
 
 interface Client {
   id: string
@@ -34,9 +34,15 @@ export function ClientsBaseUI() {
   const [name, setName] = useState('')
   const [website, setWebsite] = useState('')
   const [description, setDescription] = useState('')
+  const [keywordMode, setKeywordMode] = useState<'comma' | 'lines' | 'csv'>('comma')
   const [keywords, setKeywords] = useState('')
   const [mentionTerms, setMentionTerms] = useState('')
   const [nuance, setNuance] = useState('')
+  const [csvFileName, setCsvFileName] = useState<string | null>(null)
+  const [detecting, setDetecting] = useState(false)
+  const [detectError, setDetectError] = useState<string | null>(null)
+  const [detectSuccess, setDetectSuccess] = useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const fetchClients = useCallback(async () => {
     try {
@@ -65,6 +71,68 @@ export function ClientsBaseUI() {
     fetchClients()
   }, [fetchClients])
 
+  const handleAutoDetect = async () => {
+    if (!website.trim()) return
+    setDetecting(true)
+    setDetectError(null)
+    setDetectSuccess(null)
+
+    try {
+      const res = await fetch('/api/clients/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: website.trim() }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setDetectError(data.error || 'Detection failed')
+        return
+      }
+
+      setDetectSuccess(`✓ Generated ${data.keywords?.length || 0} keywords`)
+
+      if (data.name && !name) setName(data.name)
+      if (data.description) setDescription(data.description)
+      if (data.keywords?.length) {
+        setKeywords(data.keywords.join(', '))
+        setKeywordMode('comma')
+      }
+      if (data.mentionTerms?.length) setMentionTerms(data.mentionTerms.join(', '))
+      if (data.nuance) setNuance(data.nuance)
+    } catch (err) {
+      setDetectError(err instanceof Error ? err.message : 'Network error')
+    } finally {
+      setDetecting(false)
+    }
+  }
+
+  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCsvFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const parsed = text
+        .split(/[\n\r]+/)
+        .flatMap((line) => line.split(','))
+        .map((k) => k.replace(/^["']|["']$/g, '').trim())
+        .filter(Boolean)
+      setKeywords(parsed.join(', '))
+      setKeywordMode('comma')
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const parseKeywords = (): string[] => {
+    if (keywordMode === 'lines') {
+      return keywords.split('\n').map((k) => k.trim()).filter(Boolean)
+    }
+    return keywords.split(',').map((k) => k.trim()).filter(Boolean)
+  }
+
   const handleAdd = () => {
     setEditingClient(null)
     setName('')
@@ -73,6 +141,10 @@ export function ClientsBaseUI() {
     setKeywords('')
     setMentionTerms('')
     setNuance('')
+    setKeywordMode('comma')
+    setCsvFileName(null)
+    setDetectError(null)
+    setDetectSuccess(null)
     setModalOpen(true)
   }
 
@@ -84,6 +156,10 @@ export function ClientsBaseUI() {
     setKeywords(client.keywords.join(', '))
     setMentionTerms(client.mentionTerms.join(', '))
     setNuance(client.nuance)
+    setKeywordMode('comma')
+    setCsvFileName(null)
+    setDetectError(null)
+    setDetectSuccess(null)
     setModalOpen(true)
   }
 
@@ -133,7 +209,7 @@ export function ClientsBaseUI() {
       const payload = {
         name: name.trim(),
         websiteUrl: website.trim(),
-        keywords: keywords.split(',').map(k => k.trim()).filter(Boolean).join(','),
+        keywords: parseKeywords().join(','),
         mentionTerms: mentionTerms.split(',').map(t => t.trim()).filter(Boolean).join(','),
         nuance: nuance.trim(),
         status: 'active',
