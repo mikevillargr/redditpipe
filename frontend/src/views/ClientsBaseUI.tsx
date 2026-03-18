@@ -345,39 +345,135 @@ export function ClientsBaseUI() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Acme Corp"
               />
-              <Input
-                label="Website"
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://example.com"
-              />
-              <Input
-                label="Description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Brief description of the client"
-              />
-              <Input
-                label="Keywords (comma-separated)"
-                value={keywords}
-                onChange={(e) => setKeywords(e.target.value)}
-                placeholder="project management, collaboration, productivity"
-                helperText="Search terms to find relevant Reddit discussions"
-              />
-              <Input
-                label="Mention Terms (comma-separated, optional)"
-                value={mentionTerms}
-                onChange={(e) => setMentionTerms(e.target.value)}
-                placeholder="Acme, AcmeCorp"
-                helperText="Brand names or terms that indicate direct mentions"
-              />
-              <Input
-                label="Nuance (optional)"
-                value={nuance}
-                onChange={(e) => setNuance(e.target.value)}
-                placeholder="Additional context for AI scoring"
-                helperText="Help AI understand what makes a good opportunity"
-              />
+              
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Input
+                    label="Website URL"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    placeholder="https://example.com"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    onClick={handleAutoDetect}
+                    disabled={detecting || !website.trim()}
+                    className="whitespace-nowrap"
+                  >
+                    {detecting ? (
+                      <>
+                        <Spinner size="sm" className="mr-2" />
+                        Detecting...
+                      </>
+                    ) : (
+                      'Auto Detect'
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {detectError && (
+                <Alert variant="error">{detectError}</Alert>
+              )}
+              {detectSuccess && (
+                <Alert variant="success">{detectSuccess}</Alert>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of the client"
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Keywords
+                  </label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setKeywordMode('comma')}
+                      className={`px-2 py-1 text-xs rounded ${keywordMode === 'comma' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
+                    >
+                      Comma-separated
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setKeywordMode('lines')}
+                      className={`px-2 py-1 text-xs rounded ${keywordMode === 'lines' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'}`}
+                    >
+                      One per line
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-2 py-1 text-xs rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+                    >
+                      CSV upload
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv"
+                      onChange={handleCsvUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+                <textarea
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder={keywordMode === 'lines' ? 'personal injury lawyer\ncar accident attorney\nslip and fall lawyer' : 'personal injury lawyer, car accident attorney, slip and fall lawyer'}
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+                {csvFileName && (
+                  <p className="text-xs text-slate-500 mt-1">Loaded from: {csvFileName}</p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">Search terms to find relevant Reddit discussions</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Mention Terms
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Brand names, URLs, or phrases the AI will naturally weave into replies — e.g. a brand name, your website, or a CTA like "free consultation". These act as soft anchor text in organic mentions.
+                </p>
+                <Input
+                  value={mentionTerms}
+                  onChange={(e) => setMentionTerms(e.target.value)}
+                  placeholder="e.g. Harmon Law Group, harmonlaw.com, free consultation"
+                  helperText="Comma-separated. The AI will pick the most contextually appropriate term per reply."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Nuance
+                </label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Special filtering instructions passed to the AI scorer — e.g. geographic focus, target audience, industries to prioritize or avoid.
+                </p>
+                <textarea
+                  value={nuance}
+                  onChange={(e) => setNuance(e.target.value)}
+                  placeholder='e.g. "US-only, focus on small businesses, avoid enterprise/B2B threads"'
+                  rows={3}
+                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+              </div>
             </div>
           </DialogBody>
           <DialogFooter>
