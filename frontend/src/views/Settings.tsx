@@ -391,7 +391,7 @@ export function Settings() {
     setScoringTestOutput('')
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000) // 90 second timeout for slow Z.ai models
       
       const res = await fetch(`/api/settings/test-model-scoring?t=${Date.now()}&model=${encodeURIComponent(aiModelScoring)}`, { 
         method: 'POST',
@@ -408,7 +408,7 @@ export function Settings() {
     } catch (err) {
       setScoringTestStatus('error')
       if (err instanceof Error && err.name === 'AbortError') {
-        setScoringTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+        setScoringTestOutput('Test timed out after 90 seconds. Z.ai GLM models can take 50-80 seconds to respond.')
       }
     }
   }
@@ -418,7 +418,7 @@ export function Settings() {
     setRepliesTestOutput('')
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000) // 90 second timeout for slow Z.ai models
       
       const res = await fetch(`/api/settings/test-model-replies?t=${Date.now()}&model=${encodeURIComponent(aiModelReplies)}`, { 
         method: 'POST',
@@ -435,7 +435,7 @@ export function Settings() {
     } catch (err) {
       setRepliesTestStatus('error')
       if (err instanceof Error && err.name === 'AbortError') {
-        setRepliesTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+        setRepliesTestOutput('Test timed out after 90 seconds. Z.ai GLM models can take 50-80 seconds to respond.')
       }
     }
   }
@@ -445,7 +445,7 @@ export function Settings() {
     setDetectionTestOutput('')
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000) // 90 second timeout for slow Z.ai models
       
       const res = await fetch(`/api/settings/test-model-detection?t=${Date.now()}&model=${encodeURIComponent(aiModelDetection)}`, { 
         method: 'POST',
@@ -462,7 +462,7 @@ export function Settings() {
     } catch (err) {
       setDetectionTestStatus('error')
       if (err instanceof Error && err.name === 'AbortError') {
-        setDetectionTestOutput('Test timed out after 60 seconds. Z.ai models may be slow to respond.')
+        setDetectionTestOutput('Test timed out after 90 seconds. Z.ai GLM models can take 50-80 seconds to respond.')
       }
     }
   }
