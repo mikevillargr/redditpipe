@@ -625,7 +625,7 @@ export function Settings() {
         }}
       >
         <Tab label="API Keys" />
-        <Tab label="AI Models" />
+        <Tab label="AI Functions" />
         <Tab label="Search & Scheduling" />
         <Tab label="Advanced" />
       </Tabs>
@@ -976,6 +976,52 @@ export function Settings() {
           </Typography>
 
           {/* Model selection sections will be moved here */}
+          <Divider sx={{ borderColor: '#1e293b', my: 3 }} />
+
+          {/* AI Search Tuning */}
+          <SectionCard title="AI Search Tuning">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box>
+                <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 0.5 }}>
+                  Relevance Threshold: <strong>{Math.round(relevanceThreshold * 100)}%</strong>
+                </Typography>
+                <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 1 }}>
+                  Opportunities below this score will be automatically filtered out. Higher = stricter.
+                </Typography>
+                <Box sx={{ px: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: -0.5 }}>
+                    {[0, 25, 50, 75, 100].map((v) => (
+                      <Typography key={v} sx={{ fontSize: '10px', color: '#64748b' }}>{v}%</Typography>
+                    ))}
+                  </Box>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={relevanceThreshold}
+                    onChange={(e) => setRelevanceThreshold(parseFloat(e.target.value))}
+                    style={{ width: '100%', accentColor: '#f97316' }}
+                  />
+                </Box>
+              </Box>
+
+              <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
+
+              <TextField
+                label="AI Scoring Instructions"
+                value={aiSearchContext}
+                onChange={(e) => setAiSearchContext(e.target.value)}
+                fullWidth
+                multiline
+                rows={4}
+                size="small"
+                placeholder="e.g. We only target English-language B2B discussions. Ignore hiring posts, local community threads, educational tutorials, and posts from niche hobby subreddits unrelated to business services..."
+                helperText="General rules injected into the AI scoring prompt. These apply across all clients to filter out irrelevant results. Use the Insights page to auto-apply learned patterns."
+                sx={inputSx}
+              />
+            </Box>
+          </SectionCard>
         </>
       )}
 
@@ -1279,9 +1325,14 @@ export function Settings() {
           )}
         </Box>
       </SectionCard>
+        </>
+      )}
 
-      {/* AI Search Tuning */}
-      <SectionCard title="AI Search Tuning">
+      {/* Tab 3: Advanced */}
+      {activeTab === 3 && (
+        <>
+          {/* Pile-On Settings */}
+          <SectionCard title="Pile-On Settings">
         <Box
           sx={{
             display: 'flex',
@@ -1289,44 +1340,19 @@ export function Settings() {
             gap: 2,
           }}
         >
-          <Box>
-            <Typography sx={{ fontSize: '13px', color: 'text.secondary', mb: 0.5 }}>
-              Relevance Threshold: <strong>{Math.round(relevanceThreshold * 100)}%</strong>
-            </Typography>
-            <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 1 }}>
-              Opportunities below this score will be automatically filtered out. Higher = stricter.
-            </Typography>
-            <Box sx={{ px: 1 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: -0.5 }}>
-                {[0, 25, 50, 75, 100].map((v) => (
-                  <Typography key={v} sx={{ fontSize: '10px', color: '#64748b' }}>{v}%</Typography>
-                ))}
-              </Box>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={relevanceThreshold}
-                onChange={(e) => setRelevanceThreshold(parseFloat(e.target.value))}
-                style={{ width: '100%', accentColor: '#f97316' }}
-              />
-            </Box>
-          </Box>
+          <Typography sx={{ fontSize: '12px', color: '#64748b', mb: 1 }}>
+            Configure automatic pile-on comment generation. When a primary comment is verified as published, the system can automatically create pile-on opportunities for secondary accounts to reinforce the message.
+          </Typography>
 
           <FormControl size="small" fullWidth sx={inputSx}>
-            <InputLabel>Scoring Model (high volume)</InputLabel>
+            <InputLabel>Pile-On Feature</InputLabel>
             <Select
-              value={aiModelScoring}
-              onChange={(e) => setAiModelScoring(e.target.value)}
-              label="Scoring Model (high volume)"
+              value={pileOnEnabled ? 'enabled' : 'disabled'}
+              onChange={(e) => setPileOnEnabled(e.target.value === 'enabled')}
+              label="Pile-On Feature"
             >
-              <MenuItem value="claude-haiku-4-5-20251001">
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span>Claude Haiku 4.5</span>
-                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Recommended</Typography>
-                </Box>
-              </MenuItem>
+              <MenuItem value="disabled">Disabled</MenuItem>
+              <MenuItem value="enabled">Enabled</MenuItem>
               <MenuItem value="claude-sonnet-4-20250514">
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                   <span>Claude Sonnet 4</span>
