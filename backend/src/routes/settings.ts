@@ -165,51 +165,56 @@ app.post("/test-model-scoring", async (c) => {
     const queryModel = c.req.query('model');
     const model = queryModel || settings?.aiModelScoring || "claude-haiku-4-5-20251001";
     
-    // Try to fetch a real recently scored opportunity
+    // Fetch a real opportunity to use as test data, but regenerate the score
     const recentOpp = await prisma.opportunity.findFirst({
       where: { 
-        relevanceScore: { not: null },
-        aiRelevanceNote: { not: null }
+        bodySnippet: { not: null }
       },
       orderBy: { createdAt: 'desc' },
       include: { client: true }
     });
 
+    const { callAISimple } = await import("../lib/ai-client.js");
     let testOutput: any;
 
-    if (recentOpp) {
-      // Use real thread data
+    if (recentOpp && recentOpp.client) {
+      // Use real thread data but regenerate score with selected model
+      const prompt = `Analyze this Reddit thread for relevance to "${recentOpp.client.name}" (${recentOpp.client.description || 'business'}).
+
+Thread: "${recentOpp.title}"
+Body: ${recentOpp.bodySnippet}
+Subreddit: r/${recentOpp.subreddit}
+
+Return JSON with:
+- score: 0-1 relevance score
+- summary: 2-3 sentence explanation of why this is/isn't relevant
+
+Format: {"score": 0.X, "summary": "..."}`;
+
+      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 500);
+      const parsed = JSON.parse(aiResponse.replace(/```json\n?/g, '').replace(/```/g, '').trim());
+      
       testOutput = {
         model: model,
-        score: recentOpp.relevanceScore,
-        summary: recentOpp.aiRelevanceNote,
+        score: parsed.score,
+        summary: parsed.summary,
         threadTitle: recentOpp.title,
         subreddit: recentOpp.subreddit,
         bodySnippet: recentOpp.bodySnippet?.substring(0, 200) || '(no body)',
-        clientName: recentOpp.client?.name || 'Unknown Client',
-        note: "✓ Using real scored thread from database"
+        clientName: recentOpp.client.name,
+        note: "✓ Regenerated score with selected model using real thread data"
       };
     } else {
-      // Fallback: Use simple AI call for test score
-      const { callAISimple } = await import("../lib/ai-client.js");
-      
+      // Fallback: Use mock data
       const mockThread = {
         title: "Looking for LLC formation tools and business software recommendations",
         body: "I'm starting a new business and need help with LLC formation. Also looking for good accounting software and CRM tools. Any recommendations?",
-        subreddit: "smallbusiness",
-        author: "test_user",
-        created_utc: Math.floor(Date.now() / 1000),
-        permalink: "/r/smallbusiness/test",
-        score: 15,
-        num_comments: 8,
-        url: "https://reddit.com/r/smallbusiness/test"
+        subreddit: "smallbusiness"
       };
 
       const mockClient = {
-        id: "test",
         name: "Test Business Software Company",
-        description: "Business automation and formation tools",
-        keywords: ["LLC formation", "business software", "accounting", "CRM"]
+        description: "Business automation and formation tools"
       };
 
       const prompt = `Analyze this Reddit thread for relevance to "${mockClient.name}" (${mockClient.description}).
@@ -235,7 +240,7 @@ Format: {"score": 0.X, "summary": "..."}`;
         subreddit: mockThread.subreddit,
         bodySnippet: mockThread.body.substring(0, 200),
         clientName: mockClient.name,
-        note: "⚠ Generated test score (no recent scored threads in database)"
+        note: "⚠ Generated test score with mock data"
       };
     }
     
