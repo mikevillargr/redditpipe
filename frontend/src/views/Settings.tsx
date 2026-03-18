@@ -167,7 +167,7 @@ function ConnectionTestButton({
           },
         }}
       >
-        {status === 'testing' ? 'Testing...' : 'Test Connection'}
+        {status === 'testing' ? 'Testing...' : 'Test'}
       </Button>
       {status === 'success' && (
         <Box
@@ -390,7 +390,10 @@ export function Settings() {
     setScoringTestStatus('testing')
     setScoringTestOutput('')
     try {
-      const res = await fetch('/api/settings/test-model-scoring', { method: 'POST' })
+      const res = await fetch(`/api/settings/test-model-scoring?t=${Date.now()}`, { 
+        method: 'POST',
+        cache: 'no-cache'
+      })
       const data = await res.json()
       setScoringTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
@@ -405,7 +408,10 @@ export function Settings() {
     setRepliesTestStatus('testing')
     setRepliesTestOutput('')
     try {
-      const res = await fetch('/api/settings/test-model-replies', { method: 'POST' })
+      const res = await fetch(`/api/settings/test-model-replies?t=${Date.now()}`, { 
+        method: 'POST',
+        cache: 'no-cache'
+      })
       const data = await res.json()
       setRepliesTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
@@ -420,7 +426,10 @@ export function Settings() {
     setDetectionTestStatus('testing')
     setDetectionTestOutput('')
     try {
-      const res = await fetch('/api/settings/test-model-detection', { method: 'POST' })
+      const res = await fetch(`/api/settings/test-model-detection?t=${Date.now()}`, { 
+        method: 'POST',
+        cache: 'no-cache'
+      })
       const data = await res.json()
       setDetectionTestStatus(data.success ? 'success' : 'error')
       if (data.success && data.testOutput) {
