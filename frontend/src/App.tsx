@@ -17,6 +17,7 @@ import { Insights } from './views/Insights'
 import { KarmaFarming } from './views/KarmaFarming'
 import { Reports } from './views/Reports'
 import { LoginScreen } from './components/LoginScreen'
+import { LoginScreenBaseUI } from './components/LoginScreenBaseUI'
 import { BaseUITest } from './views/BaseUITest'
 
 export const ColorModeContext = createContext({
@@ -133,7 +134,7 @@ export default function App() {
 
   const renderContent = () => {
     if (authenticated === null) return null
-    if (!authenticated) return <LoginScreen onLogin={checkAuth} />
+    if (!authenticated) return <LoginScreenBaseUI onLogin={checkAuth} />
 
     return (
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
