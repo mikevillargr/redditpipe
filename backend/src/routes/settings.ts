@@ -125,10 +125,10 @@ app.post("/test-zai", async (c) => {
       return c.json({ success: false, error: "Z.ai API key not configured" });
     }
 
-    console.log("[Z.ai Test] Generating token for API key:", apiKey.substring(0, 10) + "...");
+    console.error("[Z.ai Test] Generating token for API key:", apiKey.substring(0, 10) + "...");
     const { generateZaiToken } = await import("../lib/ai-client.js");
     const token = generateZaiToken(apiKey);
-    console.log("[Z.ai Test] Token generated:", token.substring(0, 20) + "...");
+    console.error("[Z.ai Test] Token generated:", token.substring(0, 20) + "...");
     
     const OpenAI = (await import("openai")).default;
     const client = new OpenAI({
@@ -136,15 +136,17 @@ app.post("/test-zai", async (c) => {
       baseURL: "https://api.z.ai/api/paas/v4/",
     });
     
-    console.log("[Z.ai Test] Making API call to Z.ai...");
+    console.error("[Z.ai Test] Making API call to Z.ai...");
     const response = await client.chat.completions.create({
       model: "glm-4.5",
       messages: [{ role: "user", content: "Say hello in one word." }],
       max_tokens: 50,
     });
     
-    console.log("[Z.ai Test] Response received:", JSON.stringify(response).substring(0, 100));
-    return c.json({ success: !!response.choices[0]?.message?.content, provider: "zai" });
+    console.error("[Z.ai Test] Response received:", JSON.stringify(response).substring(0, 100));
+    const content = response.choices[0]?.message?.content;
+    console.error("[Z.ai Test] Content:", content);
+    return c.json({ success: !!content, provider: "zai" });
   } catch (error) {
     console.error("[Z.ai Test] Error:", error);
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", provider: "zai" });
