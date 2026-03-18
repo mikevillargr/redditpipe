@@ -1,20 +1,18 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "./prisma.js";
 import { VALID_MODELS, DEFAULT_MODEL } from "./models.js";
+import { callAI, clearAIClientCache } from "./ai-client.js";
 
-let cachedConfig: { apiKey: string; model: string; context: string } | null = null;
+let cachedConfig: { model: string; context: string } | null = null;
 
-async function getConfig(): Promise<{ apiKey: string; model: string; context: string }> {
+async function getConfig(): Promise<{ model: string; context: string }> {
   if (cachedConfig) return cachedConfig;
   const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
-  const key = settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("Anthropic API key not configured");
   const requestedModel = (settings as Record<string, unknown>)?.aiModelScoring as string || DEFAULT_MODEL;
   const model = VALID_MODELS.has(requestedModel) ? requestedModel : DEFAULT_MODEL;
   if (model !== requestedModel) {
     console.warn(`[AI Scoring] Model "${requestedModel}" is invalid, falling back to "${model}"`);
   }
-  cachedConfig = { apiKey: key, model, context: settings?.aiSearchContext || "" };
+  cachedConfig = { model, context: settings?.aiSearchContext || "" };
   return cachedConfig;
 }
 
@@ -29,6 +27,7 @@ export async function warmAiConfig(): Promise<void> {
 
 export function clearScoringCache(): void {
   cachedConfig = null;
+  clearAIClientCache();
 }
 
 interface AiScoreResult {
@@ -57,7 +56,6 @@ interface AiScoreParams {
 
 export async function aiScoreRelevance(params: AiScoreParams): Promise<AiScoreResult> {
   const config = await getConfig();
-  const client = new Anthropic({ apiKey: config.apiKey });
 
   const customContext = config.context
     ? `\nADDITIONAL SCORING CONTEXT FROM ADMIN:\n${config.context}\n`
@@ -103,23 +101,16 @@ Score this thread. Be strict — most threads are NOT good opportunities.`;
 
   try {
     const response = await Promise.race([
-      client.messages.create({
-        model: config.model,
-        max_tokens: 200,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+      callAI(
+        [{ role: "user", content: userPrompt }],
+        { model: config.model, maxTokens: 200, systemPrompt }
+      ),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("AI scoring timed out after 30s")), 30_000)
       ),
     ]);
 
-    const text = response.content.find((b) => b.type === "text");
-    if (!text || text.type !== "text") {
-      return { score: 0.5, note: "AI scoring returned no text", shouldKeep: true };
-    }
-
-    let jsonStr = text.text.trim();
+    let jsonStr = response.content.trim();
     if (jsonStr.startsWith("```")) {
       jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
     }
@@ -165,38 +156,32 @@ export async function analyzeDismissals(): Promise<{
   }
 
   const config = await getConfig();
-  const client = new Anthropic({ apiKey: config.apiKey });
 
   const dismissedSummary = logs
     .slice(0, 50)
     .map((d, i) => `${i + 1}. [r/${d.subreddit}] "${d.title}" (score: ${d.relevanceScore?.toFixed(2) || "N/A"}, client: ${d.clientName}) — Reason: ${d.reason}`)
     .join("\n");
 
-  const response = await client.messages.create({
-    model: config.model,
-    max_tokens: 1000,
-    system: `You analyze dismissed Reddit opportunities to identify patterns and improve future search relevance. Respond with ONLY a JSON object:
+  const systemPrompt = `You analyze dismissed Reddit opportunities to identify patterns and improve future search relevance. Respond with ONLY a JSON object:
 {
   "patterns": [{"pattern": "<description>", "count": <estimated count>, "examples": ["<title1>", "<title2>"]}],
   "summary": "<2-3 sentence overview of what's being dismissed and why>",
   "recommendations": ["<specific actionable suggestion to improve search>", ...]
-}`,
-    messages: [{ role: "user", content: `Analyze these ${logs.length} dismissed opportunities:\n\n${dismissedSummary}` }],
-  });
+}`;
 
-  const text = response.content.find((b) => b.type === "text");
-  if (!text || text.type !== "text") {
-    return { totalDismissed: logs.length, patterns: [], summary: "Unable to analyze patterns", recommendations: [] };
-  }
+  const response = await callAI(
+    [{ role: "user", content: `Analyze these ${logs.length} dismissed opportunities:\n\n${dismissedSummary}` }],
+    { model: config.model, maxTokens: 1000, systemPrompt }
+  );
 
   try {
-    let jsonStr = text.text.trim();
+    let jsonStr = response.content.trim();
     if (jsonStr.startsWith("```")) {
       jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
     }
     const parsed = JSON.parse(jsonStr) as { patterns: DismissalPattern[]; summary: string; recommendations: string[] };
     return { totalDismissed: logs.length, ...parsed };
   } catch {
-    return { totalDismissed: logs.length, patterns: [], summary: text.text, recommendations: [] };
+    return { totalDismissed: logs.length, patterns: [], summary: response.content, recommendations: [] };
   }
 }

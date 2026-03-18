@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { prisma } from "../lib/prisma.js";
 import { clearApiKeyCache, testConnection } from "../lib/ai.js";
+import { clearAIClientCache } from "../lib/ai-client.js";
 import { getRedditAccessToken } from "../lib/reddit.js";
 import { refreshSearchSchedule, refreshDeletionCheckSchedule } from "../lib/cron.js";
 import { clearScoringCache } from "../lib/ai-scoring.js";
@@ -25,6 +26,7 @@ app.get("/", async (c) => {
       redditClientSecret: maskSecret(settings.redditClientSecret),
       redditPassword: maskSecret(settings.redditPassword),
       anthropicApiKey: maskSecret(settings.anthropicApiKey),
+      zaiApiKey: maskSecret(settings.zaiApiKey),
     });
   } catch (error) {
     console.error("GET /api/settings error:", error);
@@ -35,7 +37,7 @@ app.get("/", async (c) => {
 // PUT /api/settings
 const ALLOWED_FIELDS = new Set([
   "redditApiMode", "redditClientId", "redditClientSecret", "redditUsername", "redditPassword",
-  "anthropicApiKey", "specialInstructions", "searchFrequency", "searchScheduleTimes", "searchTimezone",
+  "anthropicApiKey", "zaiApiKey", "specialInstructions", "searchFrequency", "searchScheduleTimes", "searchTimezone",
   "maxResultsPerKeyword", "threadMaxAgeDays", "relevanceThreshold", "aiSearchContext",
   "aiModelScoring", "aiModelReplies", "aiModelDetection", "searchBreadth",
   "maxAiCandidatesPerClient", "maxAiCallsTotal", "maxOppsPerClient", "maxOppsTotal",
@@ -62,6 +64,7 @@ app.put("/", async (c) => {
 
     // Refresh caches and schedules when settings change
     clearApiKeyCache();
+    clearAIClientCache();
     clearScoringCache();
     refreshSearchSchedule().catch((err) => console.error("[Settings] Failed to refresh schedule:", err));
     refreshDeletionCheckSchedule().catch((err) => console.error("[Settings] Failed to refresh deletion check schedule:", err));
@@ -72,6 +75,7 @@ app.put("/", async (c) => {
       redditClientSecret: maskSecret(settings.redditClientSecret),
       redditPassword: maskSecret(settings.redditPassword),
       anthropicApiKey: maskSecret(settings.anthropicApiKey),
+      zaiApiKey: maskSecret(settings.zaiApiKey),
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

@@ -193,6 +193,7 @@ model Settings {
   redditUsername          String?
   redditPassword          String?
   anthropicApiKey         String?
+  zaiApiKey               String?
   searchFrequency         String @default("once_daily")
   searchScheduleTimes     String @default("09:00")
   searchTimezone          String @default("UTC")
