@@ -1,4 +1,5 @@
 import { createPrismaClient } from "./prisma.js";
+import { generateReplyDraft } from "./ai.js";
 
 interface AccountScore {
   accountId: string;
@@ -31,6 +32,10 @@ export async function assignAccountToOpportunity(
         where: { id: opportunityId },
         data: { accountId },
       });
+      
+      // Auto-generate AI draft reply after assignment
+      await generateAiDraftForOpportunity(opportunityId, accountId);
+      
       return { success: true, accountId };
     }
 
@@ -47,6 +52,9 @@ export async function assignAccountToOpportunity(
     });
 
     console.log(`[Queue] Assigned account ${bestAccount.accountId} to opportunity ${opportunityId} (score: ${bestAccount.score.toFixed(2)}, reason: ${bestAccount.reason})`);
+
+    // Auto-generate AI draft reply after assignment
+    await generateAiDraftForOpportunity(opportunityId, bestAccount.accountId);
 
     return { success: true, accountId: bestAccount.accountId };
   } finally {
@@ -184,6 +192,73 @@ async function selectBestAccountForOpportunity(opportunity: {
     scored.sort((a, b) => b.score - a.score);
 
     return scored[0];
+  } finally {
+    await db.$disconnect();
+  }
+}
+
+/**
+ * Generate AI draft reply for an opportunity after account assignment
+ */
+async function generateAiDraftForOpportunity(opportunityId: string, accountId: string): Promise<void> {
+  const db = createPrismaClient();
+  
+  try {
+    // Get full opportunity and account details
+    const opportunity = await db.opportunity.findUnique({
+      where: { id: opportunityId },
+      include: {
+        client: true,
+        account: true,
+        parentOpportunity: true,
+      },
+    });
+
+    if (!opportunity || !opportunity.account) {
+      console.warn(`[Queue] Cannot generate AI draft - opportunity or account not found: ${opportunityId}`);
+      return;
+    }
+
+    // Skip if draft already exists
+    if (opportunity.aiDraftReply) {
+      console.log(`[Queue] AI draft already exists for opportunity ${opportunityId}, skipping generation`);
+      return;
+    }
+
+    // Skip pile-on opportunities - they need parent comment context
+    if (opportunity.opportunityType === "pile_on") {
+      console.log(`[Queue] Skipping AI draft for pile-on opportunity ${opportunityId} - will generate on demand`);
+      return;
+    }
+
+    console.log(`[Queue] Auto-generating AI draft for opportunity ${opportunityId}...`);
+
+    // Generate AI draft reply
+    const aiDraftReply = await generateReplyDraft({
+      threadTitle: opportunity.title,
+      threadBody: opportunity.bodySnippet || "",
+      topComments: opportunity.topComments || "",
+      subreddit: opportunity.subreddit,
+      clientName: opportunity.client?.name || "",
+      clientDescription: opportunity.client?.description || "",
+      clientUrl: opportunity.client?.websiteUrl || "",
+      clientMentionTerms: opportunity.client?.mentionTerms || "",
+      accountUsername: opportunity.account.username,
+      accountPersonality: opportunity.account.personalitySummary || undefined,
+      accountStyleNotes: opportunity.account.writingStyleNotes || undefined,
+      accountSampleComments: opportunity.account.sampleComments || undefined,
+    });
+
+    // Update opportunity with AI draft
+    await db.opportunity.update({
+      where: { id: opportunityId },
+      data: { aiDraftReply },
+    });
+
+    console.log(`[Queue] AI draft generated successfully for opportunity ${opportunityId}`);
+  } catch (error) {
+    console.error(`[Queue] Failed to generate AI draft for opportunity ${opportunityId}:`, error);
+    // Don't throw - assignment should succeed even if AI draft fails
   } finally {
     await db.$disconnect();
   }
