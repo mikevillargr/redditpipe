@@ -84,21 +84,128 @@ app.put("/", async (c) => {
   }
 });
 
-// POST /api/settings/test-ai
-app.post("/test-ai", async (c) => {
+// POST /api/settings/test-anthropic
+app.post("/test-anthropic", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const testKey = body.apiKey && !body.apiKey.startsWith("****") ? body.apiKey : undefined;
+    
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const apiKey = testKey || settings?.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+    
+    if (!apiKey) {
+      return c.json({ success: false, error: "Anthropic API key not configured" });
+    }
+
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    const client = new Anthropic({ apiKey });
+    
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 50,
+      messages: [{ role: "user", content: "Say hello in one word." }],
+    });
+    
+    return c.json({ success: response.content.length > 0, provider: "anthropic" });
+  } catch (error) {
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", provider: "anthropic" });
+  }
+});
+
+// POST /api/settings/test-zai
+app.post("/test-zai", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const testKey = body.apiKey && !body.apiKey.startsWith("****") ? body.apiKey : undefined;
+    
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const apiKey = testKey || settings?.zaiApiKey || process.env.ZAI_API_KEY;
+    
+    if (!apiKey) {
+      return c.json({ success: false, error: "Z.ai API key not configured" });
+    }
+
+    const OpenAI = (await import("openai")).default;
+    const client = new OpenAI({
+      apiKey,
+      baseURL: "https://api.z.ai/api/paas/v4/",
+    });
+    
+    const response = await client.chat.completions.create({
+      model: "glm-4.5",
+      messages: [{ role: "user", content: "Say hello in one word." }],
+      max_tokens: 50,
+    });
+    
+    return c.json({ success: !!response.choices[0]?.message?.content, provider: "zai" });
+  } catch (error) {
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", provider: "zai" });
+  }
+});
+
+// POST /api/settings/test-model-scoring
+app.post("/test-model-scoring", async (c) => {
   try {
     clearApiKeyCache();
-    let apiKey: string | undefined;
-    try {
-      const body = await c.req.json();
-      if (body.apiKey && typeof body.apiKey === "string" && !body.apiKey.startsWith("****")) {
-        apiKey = body.apiKey;
-      }
-    } catch { /* no body */ }
-    const result = await testConnection();
-    return c.json(result);
+    clearAIClientCache();
+    const { callAISimple } = await import("../lib/ai-client.js");
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const model = settings?.aiModelScoring || "claude-haiku-4-5-20251001";
+    
+    const response = await callAISimple(
+      "Score this Reddit thread for relevance to a business software company. Thread: 'Looking for LLC formation tools'. Return only a JSON with score 0-1.",
+      model,
+      "You are an AI scorer. Return only valid JSON.",
+      200
+    );
+    
+    return c.json({ success: true, model, response: response.substring(0, 100), activity: "scoring" });
   } catch (error) {
-    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error" });
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "scoring" });
+  }
+});
+
+// POST /api/settings/test-model-replies
+app.post("/test-model-replies", async (c) => {
+  try {
+    clearApiKeyCache();
+    clearAIClientCache();
+    const { callAISimple } = await import("../lib/ai-client.js");
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const model = settings?.aiModelReplies || "claude-sonnet-4-20250514";
+    
+    const response = await callAISimple(
+      "Write a short helpful Reddit reply about choosing business software. Keep it under 50 words.",
+      model,
+      "You are a helpful Reddit user. Be concise and natural.",
+      300
+    );
+    
+    return c.json({ success: true, model, response: response.substring(0, 150), activity: "reply_generation" });
+  } catch (error) {
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "reply_generation" });
+  }
+});
+
+// POST /api/settings/test-model-detection
+app.post("/test-model-detection", async (c) => {
+  try {
+    clearApiKeyCache();
+    clearAIClientCache();
+    const { callAISimple } = await import("../lib/ai-client.js");
+    const settings = await prisma.settings.findUnique({ where: { id: "singleton" } });
+    const model = settings?.aiModelDetection || "claude-sonnet-4-20250514";
+    
+    const response = await callAISimple(
+      "Extract company info from this: 'Acme Corp - Business automation software at acme.com'. Return JSON with name, description, url.",
+      model,
+      "You extract structured data. Return only valid JSON.",
+      200
+    );
+    
+    return c.json({ success: true, model, response: response.substring(0, 150), activity: "client_detection" });
+  } catch (error) {
+    return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "client_detection" });
   }
 });
 

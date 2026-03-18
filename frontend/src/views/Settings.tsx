@@ -240,7 +240,11 @@ export function Settings() {
   // AI
   const [anthropicKey, setAnthropicKey] = useState('')
   const [zaiKey, setZaiKey] = useState('')
-  const [aiStatus, setAiStatus] = useState<ConnectionStatus>('idle')
+  const [anthropicStatus, setAnthropicStatus] = useState<ConnectionStatus>('idle')
+  const [zaiStatus, setZaiStatus] = useState<ConnectionStatus>('idle')
+  const [scoringTestStatus, setScoringTestStatus] = useState<ConnectionStatus>('idle')
+  const [repliesTestStatus, setRepliesTestStatus] = useState<ConnectionStatus>('idle')
+  const [detectionTestStatus, setDetectionTestStatus] = useState<ConnectionStatus>('idle')
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -349,18 +353,75 @@ export function Settings() {
     }
   }
 
-  const handleTestAi = async () => {
-    setAiStatus('testing')
+  const handleTestAnthropic = async () => {
+    setAnthropicStatus('testing')
     try {
-      const res = await fetch('/api/settings/test-ai', {
+      const res = await fetch('/api/settings/test-anthropic', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey: anthropicKey }),
       })
       const data = await res.json()
-      setAiStatus(data.success ? 'success' : 'error')
+      setAnthropicStatus(data.success ? 'success' : 'error')
     } catch {
-      setAiStatus('error')
+      setAnthropicStatus('error')
+    }
+  }
+
+  const handleTestZai = async () => {
+    setZaiStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-zai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: zaiKey }),
+      })
+      const data = await res.json()
+      setZaiStatus(data.success ? 'success' : 'error')
+    } catch {
+      setZaiStatus('error')
+    }
+  }
+
+  const handleTestModelScoring = async () => {
+    setScoringTestStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-model-scoring', { method: 'POST' })
+      const data = await res.json()
+      setScoringTestStatus(data.success ? 'success' : 'error')
+      if (data.success) {
+        console.log(`[Scoring Test] Model: ${data.model}, Response: ${data.response}`)
+      }
+    } catch {
+      setScoringTestStatus('error')
+    }
+  }
+
+  const handleTestModelReplies = async () => {
+    setRepliesTestStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-model-replies', { method: 'POST' })
+      const data = await res.json()
+      setRepliesTestStatus(data.success ? 'success' : 'error')
+      if (data.success) {
+        console.log(`[Replies Test] Model: ${data.model}, Response: ${data.response}`)
+      }
+    } catch {
+      setRepliesTestStatus('error')
+    }
+  }
+
+  const handleTestModelDetection = async () => {
+    setDetectionTestStatus('testing')
+    try {
+      const res = await fetch('/api/settings/test-model-detection', { method: 'POST' })
+      const data = await res.json()
+      setDetectionTestStatus(data.success ? 'success' : 'error')
+      if (data.success) {
+        console.log(`[Detection Test] Model: ${data.model}, Response: ${data.response}`)
+      }
+    } catch {
+      setDetectionTestStatus('error')
     }
   }
 
@@ -639,10 +700,22 @@ export function Settings() {
           <Typography sx={{ fontSize: '12px', color: '#64748b', mt: -1 }}>
             💡 You can use either Anthropic or Z.ai models. Z.ai GLM models are cheaper. Configure one or both API keys.
           </Typography>
-          <ConnectionTestButton
-            onTest={handleTestAi}
-            status={aiStatus}
-          />
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 1 }}>Anthropic Connection</Typography>
+              <ConnectionTestButton
+                onTest={handleTestAnthropic}
+                status={anthropicStatus}
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 1 }}>Z.ai Connection</Typography>
+              <ConnectionTestButton
+                onTest={handleTestZai}
+                status={zaiStatus}
+              />
+            </Box>
+          </Box>
         </Box>
       </SectionCard>
 
@@ -1219,6 +1292,16 @@ export function Settings() {
             </Typography>
           </FormControl>
 
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+              Test scoring model with sample thread
+            </Typography>
+            <ConnectionTestButton
+              onTest={handleTestModelScoring}
+              status={scoringTestStatus}
+            />
+          </Box>
+
           <FormControl size="small" fullWidth sx={inputSx}>
             <InputLabel>Reply Generation Model</InputLabel>
             <Select
@@ -1292,6 +1375,16 @@ export function Settings() {
             </Typography>
           </FormControl>
 
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+              Test reply generation model with sample prompt
+            </Typography>
+            <ConnectionTestButton
+              onTest={handleTestModelReplies}
+              status={repliesTestStatus}
+            />
+          </Box>
+
           <FormControl size="small" fullWidth sx={inputSx}>
             <InputLabel>Client Detection Model</InputLabel>
             <Select
@@ -1335,11 +1428,33 @@ export function Settings() {
                   <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
                 </Box>
               </MenuItem>
+              <MenuItem value="glm-4.5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-4.5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="glm-5">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span>GLM-5 (Z.ai)</span>
+                  <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Best Z.ai</Typography>
+                </Box>
+              </MenuItem>
             </Select>
             <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
-              Used for auto-detecting client info from website URLs. Only runs when adding new clients.
+              Used for auto-detecting client info from URLs. Runs once per client, so cost is minimal. Z.ai models supported.
             </Typography>
           </FormControl>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+              Test client detection model with sample data
+            </Typography>
+            <ConnectionTestButton
+              onTest={handleTestModelDetection}
+              status={detectionTestStatus}
+            />
+          </Box>
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
 
