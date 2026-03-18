@@ -965,6 +965,17 @@ export function Settings() {
           </Button>
         </DialogActions>
       </Dialog>
+
+          <Divider sx={{ borderColor: '#1e293b', my: 3 }} />
+
+          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em', mb: 2 }}>
+            AI Models by Activity
+          </Typography>
+          <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 2 }}>
+            Choose cheaper models for high-volume tasks (scoring) and better models for quality tasks (replies). Prices: input/output per million tokens.
+          </Typography>
+
+          {/* Model selection sections will be moved here */}
         </>
       )}
 
@@ -1302,15 +1313,6 @@ export function Settings() {
               />
             </Box>
           </Box>
-
-          <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
-
-          <Typography sx={{ fontSize: '12px', fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            AI Models by Activity
-          </Typography>
-          <Typography sx={{ fontSize: '11px', color: '#64748b', mb: 0.5 }}>
-            Choose cheaper models for high-volume tasks (scoring) and better models for quality tasks (replies). Prices: input/output per million tokens.
-          </Typography>
 
           <FormControl size="small" fullWidth sx={inputSx}>
             <InputLabel>Scoring Model (high volume)</InputLabel>
