@@ -9,6 +9,7 @@ import {
 import { MenuIcon } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './views/Dashboard'
+import { DashboardBaseUI } from './views/DashboardBaseUI'
 import { Clients } from './views/Clients'
 import { ClientsBaseUI } from './views/ClientsBaseUI'
 import { Accounts } from './views/Accounts'
@@ -121,16 +122,16 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard userRole={userRole} />
+      case 'dashboard': return <DashboardBaseUI userRole={userRole} />
       case 'clients': return <ClientsBaseUI />
       case 'accounts': return <AccountsBaseUI onViewAccount={handleViewAccount} />
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
-      case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
+      case 'settings': return userRole === 'admin' ? <Settings /> : <DashboardBaseUI userRole={userRole} />
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarming />
       case 'reports': return <Reports />
       case 'base-ui-test': return <BaseUITest />
-      default: return <Dashboard userRole={userRole} />
+      default: return <DashboardBaseUI userRole={userRole} />
     }
   }
 
