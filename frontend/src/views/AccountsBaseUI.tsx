@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFoo
 import { Input } from '../components/base/Input'
 import { IconButton } from '../components/base/IconButton'
 import { Alert } from '../components/base/Alert'
+import { Spinner } from '../components/base/Spinner'
 import { PlusIcon, EyeIcon, EyeOffIcon, EditIcon, Trash2Icon, ActivityIcon, ClipboardIcon, CheckIcon, WandIcon } from 'lucide-react'
 
 interface Account {
@@ -310,20 +311,162 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
             <DialogTitle>{editingAccount ? 'Edit Account' : 'Add Account'}</DialogTitle>
           </DialogHeader>
           <DialogBody>
-            <div className="flex flex-col gap-4">
-              <Input
-                label="Reddit Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="username (without u/)"
-              />
-              <Input
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Reddit password"
-              />
+            <div className="flex flex-col gap-6">
+              {/* Reddit Credentials Section */}
+              <div>
+                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  Reddit Credentials
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <Input
+                      label="Reddit Username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="e.g. fitness_mike (without u/)"
+                      helperText="The Reddit username for this account"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Reddit Password
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type={showPasswordModal ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Reddit password"
+                        className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      />
+                      <IconButton
+                        size="md"
+                        variant="ghost"
+                        onClick={() => setShowPasswordModal(!showPasswordModal)}
+                      >
+                        {showPasswordModal ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                      </IconButton>
+                      <IconButton
+                        size="md"
+                        variant="ghost"
+                        onClick={() => navigator.clipboard.writeText(password)}
+                      >
+                        <ClipboardIcon size={16} />
+                      </IconButton>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Used to authenticate via Reddit API</p>
+                  </div>
+
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    onClick={handleVerifyCredentials}
+                    disabled={verifying || !username.trim() || !password.trim()}
+                    className="w-full"
+                  >
+                    {verifying ? (
+                      <>
+                        <Spinner size="sm" className="mr-2" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon size={14} className="mr-2" />
+                        Verify Credentials
+                      </>
+                    )}
+                  </Button>
+
+                  {verificationResult && (
+                    <Alert variant={verificationResult.valid ? 'success' : 'error'}>
+                      {verificationResult.valid
+                        ? '✓ Credentials verified successfully'
+                        : `✗ ${verificationResult.error || 'Invalid credentials'}`}
+                    </Alert>
+                  )}
+                </div>
+              </div>
+
+              {/* Persona Notes Section */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+                    Persona Notes
+                  </h3>
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    onClick={handleRandomizePersona}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Spinner size="sm" className="mr-2" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <WandIcon size={14} className="mr-2" />
+                        Randomize
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <textarea
+                  value={personaNotes}
+                  onChange={(e) => setPersonaNotes(e.target.value)}
+                  placeholder="Persona Notes"
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Used by AI to write replies that match this account's voice and background
+                </p>
+              </div>
+
+              {/* Configuration Section */}
+              <div>
+                <h3 className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-3">
+                  Configuration
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Initial Status
+                    </label>
+                    <select
+                      value={initialStatus}
+                      onChange={(e) => setInitialStatus(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    >
+                      <option value="warming">Farming — new account, building karma</option>
+                      <option value="active">Active — ready for outreach</option>
+                      <option value="cooldown">Cooldown — temporary pause</option>
+                      <option value="flagged">Flagged — needs attention</option>
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                      New accounts should typically start on Farming
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                      Max Posts Per Day
+                    </label>
+                    <input
+                      type="number"
+                      value={maxPostsPerDay}
+                      onChange={(e) => setMaxPostsPerDay(parseInt(e.target.value) || 3)}
+                      min="1"
+                      max="20"
+                      className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Daily limit to avoid rate limiting (recommended: 3-5)
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </DialogBody>
           <DialogFooter>
