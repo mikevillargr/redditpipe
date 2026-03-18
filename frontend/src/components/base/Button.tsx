@@ -20,43 +20,51 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const variantStyles = {
       primary: cn(
-        'bg-primary-500 text-white',
-        'hover:bg-primary-600',
-        'active:bg-primary-700',
-        'focus:ring-primary-500',
-        'dark:bg-primary-500 dark:hover:bg-primary-600'
+        'bg-primary-600 text-white font-medium',
+        'hover:bg-primary-700',
+        'active:bg-primary-800',
+        'focus:ring-primary-500 focus:ring-offset-2',
+        'dark:bg-primary-500 dark:hover:bg-primary-600 dark:active:bg-primary-700',
+        'dark:focus:ring-offset-slate-900',
+        'shadow-sm'
       ),
       secondary: cn(
-        'bg-secondary-500 text-white',
-        'hover:bg-secondary-600',
-        'active:bg-secondary-700',
-        'focus:ring-secondary-500',
-        'dark:bg-secondary-500 dark:hover:bg-secondary-600'
+        'bg-secondary-600 text-white font-medium',
+        'hover:bg-secondary-700',
+        'active:bg-secondary-800',
+        'focus:ring-secondary-500 focus:ring-offset-2',
+        'dark:bg-secondary-500 dark:hover:bg-secondary-600 dark:active:bg-secondary-700',
+        'dark:focus:ring-offset-slate-900',
+        'shadow-sm'
       ),
       outlined: cn(
-        'border-2 border-primary-500 text-primary-500 bg-transparent',
-        'hover:bg-primary-50',
-        'active:bg-primary-100',
-        'focus:ring-primary-500',
-        'dark:border-primary-500 dark:text-primary-500',
-        'dark:hover:bg-primary-500/10',
-        'dark:active:bg-primary-500/20'
+        'border-2 border-primary-600 text-primary-700 bg-transparent font-medium',
+        'hover:bg-primary-100 hover:border-primary-700',
+        'active:bg-primary-200',
+        'focus:ring-primary-500 focus:ring-offset-2',
+        'dark:border-primary-400 dark:text-primary-400',
+        'dark:hover:bg-primary-500/20 dark:hover:border-primary-300',
+        'dark:active:bg-primary-500/30',
+        'dark:focus:ring-offset-slate-900'
       ),
       ghost: cn(
-        'text-slate-700 bg-transparent',
+        'text-slate-800 bg-transparent font-medium',
         'hover:bg-slate-100',
         'active:bg-slate-200',
-        'focus:ring-slate-500',
-        'dark:text-slate-300',
+        'focus:ring-slate-500 focus:ring-offset-2',
+        'dark:text-slate-200',
         'dark:hover:bg-slate-800',
-        'dark:active:bg-slate-700'
+        'dark:active:bg-slate-700',
+        'dark:focus:ring-offset-slate-900'
       ),
       danger: cn(
-        'bg-danger-500 text-white',
-        'hover:bg-danger-600',
-        'active:bg-danger-700',
-        'focus:ring-danger-500',
-        'dark:bg-danger-500 dark:hover:bg-danger-600'
+        'bg-danger-600 text-white font-medium',
+        'hover:bg-danger-700',
+        'active:bg-danger-800',
+        'focus:ring-danger-500 focus:ring-offset-2',
+        'dark:bg-danger-500 dark:hover:bg-danger-600 dark:active:bg-danger-700',
+        'dark:focus:ring-offset-slate-900',
+        'shadow-sm'
       ),
     }
     
