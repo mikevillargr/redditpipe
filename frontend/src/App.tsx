@@ -10,6 +10,7 @@ import { MenuIcon } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
 import { Dashboard } from './views/Dashboard'
 import { Clients } from './views/Clients'
+import { ClientsBaseUI } from './views/ClientsBaseUI'
 import { Accounts } from './views/Accounts'
 import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
@@ -120,7 +121,7 @@ export default function App() {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard': return <Dashboard userRole={userRole} />
-      case 'clients': return <Clients />
+      case 'clients': return <ClientsBaseUI />
       case 'accounts': return <Accounts onViewAccount={handleViewAccount} />
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
       case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
