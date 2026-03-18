@@ -171,17 +171,22 @@ async function callZai(
   });
 
   // Z.ai GLM models return both reasoning_content and content
-  // We want the actual content, not the reasoning
+  // content = actual answer, reasoning_content = thinking process
+  // We want content (the actual answer), not reasoning_content
   const message = response.choices[0]?.message;
-  const content = message?.content || (message as any)?.reasoning_content;
+  const content = message?.content;
+  const reasoningContent = (message as any)?.reasoning_content;
   
-  if (!content) {
+  // Use content if available, otherwise fall back to reasoning_content
+  const finalContent = content || reasoningContent;
+  
+  if (!finalContent) {
     console.error("[Z.ai] No content in response:", JSON.stringify(message));
     throw new Error("No content in Z.ai response");
   }
 
   return {
-    content,
+    content: finalContent,
     usage: response.usage ? {
       inputTokens: response.usage.prompt_tokens,
       outputTokens: response.usage.completion_tokens,
