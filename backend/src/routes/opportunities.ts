@@ -131,18 +131,16 @@ app.post("/:id/assign", async (c) => {
       return c.json({ error: "accountId is required" }, 400);
     }
 
-    // Verify account exists
-    const account = await prisma.redditAccount.findUnique({
-      where: { id: accountId },
-    });
+    // Use assignment queue function to trigger auto-generation
+    const result = await assignAccountToOpportunity(id, accountId);
 
-    if (!account) {
-      return c.json({ error: "Account not found" }, 404);
+    if (!result.success) {
+      return c.json({ error: result.error || "Assignment failed" }, 400);
     }
 
-    const updated = await prisma.opportunity.update({
+    // Fetch updated opportunity with full details
+    const updated = await prisma.opportunity.findUnique({
       where: { id },
-      data: { accountId },
       include: {
         client: { select: { id: true, name: true } },
         account: {
