@@ -191,7 +191,7 @@ Return JSON with:
 
 Format: {"score": 0.X, "summary": "..."}`;
 
-      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 500);
+      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 1000);
       
       // Clean and parse JSON response
       let parsed;
@@ -242,7 +242,7 @@ Return JSON with:
 
 Format: {"score": 0.X, "summary": "..."}`;
 
-      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 500);
+      const aiResponse = await callAISimple(prompt, model, "You are an AI scorer. Return only valid JSON.", 1000);
       
       // Clean and parse JSON response
       let parsed;
