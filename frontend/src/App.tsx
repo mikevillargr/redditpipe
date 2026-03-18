@@ -17,12 +17,13 @@ import { Insights } from './views/Insights'
 import { KarmaFarming } from './views/KarmaFarming'
 import { Reports } from './views/Reports'
 import { LoginScreen } from './components/LoginScreen'
+import { BaseUITest } from './views/BaseUITest'
 
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
 })
 
-export type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming' | 'reports'
+export type Page = 'dashboard' | 'clients' | 'accounts' | 'account-detail' | 'settings' | 'insights' | 'karma-farming' | 'reports' | 'base-ui-test'
 
 function useAppTheme(mode: 'light' | 'dark') {
   return useMemo(() => createTheme({
@@ -109,6 +110,7 @@ export default function App() {
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarming />
       case 'reports': return <Reports />
+      case 'base-ui-test': return <BaseUITest />
       default: return <Dashboard userRole={userRole} />
     }
   }

@@ -82,6 +82,11 @@ const navItems = [
     label: 'Insights',
     icon: BarChart3Icon,
   },
+  {
+    id: 'base-ui-test' as Page,
+    label: '🧪 Base UI Test',
+    icon: PuzzleIcon,
+  },
 ]
 export function Sidebar({
   activePage,
