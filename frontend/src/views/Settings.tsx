@@ -975,7 +975,326 @@ export function Settings() {
             Choose cheaper models for high-volume tasks (scoring) and better models for quality tasks (replies). Prices: input/output per million tokens.
           </Typography>
 
-          {/* Model selection sections will be moved here */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Scoring Model */}
+            <FormControl size="small" fullWidth sx={inputSx}>
+              <InputLabel>Scoring Model (high volume)</InputLabel>
+              <Select
+                value={aiModelScoring}
+                onChange={(e) => setAiModelScoring(e.target.value)}
+                label="Scoring Model (high volume)"
+              >
+                <MenuItem value="claude-haiku-4-5-20251001">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Haiku 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Recommended</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-5-20250929">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-flash">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Flash (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest · Fast</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-air">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Air (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.6 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Good</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.7">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.7 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Better</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#a855f7', ml: 2 }}>Best Z.ai</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+                Used for scoring every thread that passes heuristic pre-filter. Haiku or GLM-4.5-Flash recommended for cost.
+              </Typography>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: -1 }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+                Test scoring model with sample thread
+              </Typography>
+              <ConnectionTestButton
+                onTest={handleTestModelScoring}
+                status={scoringTestStatus}
+              />
+            </Box>
+            {scoringTestOutput && (
+              <Box sx={{ mt: -1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+                <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                  Test Output:
+                </Typography>
+                <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                  {scoringTestOutput}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Reply Generation Model */}
+            <FormControl size="small" fullWidth sx={inputSx}>
+              <InputLabel>Reply Generation Model</InputLabel>
+              <Select
+                value={aiModelReplies}
+                onChange={(e) => setAiModelReplies(e.target.value)}
+                label="Reply Generation Model"
+              >
+                <MenuItem value="claude-haiku-4-5-20251001">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Haiku 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4 · Cheapest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-5-20250929">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15 · Recommended</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-flash">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Flash (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-air">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Air (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.6 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Good</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.7">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.7 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Better</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#a855f7', ml: 2 }}>Best Z.ai</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+                Used for generating replies, threads, and rewrites. Sonnet 4.5+ recommended for quality.
+              </Typography>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: -1 }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+                Test reply generation model
+              </Typography>
+              <ConnectionTestButton
+                onTest={handleTestModelReplies}
+                status={repliesTestStatus}
+              />
+            </Box>
+            {repliesTestOutput && (
+              <Box sx={{ mt: -1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+                <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                  Test Output:
+                </Typography>
+                <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                  {repliesTestOutput}
+                </Typography>
+              </Box>
+            )}
+
+            {/* Client Detection Model */}
+            <FormControl size="small" fullWidth sx={inputSx}>
+              <InputLabel>Client Detection Model</InputLabel>
+              <Select
+                value={aiModelDetection}
+                onChange={(e) => setAiModelDetection(e.target.value)}
+                label="Client Detection Model"
+              >
+                <MenuItem value="claude-haiku-4-5-20251001">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Haiku 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>$0.80/$4</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#f97316', ml: 2 }}>$3/$15 · Recommended</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-5-20250929">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.5</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>$3/$15</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-sonnet-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Sonnet 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>$3/$15 · Latest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-20250514">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>$15/$75</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="claude-opus-4-6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>Claude Opus 4.6</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#7c3aed', ml: 2 }}>$15/$75 · Most capable</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-flash">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Flash (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Cheapest</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5-air">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5-Air (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#10b981', ml: 2 }}>Budget</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#3b82f6', ml: 2 }}>Balanced</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.6">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.6 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#6366f1', ml: 2 }}>Good</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-4.7">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-4.7 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#8b5cf6', ml: 2 }}>Better</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="glm-5">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                    <span>GLM-5 (Z.ai)</span>
+                    <Typography component="span" sx={{ fontSize: '11px', color: '#a855f7', ml: 2 }}>Best Z.ai</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', mt: 0.5 }}>
+                Used for auto-detecting client matches from thread content. Sonnet recommended for accuracy.
+              </Typography>
+            </FormControl>
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: -1 }}>
+              <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
+                Test client detection model with sample data
+              </Typography>
+              <ConnectionTestButton
+                onTest={handleTestModelDetection}
+                status={detectionTestStatus}
+              />
+            </Box>
+            {detectionTestOutput && (
+              <Box sx={{ mt: -1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+                <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                  Test Output:
+                </Typography>
+                <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                  {detectionTestOutput}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
           <Divider sx={{ borderColor: '#1e293b', my: 3 }} />
 
           {/* AI Search Tuning */}
