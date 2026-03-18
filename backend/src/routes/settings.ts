@@ -171,7 +171,13 @@ app.post("/test-model-scoring", async (c) => {
       200
     );
     
-    return c.json({ success: true, model, response: response.substring(0, 100), activity: "scoring" });
+    return c.json({ 
+      success: true, 
+      model, 
+      activity: "scoring",
+      testOutput: response,
+      testPrompt: "Score this Reddit thread for relevance to a business software company. Thread: 'Looking for LLC formation tools'. Return only a JSON with score 0-1."
+    });
   } catch (error) {
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "scoring" });
   }
@@ -193,7 +199,13 @@ app.post("/test-model-replies", async (c) => {
       300
     );
     
-    return c.json({ success: true, model, response: response.substring(0, 150), activity: "reply_generation" });
+    return c.json({ 
+      success: true, 
+      model, 
+      activity: "reply_generation",
+      testOutput: response,
+      testPrompt: "Write a short helpful Reddit reply about choosing business software. Keep it under 50 words."
+    });
   } catch (error) {
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "reply_generation" });
   }
@@ -215,13 +227,19 @@ app.post("/test-model-detection", async (c) => {
       200
     );
     
-    return c.json({ success: true, model, response: response.substring(0, 150), activity: "client_detection" });
+    return c.json({ 
+      success: true, 
+      model, 
+      activity: "client_detection",
+      testOutput: response,
+      testPrompt: "Extract company info from this: 'Acme Corp - Business automation software at acme.com'. Return JSON with name, description, url."
+    });
   } catch (error) {
     return c.json({ success: false, error: error instanceof Error ? error.message : "Unknown error", activity: "client_detection" });
   }
 });
 
-// POST /api/settings/test-special-instructions
+// ... (rest of the code remains the same)
 app.post("/test-special-instructions", async (c) => {
   try {
     const body = await c.req.json();

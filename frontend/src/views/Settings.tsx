@@ -245,6 +245,9 @@ export function Settings() {
   const [scoringTestStatus, setScoringTestStatus] = useState<ConnectionStatus>('idle')
   const [repliesTestStatus, setRepliesTestStatus] = useState<ConnectionStatus>('idle')
   const [detectionTestStatus, setDetectionTestStatus] = useState<ConnectionStatus>('idle')
+  const [scoringTestOutput, setScoringTestOutput] = useState<string>('')
+  const [repliesTestOutput, setRepliesTestOutput] = useState<string>('')
+  const [detectionTestOutput, setDetectionTestOutput] = useState<string>('')
   const [specialInstructions, setSpecialInstructions] = useState('')
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -385,12 +388,13 @@ export function Settings() {
 
   const handleTestModelScoring = async () => {
     setScoringTestStatus('testing')
+    setScoringTestOutput('')
     try {
       const res = await fetch('/api/settings/test-model-scoring', { method: 'POST' })
       const data = await res.json()
       setScoringTestStatus(data.success ? 'success' : 'error')
-      if (data.success) {
-        console.log(`[Scoring Test] Model: ${data.model}, Response: ${data.response}`)
+      if (data.success && data.testOutput) {
+        setScoringTestOutput(data.testOutput)
       }
     } catch {
       setScoringTestStatus('error')
@@ -399,12 +403,13 @@ export function Settings() {
 
   const handleTestModelReplies = async () => {
     setRepliesTestStatus('testing')
+    setRepliesTestOutput('')
     try {
       const res = await fetch('/api/settings/test-model-replies', { method: 'POST' })
       const data = await res.json()
       setRepliesTestStatus(data.success ? 'success' : 'error')
-      if (data.success) {
-        console.log(`[Replies Test] Model: ${data.model}, Response: ${data.response}`)
+      if (data.success && data.testOutput) {
+        setRepliesTestOutput(data.testOutput)
       }
     } catch {
       setRepliesTestStatus('error')
@@ -413,12 +418,13 @@ export function Settings() {
 
   const handleTestModelDetection = async () => {
     setDetectionTestStatus('testing')
+    setDetectionTestOutput('')
     try {
       const res = await fetch('/api/settings/test-model-detection', { method: 'POST' })
       const data = await res.json()
       setDetectionTestStatus(data.success ? 'success' : 'error')
-      if (data.success) {
-        console.log(`[Detection Test] Model: ${data.model}, Response: ${data.response}`)
+      if (data.success && data.testOutput) {
+        setDetectionTestOutput(data.testOutput)
       }
     } catch {
       setDetectionTestStatus('error')
@@ -1310,7 +1316,7 @@ export function Settings() {
             </Typography>
           </FormControl>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
             <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
               Test scoring model with sample thread
             </Typography>
@@ -1319,6 +1325,16 @@ export function Settings() {
               status={scoringTestStatus}
             />
           </Box>
+          {scoringTestOutput && (
+            <Box sx={{ mt: 1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+              <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                Test Output:
+              </Typography>
+              <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                {scoringTestOutput}
+              </Typography>
+            </Box>
+          )}
 
           <FormControl size="small" fullWidth sx={inputSx}>
             <InputLabel>Reply Generation Model</InputLabel>
@@ -1405,7 +1421,7 @@ export function Settings() {
             </Typography>
           </FormControl>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
             <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
               Test reply generation model with sample prompt
             </Typography>
@@ -1414,6 +1430,16 @@ export function Settings() {
               status={repliesTestStatus}
             />
           </Box>
+          {repliesTestOutput && (
+            <Box sx={{ mt: 1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+              <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                Test Output:
+              </Typography>
+              <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                {repliesTestOutput}
+              </Typography>
+            </Box>
+          )}
 
           <FormControl size="small" fullWidth sx={inputSx}>
             <InputLabel>Client Detection Model</InputLabel>
@@ -1500,7 +1526,7 @@ export function Settings() {
             </Typography>
           </FormControl>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
             <Typography sx={{ fontSize: '11px', color: '#64748b', flex: 1 }}>
               Test client detection model with sample data
             </Typography>
@@ -1509,6 +1535,16 @@ export function Settings() {
               status={detectionTestStatus}
             />
           </Box>
+          {detectionTestOutput && (
+            <Box sx={{ mt: 1, p: 1.5, bgcolor: '#0f172a', borderRadius: '6px', border: '1px solid #334155' }}>
+              <Typography sx={{ fontSize: '10px', color: '#64748b', mb: 0.5, fontWeight: 600 }}>
+                Test Output:
+              </Typography>
+              <Typography sx={{ fontSize: '11px', color: '#94a3b8', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                {detectionTestOutput}
+              </Typography>
+            </Box>
+          )}
 
           <Divider sx={{ borderColor: '#1e293b', my: 0.5 }} />
 
