@@ -93,6 +93,55 @@ async function runDeletionAnalysis() {
 
 export { runDeletionAnalysis };
 
+async function runSuccessAnalysis() {
+  console.log("[Cron] Running automated success analysis...");
+  const db = createPrismaClient();
+  try {
+    // Import helper to get eligible opportunities
+    const { getEligibleSuccessOpportunities } = await import("./success-analysis.js");
+    const eligibleOpps = await getEligibleSuccessOpportunities(50);
+
+    if (eligibleOpps.length === 0) {
+      console.log("[Cron] No eligible success opportunities found.");
+      return;
+    }
+
+    console.log(`[Cron] Found ${eligibleOpps.length} eligible success opportunities. Triggering analysis via API...`);
+    
+    let analyzed = 0;
+    let failed = 0;
+
+    // Call the analysis endpoint for each success opportunity
+    for (const opp of eligibleOpps) {
+      try {
+        const response = await fetch(`http://localhost:8000/api/success-analysis/analyze/${opp.id}`, {
+          method: 'POST',
+        });
+        
+        if (response.ok) {
+          analyzed++;
+          console.log(`[Cron] Analyzed success ${opp.id} (${analyzed}/${eligibleOpps.length})`);
+        } else {
+          failed++;
+          const data = await response.json();
+          console.error(`[Cron] Failed to analyze ${opp.id}:`, data.error);
+        }
+      } catch (error) {
+        failed++;
+        console.error(`[Cron] Failed to analyze ${opp.id}:`, error);
+      }
+    }
+
+    console.log(`[Cron] Success analysis complete: ${analyzed} analyzed, ${failed} failed`);
+  } catch (error) {
+    console.error("[Cron] Success analysis failed:", error);
+  } finally {
+    await db.$disconnect().catch(() => {});
+  }
+}
+
+export { runSuccessAnalysis };
+
 function buildSearchCron(frequency: string, scheduleTimes: string): string | null {
   if (frequency === "manual") return null;
 
@@ -203,6 +252,12 @@ export async function initCronJobs() {
   if (cronEnabled) {
     cron.schedule("0 20 * * *", runDeletionAnalysis);
     console.log("[Cron] Deletion analysis scheduled: daily at 8 PM UTC");
+  }
+
+  // Automated Success Analysis — Daily at 9 PM UTC (1 hour after deletion analysis)
+  if (cronEnabled) {
+    cron.schedule("0 21 * * *", runSuccessAnalysis);
+    console.log("[Cron] Success analysis scheduled: daily at 9 PM UTC");
   }
 
   // Reset Daily Counts — Midnight UTC

@@ -96,6 +96,7 @@ model Opportunity {
   parentOpportunity Opportunity?       @relation("PileOnRelation", fields: [parentOpportunityId], references: [id], onDelete: Cascade)
   childPileOns      Opportunity[]      @relation("PileOnRelation")
   deletionAnalysis  DeletionAnalysis?
+  successAnalysis   SuccessAnalysis?
 }
 
 model DismissalLog {
@@ -158,6 +159,27 @@ model DeletionAnalysis {
   confidence           Float
   patterns             String?
   recommendations      String?
+  createdAt            DateTime @default(now())
+
+  opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+}
+
+model SuccessAnalysis {
+  id                   String   @id @default(cuid())
+  opportunityId        String   @unique
+  subreddit            String
+  commentText          String
+  threadTitle          String
+  threadContext        String?
+  citationIncluded     Boolean
+  citationUrl          String?
+  publishedAt          DateTime
+  analyzedAt           DateTime
+  ageAtAnalysis        Float
+  aiAnalysis           String
+  successFactors       String?
+  recommendations      String?
+  confidence           Float
   createdAt            DateTime @default(now())
 
   opportunity Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)

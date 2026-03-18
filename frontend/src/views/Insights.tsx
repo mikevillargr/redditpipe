@@ -33,6 +33,8 @@ import {
   TrashIcon,
   AlertCircleIcon,
   ClockIcon,
+  TrophyIcon,
+  SparklesIcon,
 } from 'lucide-react'
 
 interface DismissalPattern {
@@ -66,17 +68,42 @@ interface DeletionInsights {
   }>
 }
 
+interface SuccessInsights {
+  totalAnalyzed: number
+  avgAge: number
+  successFactors: Record<string, number>
+  subredditStats: Record<string, { count: number; avgConfidence: number; topFactors: string[] }>
+  generalPatterns: string[]
+  recommendations: {
+    filtering: Array<{ text: string; frequency: number }>
+    generation: Array<{ text: string; frequency: number }>
+  }
+  recentAnalyses: Array<{
+    id: string
+    subreddit: string
+    confidence: number
+    ageAtAnalysis: number
+    createdAt: string
+    clientName: string
+    opportunityType: string
+  }>
+}
+
 export function Insights() {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const [activeTab, setActiveTab] = useState(0)
   const [analysis, setAnalysis] = useState<DismissalAnalysis | null>(null)
   const [deletionInsights, setDeletionInsights] = useState<DeletionInsights | null>(null)
+  const [successInsights, setSuccessInsights] = useState<SuccessInsights | null>(null)
   const [loading, setLoading] = useState(false)
   const [loadingDeletions, setLoadingDeletions] = useState(false)
+  const [loadingSuccess, setLoadingSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [appliedItems, setAppliedItems] = useState<Set<string>>(new Set())
   const [selectedDeletionRecs, setSelectedDeletionRecs] = useState<Set<number>>(new Set())
+  const [selectedFilteringRecs, setSelectedFilteringRecs] = useState<Set<number>>(new Set())
+  const [selectedGenerationRecs, setSelectedGenerationRecs] = useState<Set<number>>(new Set())
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
 
   const fetchAnalysis = useCallback(async () => {
@@ -91,6 +118,21 @@ export function Insights() {
       setError(err instanceof Error ? err.message : 'Failed to load insights')
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const fetchSuccessInsights = useCallback(async () => {
+    setLoadingSuccess(true)
+    try {
+      const res = await fetch('/api/success-analysis/insights')
+      if (res.ok) {
+        const data = await res.json()
+        setSuccessInsights(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch success insights:', err)
+    } finally {
+      setLoadingSuccess(false)
     }
   }, [])
 
@@ -112,7 +154,8 @@ export function Insights() {
   useEffect(() => {
     fetchAnalysis()
     fetchDeletionInsights()
-  }, [fetchAnalysis, fetchDeletionInsights])
+    fetchSuccessInsights()
+  }, [fetchAnalysis, fetchDeletionInsights, fetchSuccessInsights])
 
   const applyToSearchContext = async (text: string, key: string) => {
     try {
@@ -196,6 +239,64 @@ export function Insights() {
     }
   }
 
+  const applySelectedFilteringRecs = async () => {
+    if (!successInsights || selectedFilteringRecs.size === 0) return
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const selectedRecs = Array.from(selectedFilteringRecs)
+        .map(i => successInsights.recommendations.filtering[i].text)
+        .filter(Boolean)
+      
+      const current = settings.aiSearchContext || ''
+      const newContext = selectedRecs.join('\n')
+      const separator = current.trim() ? '\n\n' : ''
+      const updated = current.trim() + separator + newContext
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aiSearchContext: updated }),
+      })
+      
+      setSelectedFilteringRecs(new Set())
+      setSnackbar({ open: true, message: `Applied ${selectedRecs.length} filtering recommendation(s) to AI Search Context` })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply filtering recommendations' })
+    }
+  }
+
+  const applySelectedGenerationRecs = async () => {
+    if (!successInsights || selectedGenerationRecs.size === 0) return
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (!settingsRes.ok) throw new Error('Failed to load settings')
+      const settings = await settingsRes.json()
+
+      const selectedRecs = Array.from(selectedGenerationRecs)
+        .map(i => successInsights.recommendations.generation[i].text)
+        .filter(Boolean)
+      
+      const current = settings.specialInstructions || ''
+      const newInstructions = selectedRecs.join('\n')
+      const separator = current.trim() ? '\n\n' : ''
+      const updated = current.trim() + separator + newInstructions
+
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ specialInstructions: updated }),
+      })
+      
+      setSelectedGenerationRecs(new Set())
+      setSnackbar({ open: true, message: `Applied ${selectedRecs.length} generation recommendation(s) to Special Instructions` })
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to apply generation recommendations' })
+    }
+  }
+
   const cardBorder = `1px solid ${isDark ? '#334155' : '#e2e8f0'}`
 
   return (
@@ -226,6 +327,7 @@ export function Insights() {
       >
         <Tab label="Dismissal Insights" />
         <Tab label="Deletion Patterns" />
+        <Tab label="Success Patterns" />
       </Tabs>
 
       {/* Dismissal Insights Tab */}
@@ -625,6 +727,307 @@ export function Insights() {
                 </Typography>
                 <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 400, mx: 'auto' }}>
                   Deletion analysis runs automatically daily. You can also manually analyze deleted opportunities from the Dashboard.
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Success Patterns Tab */}
+      {activeTab === 2 && (
+        <>
+          {loadingSuccess && <LinearProgress sx={{ mb: 2, '& .MuiLinearProgress-bar': { bgcolor: '#f97316' } }} />}
+
+          {successInsights && successInsights.totalAnalyzed > 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Stats */}
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Card sx={{ flex: '1 1 200px', border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2.5 }}>
+                    <TrophyIcon size={24} color="#10b981" style={{ marginBottom: 6 }} />
+                    <Typography sx={{ fontSize: '24px', fontWeight: 800, color: 'text.primary' }}>
+                      {successInsights.totalAnalyzed}
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>Successful Comments</Typography>
+                  </CardContent>
+                </Card>
+                <Card sx={{ flex: '1 1 200px', border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2.5 }}>
+                    <ClockIcon size={24} color="#3b82f6" style={{ marginBottom: 6 }} />
+                    <Typography sx={{ fontSize: '24px', fontWeight: 800, color: 'text.primary' }}>
+                      {successInsights.avgAge.toFixed(1)}h
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>Avg Age Analyzed</Typography>
+                  </CardContent>
+                </Card>
+                <Card sx={{ flex: '1 1 200px', border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent sx={{ textAlign: 'center', py: 2.5 }}>
+                    <SparklesIcon size={24} color="#f97316" style={{ marginBottom: 6 }} />
+                    <Typography sx={{ fontSize: '24px', fontWeight: 800, color: 'text.primary' }}>
+                      {Object.keys(successInsights.successFactors).length}
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary' }}>Success Factors</Typography>
+                  </CardContent>
+                </Card>
+              </Box>
+
+              {/* Success Factors Breakdown */}
+              {Object.keys(successInsights.successFactors).length > 0 && (
+                <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent>
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary', mb: 2 }}>
+                      Success Factors Breakdown
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {Object.entries(successInsights.successFactors)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 10)
+                        .map(([factor, count]) => {
+                          const percentage = ((count / successInsights.totalAnalyzed) * 100).toFixed(0)
+                          return (
+                            <Box key={factor}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                                <Typography sx={{ fontSize: '13px', fontWeight: 600, color: 'text.primary' }}>
+                                  {factor}
+                                </Typography>
+                                <Typography sx={{ fontSize: '13px', color: 'text.secondary' }}>
+                                  {count} ({percentage}%)
+                                </Typography>
+                              </Box>
+                              <LinearProgress
+                                variant="determinate"
+                                value={parseInt(percentage)}
+                                sx={{
+                                  height: 8,
+                                  borderRadius: 1,
+                                  bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                                  '& .MuiLinearProgress-bar': { bgcolor: '#10b981', borderRadius: 1 },
+                                }}
+                              />
+                            </Box>
+                          )
+                        })}
+                    </Box>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Subreddit Success Stats */}
+              {Object.keys(successInsights.subredditStats).length > 0 && (
+                <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent>
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary', mb: 2 }}>
+                      Subreddit Success Patterns
+                    </Typography>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'text.secondary' }}>Subreddit</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'text.secondary' }} align="right">Successes</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'text.secondary' }} align="right">Confidence</TableCell>
+                            <TableCell sx={{ fontWeight: 600, fontSize: '12px', color: 'text.secondary' }}>Top Factors</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {Object.entries(successInsights.subredditStats)
+                            .sort(([, a], [, b]) => b.count - a.count)
+                            .slice(0, 10)
+                            .map(([subreddit, stats]) => (
+                              <TableRow key={subreddit}>
+                                <TableCell sx={{ fontSize: '13px', color: 'text.primary' }}>r/{subreddit}</TableCell>
+                                <TableCell sx={{ fontSize: '13px', color: 'text.primary' }} align="right">{stats.count}</TableCell>
+                                <TableCell sx={{ fontSize: '13px', color: 'text.primary' }} align="right">
+                                  {(stats.avgConfidence * 100).toFixed(0)}%
+                                </TableCell>
+                                <TableCell sx={{ fontSize: '11px', color: 'text.secondary' }}>
+                                  {stats.topFactors.slice(0, 2).join(', ')}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Filtering Recommendations */}
+              {successInsights.recommendations.filtering.length > 0 && (
+                <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent>
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary', mb: 2 }}>
+                      Search Filtering Recommendations
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary', mb: 2 }}>
+                      Apply these to <strong>AI Search Context</strong> to improve opportunity filtering:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {successInsights.recommendations.filtering.map((rec, i) => {
+                        const isSelected = selectedFilteringRecs.has(i)
+                        return (
+                          <Box
+                            key={i}
+                            onClick={() => {
+                              setSelectedFilteringRecs(prev => {
+                                const next = new Set(prev)
+                                if (next.has(i)) {
+                                  next.delete(i)
+                                } else {
+                                  next.add(i)
+                                }
+                                return next
+                              })
+                            }}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: 1.5,
+                              p: 1.5,
+                              bgcolor: isSelected ? 'rgba(16,185,129,0.08)' : 'rgba(0,0,0,0.02)',
+                              border: `1px solid ${isSelected ? 'rgba(16,185,129,0.3)' : (isDark ? '#334155' : '#e2e8f0')}`,
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                bgcolor: isSelected ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.04)',
+                                borderColor: '#10b981',
+                              },
+                            }}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              size="small"
+                              sx={{
+                                p: 0,
+                                color: isDark ? '#64748b' : '#94a3b8',
+                                '&.Mui-checked': { color: '#10b981' },
+                              }}
+                            />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography sx={{ fontSize: '13px', color: 'text.primary', lineHeight: 1.6 }}>
+                                {rec.text}
+                              </Typography>
+                              <Typography sx={{ fontSize: '11px', color: 'text.secondary', mt: 0.5 }}>
+                                Seen in {rec.frequency} success{rec.frequency > 1 ? 'es' : ''}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                    {selectedFilteringRecs.size > 0 && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={applySelectedFilteringRecs}
+                        sx={{
+                          mt: 2,
+                          bgcolor: '#10b981',
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: '#059669' },
+                        }}
+                      >
+                        Apply {selectedFilteringRecs.size} to Search Context
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Generation Recommendations */}
+              {successInsights.recommendations.generation.length > 0 && (
+                <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
+                  <CardContent>
+                    <Typography sx={{ fontWeight: 700, fontSize: '15px', color: 'text.primary', mb: 2 }}>
+                      Reply Generation Recommendations
+                    </Typography>
+                    <Typography sx={{ fontSize: '12px', color: 'text.secondary', mb: 2 }}>
+                      Apply these to <strong>Special Instructions</strong> to improve AI-generated replies:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {successInsights.recommendations.generation.map((rec, i) => {
+                        const isSelected = selectedGenerationRecs.has(i)
+                        return (
+                          <Box
+                            key={i}
+                            onClick={() => {
+                              setSelectedGenerationRecs(prev => {
+                                const next = new Set(prev)
+                                if (next.has(i)) {
+                                  next.delete(i)
+                                } else {
+                                  next.add(i)
+                                }
+                                return next
+                              })
+                            }}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: 1.5,
+                              p: 1.5,
+                              bgcolor: isSelected ? 'rgba(59,130,246,0.08)' : 'rgba(0,0,0,0.02)',
+                              border: `1px solid ${isSelected ? 'rgba(59,130,246,0.3)' : (isDark ? '#334155' : '#e2e8f0')}`,
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                bgcolor: isSelected ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.04)',
+                                borderColor: '#3b82f6',
+                              },
+                            }}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              size="small"
+                              sx={{
+                                p: 0,
+                                color: isDark ? '#64748b' : '#94a3b8',
+                                '&.Mui-checked': { color: '#3b82f6' },
+                              }}
+                            />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography sx={{ fontSize: '13px', color: 'text.primary', lineHeight: 1.6 }}>
+                                {rec.text}
+                              </Typography>
+                              <Typography sx={{ fontSize: '11px', color: 'text.secondary', mt: 0.5 }}>
+                                Seen in {rec.frequency} success{rec.frequency > 1 ? 'es' : ''}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )
+                      })}
+                    </Box>
+                    {selectedGenerationRecs.size > 0 && (
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={applySelectedGenerationRecs}
+                        sx={{
+                          mt: 2,
+                          bgcolor: '#3b82f6',
+                          textTransform: 'none',
+                          '&:hover': { bgcolor: '#2563eb' },
+                        }}
+                      >
+                        Apply {selectedGenerationRecs.size} to Special Instructions
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </Box>
+          ) : (
+            <Card sx={{ border: cardBorder, bgcolor: 'background.paper' }}>
+              <CardContent sx={{ textAlign: 'center', py: 6 }}>
+                <TrophyIcon size={40} color={isDark ? '#334155' : '#cbd5e1'} style={{ marginBottom: 12 }} />
+                <Typography sx={{ fontSize: '15px', fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
+                  No Success Analysis Yet
+                </Typography>
+                <Typography sx={{ fontSize: '13px', color: 'text.secondary', maxWidth: 400, mx: 'auto' }}>
+                  Success analysis runs automatically daily on published comments that have survived past the average deletion time.
                 </Typography>
               </CardContent>
             </Card>
