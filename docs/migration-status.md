@@ -2,7 +2,7 @@
 
 **Last Updated:** March 19, 2026
 
-## ✅ Fully Migrated to Base UI (7 views)
+## ✅ Fully Migrated to Base UI (8 views)
 
 ### 1. LoginScreen
 - **Status:** ✅ Complete
@@ -90,20 +90,35 @@
   - Active subreddits chips
   - Activity log with pagination
 
-## ⏳ Still on MUI (2 views)
+### 8. Settings
+- **Status:** ✅ Complete
+- **Lines:** 1,953 → 1,161 (Base UI)
+- **Features:**
+  - 4 tabs (API Keys, AI Functions, Search & Scheduling, Advanced)
+  - Reddit API mode toggle (public_json/oauth)
+  - API key management (Anthropic, Z.ai)
+  - Connection test buttons
+  - Special instructions with test preview
+  - 3 AI model selectors (Scoring, Replies, Detection)
+  - AI search tuning (relevance threshold slider)
+  - Search frequency toggle (once_daily/twice_daily/manual)
+  - Schedule times with timezone selector
+  - Search breadth controls
+  - Pipeline limits configuration
+  - Run Search Now with confirmation
+  - Pile-on settings (8 fields)
+  - Deletion detection settings
+  - Dangerous actions (Clear All Opportunities with 2-step confirmation)
+  - Sticky save button with success/error feedback
 
-### 8. Dashboard
+## ⏳ Still on MUI (1 view)
+
+### 9. Dashboard
 - **Status:** ⏳ Reverted to MUI (60+ features)
 - **Lines:** 3,377
 - **Complexity:** Very High
 - **Reason:** Initial Base UI version missing 90% of features
 - **Decision:** Keep on MUI, migrate incrementally or last
-
-### 9. Settings
-- **Status:** ⏳ Not Started
-- **Lines:** 1,953
-- **Complexity:** High
-- **Features:** Multiple AI model selectors, search scheduling, timezone, API keys
 
 ## Bundle Size Progress
 
@@ -115,7 +130,8 @@
 - **After Reports:** 1,209KB (-1KB)
 - **After Insights:** 1,208KB (-1KB)
 - **After AccountDetail:** 1,187KB (-21KB)
-- **Total Reduction:** 42KB (3.4%)
+- **After Settings:** 1,154KB (-33KB)
+- **Total Reduction:** 75KB (6.1%)
 
 ## Migration Strategy
 
@@ -129,22 +145,25 @@
 5. ✅ Reports (706 lines) - Complete
 6. ✅ Insights (1,083 lines) - Complete
 7. ✅ AccountDetail (1,384 lines) - Complete
-8. 🎯 Settings (1,953 lines) - **Next Target**
-9. Dashboard (3,377 lines) - Last or keep on MUI
+8. ✅ Settings (1,953 lines) - Complete
+9. 🎯 Dashboard (3,377 lines) - **Final view** (keep on MUI or migrate incrementally)
 
 ## Success Metrics
 
-- **Views Migrated:** 7 / 9 (78%)
-- **Lines Migrated:** 5,379 / 9,663 (56%)
+- **Views Migrated:** 8 / 9 (89%)
+- **Lines Migrated:** 7,332 / 11,616 (63%)
 - **Feature Parity:** 100% on all migrated views
 - **Zero Regressions:** All features preserved
-- **Bundle Size:** Slight reduction achieved
+- **Bundle Size:** 75KB reduction (6.1%)
 
 ## Next Steps
 
-1. Migrate **Settings** view (1,953 lines - complex AI model selectors, search scheduling, timezone)
-2. Final decision on Dashboard migration approach (3,377 lines - 60+ features)
+1. ✅ **Settings migration complete** - All 4 tabs, 60+ state variables, full feature parity
+2. Final decision on **Dashboard** migration approach:
+   - Option A: Keep on MUI (60+ features, very complex)
+   - Option B: Migrate incrementally (break into smaller components)
+   - Option C: Full migration (3,377 lines - most complex view)
 
 ---
 
-**Branch:** `feature/base-ui-migration` (43 commits)
+**Branch:** `feature/base-ui-migration`
