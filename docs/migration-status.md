@@ -2,7 +2,7 @@
 
 **Last Updated:** March 19, 2026
 
-## ✅ Fully Migrated to Base UI (6 views)
+## ✅ Fully Migrated to Base UI (7 views)
 
 ### 1. LoginScreen
 - **Status:** ✅ Complete
@@ -77,19 +77,27 @@
   - Loading and empty states
   - Snackbar notifications
 
-## ⏳ Still on MUI (3 views)
+### 7. AccountDetail
+- **Status:** ✅ Complete
+- **Lines:** 1,385 → 690 (Base UI)
+- **Features:**
+  - Profile header with stats
+  - Status selector and action buttons
+  - AI Personality/Writing Style with AI Generate
+  - Sample comments list
+  - Safety settings with progress bars
+  - Organic:Citation ratio tracker
+  - Active subreddits chips
+  - Activity log with pagination
 
-### 7. Dashboard
+## ⏳ Still on MUI (2 views)
+
+### 8. Dashboard
 - **Status:** ⏳ Reverted to MUI (60+ features)
 - **Lines:** 3,377
 - **Complexity:** Very High
 - **Reason:** Initial Base UI version missing 90% of features
 - **Decision:** Keep on MUI, migrate incrementally or last
-
-### 8. AccountDetail
-- **Status:** ⏳ Not Started
-- **Lines:** 1,384
-- **Complexity:** Medium
 
 ### 9. Settings
 - **Status:** ⏳ Not Started
@@ -106,7 +114,8 @@
 - **After KarmaFarming:** 1,210KB (-1KB)
 - **After Reports:** 1,209KB (-1KB)
 - **After Insights:** 1,208KB (-1KB)
-- **Total Reduction:** 21KB (1.7%)
+- **After AccountDetail:** 1,187KB (-21KB)
+- **Total Reduction:** 42KB (3.4%)
 
 ## Migration Strategy
 
@@ -119,23 +128,22 @@
 4. ✅ KarmaFarming (642 lines) - Complete
 5. ✅ Reports (706 lines) - Complete
 6. ✅ Insights (1,083 lines) - Complete
-7. 🎯 AccountDetail (1,384 lines) - **Next Target**
-8. Settings (1,953 lines)
+7. ✅ AccountDetail (1,384 lines) - Complete
+8. 🎯 Settings (1,953 lines) - **Next Target**
 9. Dashboard (3,377 lines) - Last or keep on MUI
 
 ## Success Metrics
 
-- **Views Migrated:** 6 / 9 (67%)
-- **Lines Migrated:** 3,994 / 9,663 (41%)
+- **Views Migrated:** 7 / 9 (78%)
+- **Lines Migrated:** 5,379 / 9,663 (56%)
 - **Feature Parity:** 100% on all migrated views
 - **Zero Regressions:** All features preserved
 - **Bundle Size:** Slight reduction achieved
 
 ## Next Steps
 
-1. Migrate **AccountDetail** view (1,384 lines)
-2. Tackle Settings (1,953 lines - complex AI model selectors)
-3. Final decision on Dashboard migration approach (3,377 lines)
+1. Migrate **Settings** view (1,953 lines - complex AI model selectors, search scheduling, timezone)
+2. Final decision on Dashboard migration approach (3,377 lines - 60+ features)
 
 ---
 
