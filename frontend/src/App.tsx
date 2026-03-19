@@ -122,16 +122,16 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <DashboardBaseUI userRole={userRole} />
+      case 'dashboard': return <Dashboard userRole={userRole} />
       case 'clients': return <ClientsBaseUI />
       case 'accounts': return <AccountsBaseUI onViewAccount={handleViewAccount} />
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
-      case 'settings': return userRole === 'admin' ? <Settings /> : <DashboardBaseUI userRole={userRole} />
+      case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarming />
       case 'reports': return <Reports />
       case 'base-ui-test': return <BaseUITest />
-      default: return <DashboardBaseUI userRole={userRole} />
+      default: return <Dashboard userRole={userRole} />
     }
   }
 
