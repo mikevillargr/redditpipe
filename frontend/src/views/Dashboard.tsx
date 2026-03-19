@@ -792,9 +792,11 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     const hasRealAiScore = !!o.aiRelevanceNote && !o.aiRelevanceNote.includes('AI scoring unavailable')
     if (aiScoreFilter === 'has_ai' && !hasRealAiScore) return false
     if (aiScoreFilter === 'no_ai' && hasRealAiScore) return false
-    // Pile-on filter: show only opportunities where status is 'published' (we already responded)
-    // so other accounts can add supporting comments
-    if (showPileOnOnly && o.status !== 'published') return false
+    // Pile-on filter: show only pile-on opportunities that are eligible (time has passed)
+    if (showPileOnOnly) {
+      if (o.opportunityType !== 'pile_on') return false
+      if (o.pileOnEligibleAt && new Date(o.pileOnEligibleAt) > new Date()) return false
+    }
     return true
   })
 
@@ -1113,14 +1115,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
             <Chip
               label="Pile-On"
               size="small"
-              onClick={() => {
-                const newValue = !showPileOnOnly
-                setShowPileOnOnly(newValue)
-                // Auto-switch to 'published' or 'all' when pile-on filter is enabled
-                if (newValue && statusFilter === 'new') {
-                  setStatusFilter('published')
-                }
-              }}
+              onClick={() => setShowPileOnOnly(!showPileOnOnly)}
               sx={{
                 height: 24,
                 fontSize: '11px',
