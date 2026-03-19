@@ -2,7 +2,7 @@
 
 **Last Updated:** March 19, 2026
 
-## ✅ Fully Migrated to Base UI (4 views)
+## ✅ Fully Migrated to Base UI (5 views)
 
 ### 1. LoginScreen
 - **Status:** ✅ Complete
@@ -50,20 +50,28 @@
   - Loading states and error handling
   - Empty states
 
-## ⏳ Still on MUI (5 views)
+### 5. Reports
+- **Status:** ✅ Complete
+- **Lines:** 707 → 477 (Base UI)
+- **Features:**
+  - Client selector dropdown
+  - Status filter (all, new, published, unverified, deleted)
+  - Date range filters
+  - Excel export with XLSX
+  - Data table with 9 columns
+  - Expandable text columns
+  - Status and type badges
+  - External links to threads
+  - Loading and error states
 
-### 5. Dashboard
+## ⏳ Still on MUI (4 views)
+
+### 6. Dashboard
 - **Status:** ⏳ Reverted to MUI (60+ features)
 - **Lines:** 3,377
 - **Complexity:** Very High
 - **Reason:** Initial Base UI version missing 90% of features
 - **Decision:** Keep on MUI, migrate incrementally or last
-
-### 6. Reports
-- **Status:** ⏳ Not Started
-- **Lines:** 706
-- **Complexity:** Medium
-- **Next Priority:** High (smallest remaining view)
 
 ### 7. Insights
 - **Status:** ⏳ Not Started
@@ -88,7 +96,8 @@
 - **After Dashboard revert:** 1,208KB
 - **After Accounts card grid fix:** 1,211KB (+3KB)
 - **After KarmaFarming:** 1,210KB (-1KB)
-- **Total Reduction:** 19KB (1.5%)
+- **After Reports:** 1,209KB (-1KB)
+- **Total Reduction:** 20KB (1.6%)
 
 ## Migration Strategy
 
@@ -99,16 +108,16 @@
 2. ✅ Clients (498 lines) - Complete
 3. ✅ Accounts (591 lines) - Complete
 4. ✅ KarmaFarming (642 lines) - Complete
-5. 🎯 Reports (706 lines) - **Next Target**
-6. Insights (1,083 lines)
+5. ✅ Reports (706 lines) - Complete
+6. 🎯 Insights (1,083 lines) - **Next Target**
 7. AccountDetail (1,384 lines)
 8. Settings (1,953 lines)
 9. Dashboard (3,377 lines) - Last or keep on MUI
 
 ## Success Metrics
 
-- **Views Migrated:** 4 / 9 (44%)
-- **Lines Migrated:** 2,203 / 9,663 (23%)
+- **Views Migrated:** 5 / 9 (56%)
+- **Lines Migrated:** 2,910 / 9,663 (30%)
 - **Feature Parity:** 100% on all migrated views
 - **Zero Regressions:** All features preserved
 - **Bundle Size:** Slight reduction achieved
