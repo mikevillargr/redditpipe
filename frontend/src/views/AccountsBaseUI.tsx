@@ -271,16 +271,33 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
     setModalOpen(true)
   }
 
-  const handleEdit = (account: Account) => {
+  const handleEdit = async (account: Account) => {
     setEditingAccount(account)
     setUsername(account.username)
     setPassword(account.password)
     setShowPasswordModal(false)
-    setPersonaNotes('')
     setInitialStatus(account.status)
-    setMaxPostsPerDay(3)
     setVerificationResult(null)
     setIsGenerating(false)
+    
+    // Fetch full account details to get personaNotes and maxPostsPerDay
+    try {
+      const res = await fetch(`/api/accounts/${account.id}`)
+      if (res.ok) {
+        const fullAccount = await res.json()
+        setPersonaNotes(fullAccount.personalitySummary || '')
+        setMaxPostsPerDay(fullAccount.maxPostsPerDay || 3)
+      } else {
+        // Fallback to defaults if fetch fails
+        setPersonaNotes('')
+        setMaxPostsPerDay(3)
+      }
+    } catch (err) {
+      console.error('Failed to fetch account details:', err)
+      setPersonaNotes('')
+      setMaxPostsPerDay(3)
+    }
+    
     setModalOpen(true)
   }
 
