@@ -17,7 +17,7 @@ import { AccountsBaseUI } from './views/AccountsBaseUI'
 import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
 import { Insights } from './views/Insights'
-import { KarmaFarming } from './views/KarmaFarming'
+import { KarmaFarmingBaseUI } from './views/KarmaFarmingBaseUI'
 import { Reports } from './views/Reports'
 import { LoginScreen } from './components/LoginScreen'
 import { LoginScreenBaseUI } from './components/LoginScreenBaseUI'
@@ -128,7 +128,7 @@ export default function App() {
       case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
       case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
       case 'insights': return <Insights />
-      case 'karma-farming': return <KarmaFarming />
+      case 'karma-farming': return <KarmaFarmingBaseUI />
       case 'reports': return <Reports />
       case 'base-ui-test': return <BaseUITest />
       default: return <Dashboard userRole={userRole} />
