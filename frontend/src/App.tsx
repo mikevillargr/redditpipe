@@ -18,7 +18,7 @@ import { AccountDetail } from './views/AccountDetail'
 import { Settings } from './views/Settings'
 import { Insights } from './views/Insights'
 import { KarmaFarmingBaseUI } from './views/KarmaFarmingBaseUI'
-import { Reports } from './views/Reports'
+import { ReportsBaseUI } from './views/ReportsBaseUI'
 import { LoginScreen } from './components/LoginScreen'
 import { LoginScreenBaseUI } from './components/LoginScreenBaseUI'
 import { BaseUITest } from './views/BaseUITest'
@@ -129,7 +129,7 @@ export default function App() {
       case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
       case 'insights': return <Insights />
       case 'karma-farming': return <KarmaFarmingBaseUI />
-      case 'reports': return <Reports />
+      case 'reports': return <ReportsBaseUI />
       case 'base-ui-test': return <BaseUITest />
       default: return <Dashboard userRole={userRole} />
     }
