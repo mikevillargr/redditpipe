@@ -14,7 +14,7 @@ import { Clients } from './views/Clients'
 import { ClientsBaseUI } from './views/ClientsBaseUI'
 import { Accounts } from './views/Accounts'
 import { AccountsBaseUI } from './views/AccountsBaseUI'
-import { AccountDetail } from './views/AccountDetail'
+import { AccountDetailBaseUI } from './views/AccountDetailBaseUI'
 import { Settings } from './views/Settings'
 import { InsightsBaseUI } from './views/InsightsBaseUI'
 import { KarmaFarmingBaseUI } from './views/KarmaFarmingBaseUI'
@@ -125,7 +125,7 @@ export default function App() {
       case 'dashboard': return <Dashboard userRole={userRole} />
       case 'clients': return <ClientsBaseUI />
       case 'accounts': return <AccountsBaseUI onViewAccount={handleViewAccount} />
-      case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
+      case 'account-detail': return <AccountDetailBaseUI accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
       case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
       case 'insights': return <InsightsBaseUI />
       case 'karma-farming': return <KarmaFarmingBaseUI />
