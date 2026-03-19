@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { copyToClipboard } from '../utils/clipboard'
 import { Button } from '../components/base/Button'
 import { Card, CardContent } from '../components/base/Card'
 import { Badge } from '../components/base/Badge'
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/base/Table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from '../components/base/Dialog'
 import { Input } from '../components/base/Input'
 import { IconButton } from '../components/base/IconButton'
@@ -15,6 +15,7 @@ interface Account {
   username: string
   password: string
   status: 'active' | 'warming' | 'cooldown' | 'flagged'
+  age?: string
   postKarma: number
   commentKarma: number
   subreddits: string[]
@@ -23,6 +24,157 @@ interface Account {
 
 interface AccountsBaseUIProps {
   onViewAccount: (id: string) => void
+}
+
+interface AccountCardProps {
+  account: Account
+  onView: (id: string) => void
+  onEdit: (account: Account) => void
+  onDelete: (id: string) => void
+  showPasswordTable: Record<string, boolean>
+  togglePasswordVisibility: (id: string) => void
+}
+
+function AccountCard({ account, onView, onEdit, onDelete, showPasswordTable, togglePasswordVisibility }: AccountCardProps) {
+  const [copied, setCopied] = useState(false)
+  const showPassword = showPasswordTable[account.id] || false
+
+  const handleCopy = async () => {
+    const success = await copyToClipboard(account.password)
+    if (success) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const statusConfig = {
+    active: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', border: 'rgba(16, 185, 129, 0.3)' },
+    warming: { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)', border: 'rgba(59, 130, 246, 0.3)' },
+    cooldown: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)' },
+    flagged: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)' },
+  }
+
+  const status = statusConfig[account.status as keyof typeof statusConfig] || statusConfig.warming
+
+  return (
+    <Card className="h-full flex flex-col hover:border-slate-600 transition-colors">
+      <CardContent className="p-5 flex flex-col flex-1">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-sm">R</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  u/{account.username}
+                </h3>
+              </div>
+              {/* Password row */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                  {showPassword ? account.password : '••••••••••'}
+                </span>
+                <button
+                  onClick={() => togglePasswordVisibility(account.id)}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+                </button>
+                <button
+                  onClick={handleCopy}
+                  className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {copied ? <CheckIcon size={11} className="text-green-500" /> : <ClipboardIcon size={11} />}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span 
+              className="px-2 py-1 rounded text-xs font-semibold"
+              style={{ 
+                backgroundColor: status.bg, 
+                color: status.color,
+                border: `1px solid ${status.border}`
+              }}
+            >
+              {account.status === 'warming' ? 'Farming' : account.status}
+            </span>
+          </div>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-3 gap-0 mb-4 p-3 bg-slate-900 rounded-lg border border-slate-800">
+          <div className="text-center px-2 border-r border-slate-800">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Age</div>
+            <div className="text-sm font-bold text-slate-100">{account.age || '0y 0m'}</div>
+          </div>
+          <div className="text-center px-2 border-r border-slate-800">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Post</div>
+            <div className="text-sm font-bold text-slate-100">{account.postKarma.toLocaleString()}</div>
+          </div>
+          <div className="text-center px-2">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">Comment</div>
+            <div className="text-sm font-bold text-slate-100">{account.commentKarma.toLocaleString()}</div>
+          </div>
+        </div>
+
+        {/* Subreddits */}
+        {account.subreddits && account.subreddits.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Active Subreddits</div>
+            <div className="flex flex-wrap gap-1">
+              {account.subreddits.slice(0, 4).map((sub, i) => (
+                <span key={i} className="px-2 py-0.5 bg-slate-800 text-slate-300 text-xs rounded border border-slate-700">
+                  {sub}
+                </span>
+              ))}
+              {account.subreddits.length > 4 && (
+                <span className="px-2 py-0.5 bg-slate-800 text-slate-400 text-xs rounded border border-slate-700">
+                  +{account.subreddits.length - 4}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Clients */}
+        {account.clients && account.clients.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">Clients</div>
+            <div className="flex flex-wrap gap-1">
+              {account.clients.slice(0, 3).map((client, i) => (
+                <Badge key={i} variant="default">{client}</Badge>
+              ))}
+              {account.clients.length > 3 && (
+                <Badge variant="info">+{account.clients.length - 3}</Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Footer Actions */}
+        <div className="mt-auto pt-3 border-t border-slate-800 flex items-center justify-between">
+          <button
+            onClick={() => onView(account.id)}
+            className="text-xs text-orange-500 hover:text-orange-400 font-medium"
+          >
+            View Details
+          </button>
+          <div className="flex items-center gap-1">
+            <IconButton size="sm" variant="ghost" onClick={() => onEdit(account)}>
+              <EditIcon size={14} />
+            </IconButton>
+            <IconButton size="sm" variant="ghost" onClick={() => onDelete(account.id)}>
+              <Trash2Icon size={14} />
+            </IconButton>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
@@ -212,97 +364,52 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
         </Alert>
       )}
 
-      {/* Table */}
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Username</TableHead>
-              <TableHead>Password</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Karma</TableHead>
-              <TableHead>Clients</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {accounts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center text-slate-500 py-8">
-                  No accounts yet. Click "Add Account" to get started.
-                </TableCell>
-              </TableRow>
-            ) : (
-              accounts.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <span className="text-orange-500">u/</span>
-                      {account.username}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type={showPasswordModal ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Reddit password"
-                        className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      />
-                      <IconButton
-                        size="md"
-                        variant="ghost"
-                        onClick={() => setShowPasswordModal(!showPasswordModal)}
-                      >
-                        {showPasswordModal ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                      </IconButton>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(account.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-600 dark:text-slate-400">
-                        Post: {account.postKarma.toLocaleString()}
-                      </span>
-                      <span className="text-xs text-slate-600 dark:text-slate-400">
-                        Comment: {account.commentKarma.toLocaleString()}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {account.clients.length === 0 ? (
-                        <span className="text-xs text-slate-500">None</span>
-                      ) : (
-                        account.clients.slice(0, 2).map((client, i) => (
-                          <Badge key={i} variant="default">{client}</Badge>
-                        ))
-                      )}
-                      {account.clients.length > 2 && (
-                        <Badge variant="info">+{account.clients.length - 2}</Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <IconButton size="sm" variant="ghost" onClick={() => onViewAccount(account.id)}>
-                        <ActivityIcon size={14} />
-                      </IconButton>
-                      <IconButton size="sm" variant="ghost" onClick={() => handleEdit(account)}>
-                        <EditIcon size={14} />
-                      </IconButton>
-                      <IconButton size="sm" variant="ghost" onClick={() => handleDelete(account.id)}>
-                        <Trash2Icon size={14} />
-                      </IconButton>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      {/* Stats Pills */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700">
+          <span className="text-sm font-semibold text-slate-300">{accounts.length} Total</span>
+        </div>
+        <div className="px-4 py-2 rounded-lg bg-green-950 border border-green-800">
+          <span className="text-sm font-semibold text-green-400">
+            {accounts.filter(a => a.status === 'active').length} Active
+          </span>
+        </div>
+        <div className="px-4 py-2 rounded-lg bg-blue-950 border border-blue-800">
+          <span className="text-sm font-semibold text-blue-400">
+            {accounts.filter(a => a.status === 'warming').length} Farming
+          </span>
+        </div>
+        <div className="px-4 py-2 rounded-lg bg-amber-950 border border-amber-800">
+          <span className="text-sm font-semibold text-amber-400">
+            {accounts.filter(a => a.status === 'cooldown').length} Cooldown
+          </span>
+        </div>
+      </div>
+
+      {/* Card Grid */}
+      {accounts.length === 0 ? (
+        <Card>
+          <CardContent className="p-12 text-center">
+            <p className="text-slate-500 dark:text-slate-400">
+              No accounts yet. Click "Add Account" to get started.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {accounts.map((account) => (
+            <AccountCard
+              key={account.id}
+              account={account}
+              onView={onViewAccount}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              showPasswordTable={showPasswordTable}
+              togglePasswordVisibility={togglePasswordVisibility}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
