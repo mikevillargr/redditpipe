@@ -46,17 +46,17 @@ export function LoginScreenBaseUI({ onLogin }: LoginScreenProps) {
               <div className="w-12 h-12 rounded-xl bg-orange-500 inline-flex items-center justify-center mb-3 p-2">
                 <img
                   src="/favicon.svg"
-                  alt="RedditPipe"
+                  alt="Narwhal"
                   className="w-full h-full object-contain"
                 />
               </div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
-                RedditPipe
+              <h1 className="text-xl font-bold text-slate-400 dark:text-slate-400 mb-1">
+                Narwhal
               </h1>
-              <p className="text-[10px] text-slate-600 dark:text-slate-500 mb-2">
+              <p className="text-[10px] text-slate-400 dark:text-slate-400 mb-2">
                 by Growth Rocket AI Labs
               </p>
-              <p className="text-[13px] text-slate-700 dark:text-slate-400">
+              <p className="text-[13px] text-slate-300 dark:text-slate-300">
                 Sign in to access the dashboard
               </p>
             </div>

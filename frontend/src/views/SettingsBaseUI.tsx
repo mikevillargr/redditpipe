@@ -236,7 +236,7 @@ export default function SettingsBaseUI() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          redditMode,
+          redditApiMode: redditMode,
           redditClientId,
           redditClientSecret,
           redditUsername,
@@ -253,8 +253,8 @@ export default function SettingsBaseUI() {
           searchScheduleTimes,
           searchTimezone,
           searchBreadth,
-          maxResults,
-          maxAge,
+          maxResultsPerKeyword: maxResults,
+          threadMaxAgeDays: maxAge,
           maxAiCandidatesPerClient,
           maxAiCallsTotal,
           maxOppsPerClient,
@@ -436,7 +436,11 @@ export default function SettingsBaseUI() {
   const handleNukeOpportunities = async () => {
     setNukeLoading(true)
     try {
-      const res = await fetch('/api/opportunities/nuke', { method: 'DELETE' })
+      const res = await fetch('/api/opportunities/all', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'DELETE_ALL_OPPORTUNITIES' }),
+      })
       if (!res.ok) throw new Error('Failed')
       setNukeStep(0)
       setNukeConfirmText('')
