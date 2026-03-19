@@ -1858,7 +1858,7 @@ export function Settings() {
       )}
 
       {/* Save Button */}
-      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: '#0f172a', pt: 2, pb: 2, borderTop: '1px solid #334155' }}>
+      <Box sx={{ position: 'sticky', bottom: 0, bgcolor: 'background.paper', pt: 2, pb: 2, borderTop: '1px solid', borderColor: 'divider' }}>
         {saveError && (
           <Alert
             severity="error"

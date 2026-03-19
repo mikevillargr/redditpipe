@@ -145,31 +145,28 @@ export function Sidebar({
         >
           <img
             src="/favicon.svg"
-            alt="RedditPipe"
+            alt="Narwhal"
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'contain',
             }}
           />
         </Box>
         {!effectiveCollapsed && (
-          <Box>
+          <Box sx={{ ml: 1.5 }}>
             <Typography
               sx={{
-                color: '#f1f5f9',
                 fontWeight: 700,
-                fontSize: '15px',
-                letterSpacing: '-0.3px',
-                whiteSpace: 'nowrap',
+                fontSize: '16px',
                 lineHeight: 1.2,
+                color: '#ffffff',
               }}
             >
-              RedditPipe
+              Narwhal
             </Typography>
             <Typography
               sx={{
-                color: '#475569',
+                color: '#94a3b8',
                 fontSize: '9px',
                 fontWeight: 500,
                 whiteSpace: 'nowrap',
@@ -426,6 +423,9 @@ export function Sidebar({
                 width: effectiveCollapsed ? 32 : 'auto',
                 px: effectiveCollapsed ? 0 : 1.5,
                 gap: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 '&:hover': {
                   bgcolor: hoverBg,
                   color: '#f97316',
@@ -439,6 +439,7 @@ export function Sidebar({
                     fontSize: '12px',
                     color: 'inherit',
                     fontWeight: 500,
+                    lineHeight: 1,
                   }}
                 >
                   {isDark ? 'Light mode' : 'Dark mode'}

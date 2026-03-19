@@ -8,15 +8,15 @@ import {
 } from '@mui/material'
 import { MenuIcon } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
-import { Dashboard } from './views/Dashboard'
-import { Clients } from './views/Clients'
-import { Accounts } from './views/Accounts'
-import { AccountDetail } from './views/AccountDetail'
-import { Settings } from './views/Settings'
-import { Insights } from './views/Insights'
-import { KarmaFarming } from './views/KarmaFarming'
-import { Reports } from './views/Reports'
-import { LoginScreen } from './components/LoginScreen'
+import { DashboardBaseUI } from './views/DashboardBaseUI'
+import { ClientsBaseUI } from './views/ClientsBaseUI'
+import { AccountsBaseUI } from './views/AccountsBaseUI'
+import { AccountDetailBaseUI } from './views/AccountDetailBaseUI'
+import SettingsBaseUI from './views/SettingsBaseUI'
+import { InsightsBaseUI } from './views/InsightsBaseUI'
+import { KarmaFarmingBaseUI } from './views/KarmaFarmingBaseUI'
+import { ReportsBaseUI } from './views/ReportsBaseUI'
+import { LoginScreenBaseUI } from './components/LoginScreenBaseUI'
 
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
@@ -62,7 +62,14 @@ export default function App() {
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
   const [mode, setMode] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('theme-mode')
-    return (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    const initialMode = (saved === 'light' || saved === 'dark') ? saved : 'dark'
+    // Immediately sync dark class on initial load
+    if (initialMode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    return initialMode
   })
 
   const theme = useAppTheme(mode)
@@ -91,6 +98,15 @@ export default function App() {
 
   useEffect(() => { checkAuth() }, [checkAuth])
 
+  // Sync Tailwind dark mode with MUI theme
+  useEffect(() => {
+    if (mode === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }, [mode])
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     setAuthenticated(false)
@@ -101,21 +117,21 @@ export default function App() {
 
   const renderPage = () => {
     switch (activePage) {
-      case 'dashboard': return <Dashboard userRole={userRole} />
-      case 'clients': return <Clients />
-      case 'accounts': return <Accounts onViewAccount={handleViewAccount} />
-      case 'account-detail': return <AccountDetail accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
-      case 'settings': return userRole === 'admin' ? <Settings /> : <Dashboard userRole={userRole} />
-      case 'insights': return <Insights />
-      case 'karma-farming': return <KarmaFarming />
-      case 'reports': return <Reports />
-      default: return <Dashboard userRole={userRole} />
+      case 'dashboard': return <DashboardBaseUI userRole={userRole} />
+      case 'clients': return <ClientsBaseUI />
+      case 'accounts': return <AccountsBaseUI onViewAccount={handleViewAccount} />
+      case 'account-detail': return <AccountDetailBaseUI accountId={selectedAccountId} onBack={() => setActivePage('accounts')} />
+      case 'settings': return userRole === 'admin' ? <SettingsBaseUI /> : <DashboardBaseUI userRole={userRole} />
+      case 'insights': return <InsightsBaseUI />
+      case 'karma-farming': return <KarmaFarmingBaseUI />
+      case 'reports': return <ReportsBaseUI />
+      default: return <DashboardBaseUI userRole={userRole} />
     }
   }
 
   const renderContent = () => {
     if (authenticated === null) return null
-    if (!authenticated) return <LoginScreen onLogin={checkAuth} />
+    if (!authenticated) return <LoginScreenBaseUI onLogin={checkAuth} />
 
     return (
       <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
