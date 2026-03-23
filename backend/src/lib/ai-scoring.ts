@@ -118,8 +118,6 @@ SCORING GUIDE:
 - 0.6-0.8 = Good: relevant discussion, could naturally mention client
 - 0.4-0.6 = Marginal: some relevance but forced or off-topic subreddit
 - Below 0.4 = Irrelevant: wrong audience, off-topic, or no intent
-
-BE STRICT. Most threads should score below 0.5. Only truly relevant opportunities should pass.
 ${customContext}
 Return ONLY JSON: {"score": <float 0-1>, "note": "<1-2 sentences explaining WHY this is or isn't a good fit>", "factors": {"subredditRelevance": <0-1>, "topicMatch": <0-1>, "intent": <0-1>, "naturalFit": <0-1>}}`;
 
@@ -137,7 +135,7 @@ Title: ${params.threadTitle}
 Body: ${params.threadBody.slice(0, 800)}
 ${params.topComments ? `Top Comments:\n${params.topComments.slice(0, 500)}` : ""}
 
-Score this thread. Be strict — most threads are NOT good opportunities.`;
+Score this thread based on the criteria above.`;
 
   try {
     const response = await Promise.race([
