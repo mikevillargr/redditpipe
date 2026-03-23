@@ -54,11 +54,14 @@ export interface SearchResult {
     threadsDiscovered: number;
     skipped: { duplicate: number; tooOld: number; lowScore: number; heuristic: number };
     aiCalls: number;
+    aiScoringSuccesses: number;
+    aiScoringFailures: number;
     mode: string;
     errors: number;
     durationMs: number;
   };
   errors?: string[];
+  aiScoringErrors?: string[];
 }
 
 interface DiscoveredThread {
@@ -123,7 +126,8 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         summary: {
           clientsSearched: 0, opportunitiesCreated: 0, threadsDiscovered: 0,
           skipped: { duplicate: 0, tooOld: 0, lowScore: 0, heuristic: 0 },
-          aiCalls: 0, mode: redditConfig.mode, errors: 0, durationMs: Date.now() - startTime,
+          aiCalls: 0, aiScoringSuccesses: 0, aiScoringFailures: 0,
+          mode: redditConfig.mode, errors: 0, durationMs: Date.now() - startTime,
         },
       };
       pipelineStatus = { running: false, phase: "idle", progress: "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: 0 };
@@ -139,12 +143,15 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     let totalOpportunities = 0;
     const oppsPerClient = new Map<string, number>();
     const errors: string[] = [];
+    const aiScoringErrors: string[] = [];
     let skippedDuplicate = 0;
     let skippedTooOld = 0;
     let skippedLowScore = 0;
     let skippedHeuristic = 0;
     let skippedCapped = 0;
     let aiCalls = 0;
+    let aiScoringSuccesses = 0;
+    let aiScoringFailures = 0;
 
     // Pre-load all existing opportunity keys for O(1) dedup
     const existingOpps = await db.opportunity.findMany({ select: { threadId: true, clientId: true } });
@@ -335,12 +342,28 @@ export async function runSearchPipeline(): Promise<SearchResult> {
             note: aiResult.note,
             factors: aiResult.factors || null,
           });
+          
+          // Track AI scoring success/failure
+          if (aiResult.note.includes('AI scoring failed')) {
+            aiScoringFailures++;
+            if (aiScoringErrors.length < 5) {
+              aiScoringErrors.push(`${client.name}/r/${thread.subreddit}: ${aiResult.note}`);
+            }
+          } else {
+            aiScoringSuccesses++;
+          }
+          
           if (!aiResult.shouldKeep) {
             skippedLowScore++;
             continue;
           }
         } catch (err) {
           console.error(`AI scoring failed for ${thread.threadId}/${client.name}, skipping:`, err);
+          aiScoringFailures++;
+          if (aiScoringErrors.length < 5) {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            aiScoringErrors.push(`${client.name}/r/${thread.subreddit}: ${errMsg}`);
+          }
           skippedLowScore++;
           continue; // Skip this thread instead of using heuristic score
         }
@@ -401,11 +424,14 @@ export async function runSearchPipeline(): Promise<SearchResult> {
         threadsDiscovered: discoveredThreads.size,
         skipped: { duplicate: skippedDuplicate, tooOld: skippedTooOld, lowScore: skippedLowScore, heuristic: skippedHeuristic },
         aiCalls,
+        aiScoringSuccesses,
+        aiScoringFailures,
         mode: redditConfig.mode,
         errors: errors.length,
         durationMs,
       },
       errors: errors.length > 0 ? errors : undefined,
+      aiScoringErrors: aiScoringErrors.length > 0 ? aiScoringErrors : undefined,
     };
 
     pipelineStatus = { running: false, phase: aborted ? "aborted" : "idle", progress: aborted ? "Stopped by user" : "", startedAt: null, lastCompletedAt: new Date().toISOString(), lastResult: result, opportunitiesCreated: totalOpportunities };

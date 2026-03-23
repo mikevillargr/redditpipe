@@ -267,6 +267,17 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
 
+  // AI Scoring Alert interface
+  interface AiScoringAlert {
+    id: string
+    timestamp: string
+    failures: number
+    successes: number
+    failureRate: number
+    sampleErrors: string[]
+    dismissed: boolean
+  }
+
   // Pipeline status polling
   interface PipelineStatusData {
     running: boolean
@@ -281,9 +292,12 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
         threadsDiscovered: number
         skipped: { duplicate: number; tooOld: number; lowScore: number; heuristic: number }
         aiCalls: number
+        aiScoringSuccesses: number
+        aiScoringFailures: number
         durationMs: number
         errors: number
       }
+      aiScoringErrors?: string[]
     } | null
   }
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatusData | null>(() => {
@@ -358,6 +372,19 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
     open: false, message: '', severity: 'success',
   })
 
+  // AI Scoring Alert state
+  const [aiScoringAlert, setAiScoringAlert] = useState<AiScoringAlert | null>(() => {
+    try {
+      const stored = localStorage.getItem('aiScoringAlerts')
+      if (stored) {
+        const alerts = JSON.parse(stored) as AiScoringAlert[]
+        return alerts.find(a => !a.dismissed) || null
+      }
+    } catch {}
+    return null
+  })
+  const [showAlertDetails, setShowAlertDetails] = useState(false)
+
   // Auto-hide snackbar
   useEffect(() => {
     if (snackbar.open) {
@@ -365,6 +392,30 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
       return () => clearTimeout(t)
     }
   }, [snackbar.open, snackbar.message])
+
+  // Detect AI scoring failures and create alerts
+  useEffect(() => {
+    if (!pipelineStatus?.running && pipelineStatus?.lastResult) {
+      const { aiScoringFailures, aiScoringSuccesses } = pipelineStatus.lastResult.summary
+      if (aiScoringFailures > 0) {
+        const totalAttempts = aiScoringFailures + (aiScoringSuccesses || 0)
+        const failureRate = (aiScoringFailures / totalAttempts) * 100
+        const alert: AiScoringAlert = {
+          id: Date.now().toString(),
+          timestamp: new Date().toISOString(),
+          failures: aiScoringFailures,
+          successes: aiScoringSuccesses || 0,
+          failureRate,
+          sampleErrors: pipelineStatus.lastResult.aiScoringErrors || [],
+          dismissed: false,
+        }
+        setAiScoringAlert(alert)
+        try {
+          localStorage.setItem('aiScoringAlerts', JSON.stringify([alert]))
+        } catch {}
+      }
+    }
+  }, [pipelineStatus?.running, pipelineStatus?.lastResult])
 
   const toggleExpand = (id: string) => {
     setExpandedCards(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -722,6 +773,42 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
   return (
     <div className="p-3 sm:p-4 md:p-6 max-w-[1200px] mx-auto">
       <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-4 md:mb-6">Opportunities</h1>
+
+      {/* AI Scoring Alert Banner */}
+      {aiScoringAlert && !aiScoringAlert.dismissed && (
+        <div className="mb-3 px-3 py-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+          <AlertCircleIcon size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-amber-700 dark:text-amber-400">
+              AI Scoring Issues Detected
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {aiScoringAlert.failures} failures out of {aiScoringAlert.failures + aiScoringAlert.successes} attempts 
+              ({aiScoringAlert.failureRate.toFixed(1)}% failure rate). This may prevent opportunities from being created.
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => setShowAlertDetails(true)}
+              className="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline whitespace-nowrap"
+            >
+              View Details
+            </button>
+            <button
+              onClick={() => {
+                const dismissed = { ...aiScoringAlert, dismissed: true }
+                setAiScoringAlert(dismissed)
+                try {
+                  localStorage.setItem('aiScoringAlerts', JSON.stringify([dismissed]))
+                } catch {}
+              }}
+              className="text-xs font-medium text-amber-600 dark:text-amber-400 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Pipeline Status Banner */}
       <div className={`mb-3 px-3 py-2 flex items-center gap-3 flex-wrap border ${
@@ -1221,6 +1308,53 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
           onSuccess={handlePileOnSuccess}
         />
       )}
+
+      {/* AI Scoring Alert Details Modal */}
+      <Dialog open={showAlertDetails} onOpenChange={setShowAlertDetails}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>AI Scoring Failure Details</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            {aiScoringAlert && (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">Statistics</p>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    {aiScoringAlert.failures} failures, {aiScoringAlert.successes} successes
+                    ({aiScoringAlert.failureRate.toFixed(1)}% failure rate)
+                  </p>
+                </div>
+                {aiScoringAlert.sampleErrors && aiScoringAlert.sampleErrors.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">Sample Errors</p>
+                    <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                      {aiScoringAlert.sampleErrors.map((err, i) => (
+                        <li key={i} className="font-mono bg-slate-100 dark:bg-slate-800 p-2 rounded text-[11px] break-all">
+                          {err}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mb-1">Troubleshooting</p>
+                  <ul className="text-xs text-slate-600 dark:text-slate-400 list-disc list-inside space-y-1">
+                    <li>Check AI model configuration in Settings</li>
+                    <li>Verify Anthropic API key is valid</li>
+                    <li>Review AI search context for overly complex instructions</li>
+                    <li>Check backend logs for full error details</li>
+                    <li>Consider lowering the relevance threshold if it's too strict</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowAlertDetails(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Deletion Analysis Modal */}
       <DeletionAnalysisModal

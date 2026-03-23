@@ -30,6 +30,46 @@ export function clearScoringCache(): void {
   clearAIClientCache();
 }
 
+/**
+ * Robust JSON extraction with multiple fallback strategies
+ * Handles AI responses that include text before/after JSON
+ */
+function extractJSON(text: string): any {
+  const trimmed = text.trim();
+  
+  // Strategy 1: Direct parse (fast path)
+  try {
+    return JSON.parse(trimmed);
+  } catch {}
+  
+  // Strategy 2: Strip markdown code blocks
+  if (trimmed.startsWith('```')) {
+    const cleaned = trimmed.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+    try {
+      return JSON.parse(cleaned);
+    } catch {}
+  }
+  
+  // Strategy 3: Regex extraction - find JSON object containing "score"
+  const jsonMatch = trimmed.match(/\{[\s\S]*?"score"[\s\S]*?\}/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch {}
+  }
+  
+  // Strategy 4: Find first { to last } and try to parse
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    } catch {}
+  }
+  
+  throw new Error('No valid JSON found in response');
+}
+
 interface AiScoreResult {
   score: number;
   note: string;
@@ -110,15 +150,13 @@ Score this thread. Be strict — most threads are NOT good opportunities.`;
       ),
     ]);
 
-    let jsonStr = response.content.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
-    }
-    const parsed = JSON.parse(jsonStr) as {
+    // Use robust JSON extraction with multiple fallback strategies
+    const parsed = extractJSON(response.content) as {
       score: number;
       note: string;
       factors?: { subredditRelevance: number; topicMatch: number; intent: number; naturalFit: number };
     };
+    
     return {
       score: Math.round(parsed.score * 100) / 100,
       note: parsed.note,
@@ -128,7 +166,7 @@ Score this thread. Be strict — most threads are NOT good opportunities.`;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[AI Scoring] Failed for "${params.clientName}" / r/${params.subreddit}: ${msg}`);
-    return { score: 0, note: "AI scoring failed — rejected for safety", shouldKeep: false };
+    return { score: 0, note: `AI scoring failed: ${msg}`, shouldKeep: false };
   }
 }
 
