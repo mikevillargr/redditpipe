@@ -50,7 +50,7 @@ interface ReportOpportunity {
 
 export function ReportsBaseUI() {
   const [clients, setClients] = useState<Client[]>([])
-  const [selectedClientId, setSelectedClientId] = useState<string>('')
+  const [selectedClientId, setSelectedClientId] = useState<string>('all')
   const [allOpportunities, setAllOpportunities] = useState<ReportOpportunity[]>([])
   const [opportunities, setOpportunities] = useState<ReportOpportunity[]>([])
   const [loading, setLoading] = useState(false)
@@ -71,9 +71,6 @@ export function ReportsBaseUI() {
       if (res.ok) {
         const data = await res.json()
         setClients(data)
-        if (data.length > 0 && !selectedClientId) {
-          setSelectedClientId(data[0].id)
-        }
       }
     } catch (err) {
       console.error('Failed to fetch clients:', err)
@@ -81,9 +78,7 @@ export function ReportsBaseUI() {
   }
 
   useEffect(() => {
-    if (selectedClientId) {
-      fetchReportData(selectedClientId)
-    }
+    fetchReportData(selectedClientId)
   }, [selectedClientId])
 
   const fetchReportData = async (clientId: string) => {
@@ -206,6 +201,7 @@ export function ReportsBaseUI() {
                 disabled={clients.length === 0}
                 className="px-3 py-1.5 text-sm rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[180px]"
               >
+                <option value="all">All Clients</option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}

@@ -43,16 +43,23 @@ reports.get("/clients/:clientId", async (c) => {
   const db = createPrismaClient();
 
   try {
-    // Fetch client to get mention terms for citation extraction
-    const client = await db.client.findUnique({
-      where: { id: clientId },
-      select: { mentionTerms: true, name: true },
-    });
+    // Fetch client(s) to get mention terms for citation extraction
+    const clients = clientId === 'all' 
+      ? await db.client.findMany({ select: { id: true, mentionTerms: true, name: true } })
+      : [await db.client.findUnique({
+          where: { id: clientId },
+          select: { id: true, mentionTerms: true, name: true },
+        })];
+
+    const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const opportunities = await db.opportunity.findMany({
-      where: { clientId },
+      where: clientId === 'all' ? undefined : { clientId },
       orderBy: { createdAt: "desc" },
       include: {
+        client: {
+          select: { id: true, name: true },
+        },
         parentOpportunity: {
           select: { title: true },
         },
@@ -68,6 +75,9 @@ reports.get("/clients/:clientId", async (c) => {
     });
 
     const reportData: ReportOpportunity[] = opportunities.map((opp) => {
+      // Get the client for this opportunity
+      const client = clientMap.get(opp.clientId);
+
       // Parse aiRelevanceNote if it exists
       let aiScoreCommentary = null;
       let aiScoreFactors = null;
@@ -97,7 +107,7 @@ reports.get("/clients/:clientId", async (c) => {
         
         // If no markdown links found, look for plain text mentions of client name or mention terms
         if (!citationAnchorText) {
-          const mentionTerms = client.mentionTerms ? client.mentionTerms.split(",").map(t => t.trim()) : [];
+          const mentionTerms = client.mentionTerms ? client.mentionTerms.split(",").map((t: string) => t.trim()) : [];
           const allTerms = [client.name, ...mentionTerms];
           
           // Find all mentions in the text (case-insensitive)
