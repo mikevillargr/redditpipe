@@ -51,7 +51,7 @@ reports.get("/clients/:clientId", async (c) => {
           select: { id: true, mentionTerms: true, name: true },
         })];
 
-    const clientMap = new Map(clients.map(c => [c.id, c]));
+    const clientMap = new Map(clients.filter((c): c is { id: string; mentionTerms: string | null; name: string } => c !== null).map(c => [c.id, c]));
 
     const opportunities = await db.opportunity.findMany({
       where: clientId === 'all' ? undefined : { clientId },
