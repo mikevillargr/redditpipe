@@ -392,7 +392,7 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
             age: formatAge(a.accountAgeDays),
             postKarma: a.postKarma,
             commentKarma: a.commentKarma,
-            subreddits: a.subreddits ? a.subreddits.split(',').filter(Boolean) : [],
+            subreddits: a.activeSubreddits ? a.activeSubreddits.split(',').filter(Boolean) : [],
             clients: a.accountAssignments?.map((c: any) => c.client.name) || [],
             organicPostsTotal: a.organicPostsTotal,
             citationPostsTotal: a.citationPostsTotal,
