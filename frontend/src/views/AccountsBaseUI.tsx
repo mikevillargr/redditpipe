@@ -382,29 +382,48 @@ export function AccountsBaseUI({ onViewAccount }: AccountsBaseUIProps) {
   const fetchAccounts = useCallback(async () => {
     try {
       const res = await fetch('/api/accounts?autoRefresh=true')
-      if (res.ok) {
-        const data = await res.json().then((data: any[]) =>
-          data.map((a: any) => ({
-            id: a.id,
-            username: a.username,
-            password: a.password,
-            status: a.status,
-            age: formatAge(a.accountAgeDays),
-            postKarma: a.postKarma,
-            commentKarma: a.commentKarma,
-            subreddits: a.activeSubreddits ? a.activeSubreddits.split(',').filter(Boolean) : [],
-            clients: a.accountAssignments?.map((c: any) => c.client.name) || [],
-            organicPostsTotal: a.organicPostsTotal,
-            citationPostsTotal: a.citationPostsTotal,
-            postsTodayCount: a.postsTodayCount,
-            maxPostsPerDay: a.maxPostsPerDay,
-          }))
-        )
-        setAccounts(data)
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
       }
+      
+      const rawData = await res.json()
+      if (!Array.isArray(rawData)) {
+        throw new Error('Invalid response format: expected array')
+      }
+      
+      const data = rawData.map((a: any) => {
+        try {
+          const account: Account = {
+            id: a.id || '',
+            username: a.username || '',
+            password: a.password || '',
+            status: a.status || 'warming',
+            age: formatAge(a.accountAgeDays) || undefined,
+            postKarma: a.postKarma || 0,
+            commentKarma: a.commentKarma || 0,
+            subreddits: typeof a.activeSubreddits === 'string'
+              ? a.activeSubreddits.split(',').filter(Boolean)
+              : [],
+            clients: Array.isArray(a.accountAssignments)
+              ? a.accountAssignments.map((c: any) => c.client?.name || '').filter(Boolean)
+              : [],
+            organicPostsTotal: a.organicPostsTotal || 0,
+            citationPostsTotal: a.citationPostsTotal || 0,
+            postsTodayCount: a.postsTodayCount || 0,
+            maxPostsPerDay: a.maxPostsPerDay || 3,
+          }
+          return account
+        } catch (err) {
+          console.error('Error mapping account:', a, err)
+          return null
+        }
+      }).filter((account): account is Account => account !== null)
+      
+      setAccounts(data)
     } catch (err) {
       console.error('Failed to fetch accounts:', err)
-      setError('Failed to load accounts')
+      setError(`Failed to load accounts: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setAccounts([])
     }
   }, [])
 
