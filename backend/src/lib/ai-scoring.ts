@@ -207,7 +207,7 @@ export async function analyzeDismissals(): Promise<{
 
   const response = await callAI(
     [{ role: "user", content: `Analyze these ${logs.length} dismissed opportunities:\n\n${dismissedSummary}` }],
-    { model: config.model, maxTokens: 1000, systemPrompt }
+    { model: config.model, maxTokens: 2000, systemPrompt }
   );
 
   try {
@@ -224,6 +224,28 @@ export async function analyzeDismissals(): Promise<{
     if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
     }
+
+    // Attempt to fix truncated JSON by closing incomplete structures
+    // Count braces to see if JSON is complete
+    let braceCount = 0;
+    let bracketCount = 0;
+    for (const char of jsonStr) {
+      if (char === '{') braceCount++;
+      if (char === '}') braceCount--;
+      if (char === '[') bracketCount++;
+      if (char === ']') bracketCount--;
+    }
+
+    // If braces or brackets are unbalanced, try to close them
+    if (braceCount > 0) {
+      jsonStr += '}'.repeat(braceCount);
+    }
+    if (bracketCount > 0) {
+      jsonStr += ']'.repeat(bracketCount);
+    }
+
+    // Also handle trailing commas before closing brackets/braces
+    jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
 
     // Parse JSON with validation
     const parsed = JSON.parse(jsonStr) as { patterns: DismissalPattern[]; summary: string; recommendations: string[] };
