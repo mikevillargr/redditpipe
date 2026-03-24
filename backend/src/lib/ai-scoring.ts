@@ -212,12 +212,42 @@ export async function analyzeDismissals(): Promise<{
 
   try {
     let jsonStr = response.content.trim();
+
+    // Remove markdown code blocks if present
     if (jsonStr.startsWith("```")) {
       jsonStr = jsonStr.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
     }
+
+    // Try to find JSON object boundaries if there's extra text
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    // Parse JSON with validation
     const parsed = JSON.parse(jsonStr) as { patterns: DismissalPattern[]; summary: string; recommendations: string[] };
+
+    // Validate structure
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid response structure');
+    }
+
+    // Ensure arrays are present
+    if (!Array.isArray(parsed.patterns)) parsed.patterns = [];
+    if (!Array.isArray(parsed.recommendations)) parsed.recommendations = [];
+    if (typeof parsed.summary !== 'string') parsed.summary = 'No summary available';
+
     return { totalDismissed: logs.length, ...parsed };
-  } catch {
-    return { totalDismissed: logs.length, patterns: [], summary: response.content, recommendations: [] };
+  } catch (err) {
+    console.error('Failed to parse AI dismissal analysis:', err);
+    console.error('Raw response:', response.content);
+    // Return empty analysis instead of raw text to prevent JSON display
+    return {
+      totalDismissed: logs.length,
+      patterns: [],
+      summary: 'Failed to analyze patterns. Please try again later.',
+      recommendations: [],
+    };
   }
 }

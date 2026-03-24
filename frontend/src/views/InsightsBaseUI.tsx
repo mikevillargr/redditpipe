@@ -91,11 +91,39 @@ export function InsightsBaseUI() {
     setError(null)
     try {
       const res = await fetch('/api/opportunities/dismissals')
-      if (!res.ok) throw new Error('Failed to fetch')
-      const data = await res.json()
-      setAnalysis(data)
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      
+      const rawData = await res.json()
+      
+      // Validate response structure
+      if (!rawData || typeof rawData !== 'object') {
+        throw new Error('Invalid response: expected object')
+      }
+      
+      // Check if it's an error response from backend
+      if (rawData.error) {
+        throw new Error(rawData.error)
+      }
+      
+      // Validate required fields
+      const validatedAnalysis: DismissalAnalysis = {
+        totalDismissed: typeof rawData.totalDismissed === 'number' ? rawData.totalDismissed : 0,
+        patterns: Array.isArray(rawData.patterns) ? rawData.patterns : [],
+        summary: typeof rawData.summary === 'string' ? rawData.summary : 'No summary available',
+        recommendations: Array.isArray(rawData.recommendations) ? rawData.recommendations : [],
+      }
+      
+      // Check if summary looks like raw JSON (malformed response)
+      if (validatedAnalysis.summary.startsWith('{') || validatedAnalysis.summary.startsWith('[')) {
+        console.warn('Dismissal insights summary appears to be raw JSON, backend parsing may have failed')
+        validatedAnalysis.summary = 'Analysis failed to parse properly. Please try again.'
+      }
+      
+      setAnalysis(validatedAnalysis)
     } catch (err) {
+      console.error('Failed to fetch dismissal analysis:', err)
       setError(err instanceof Error ? err.message : 'Failed to load insights')
+      setAnalysis(null)
     } finally {
       setLoading(false)
     }
@@ -290,13 +318,19 @@ export function InsightsBaseUI() {
       {activeTab === 0 && (
         <>
           {loading && !analysis && (
-            <div className="mb-4 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-orange-500 animate-pulse w-1/2"></div>
+            <div className="flex flex-col items-center justify-center py-12">
+              <Spinner size="lg" className="text-orange-500 mb-4" />
+              <p className="text-sm text-slate-600 dark:text-slate-400">Analyzing dismissal patterns...</p>
             </div>
           )}
           {error && (
             <Alert variant="error" className="mb-4">
-              {error}
+              <div className="flex items-center justify-between">
+                <span>{error}</span>
+                <Button variant="ghost" size="sm" onClick={fetchAnalysis} className="ml-4">
+                  Retry
+                </Button>
+              </div>
             </Alert>
           )}
 
