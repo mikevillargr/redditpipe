@@ -107,6 +107,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
     const MAX_AI_CALLS_TOTAL = settings?.maxAiCallsTotal ?? 200;
     const MAX_OPPS_PER_CLIENT = settings?.maxOppsPerClient ?? 20;
     const MAX_OPPS_TOTAL = settings?.maxOppsTotal ?? 50;
+    const MIN_OPPS_PER_CLIENT = (settings as any)?.minOppsPerClient ?? 0;
     const HEURISTIC_PRE_FILTER = 0.40; // threads below this skip AI entirely
 
     clearConfigCache();
@@ -138,10 +139,24 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       include: { accountAssignments: { select: { clientId: true } } },
     });
 
+    // ── Dynamic cap calculation: ensure minimums can be met ──
+    const activeClientCount = clients.length;
+    const EFFECTIVE_MAX_OPPS_TOTAL = Math.max(MAX_OPPS_TOTAL, activeClientCount * MIN_OPPS_PER_CLIENT);
+    const AI_CALLS_PER_CLIENT = MIN_OPPS_PER_CLIENT > 0 
+      ? Math.floor(MAX_AI_CALLS_TOTAL / activeClientCount)
+      : MAX_AI_CALLS_TOTAL; // If no minimums, use global budget
+    
+    console.log(`[Search] Equal allocation mode: ${MIN_OPPS_PER_CLIENT > 0 ? 'ENABLED' : 'DISABLED'}`);
+    if (MIN_OPPS_PER_CLIENT > 0) {
+      console.log(`[Search] Min opps per client: ${MIN_OPPS_PER_CLIENT}, AI calls per client: ${AI_CALLS_PER_CLIENT}`);
+      console.log(`[Search] Effective max total: ${EFFECTIVE_MAX_OPPS_TOTAL} (configured: ${MAX_OPPS_TOTAL})`);
+    }
+
     if (hasAiKey) await warmAiConfig();
 
     let totalOpportunities = 0;
     const oppsPerClient = new Map<string, number>();
+    const aiCallsPerClient = new Map<string, number>(); // Track AI calls per client for equal allocation
     const errors: string[] = [];
     const aiScoringErrors: string[] = [];
     let skippedDuplicate = 0;
@@ -294,7 +309,7 @@ export async function runSearchPipeline(): Promise<SearchResult> {
 
     for (const candidate of topCandidates) {
       if (abortRequested) break;
-      if (totalOpportunities >= MAX_OPPS_TOTAL) { console.log(`[Search] Total opp cap (${MAX_OPPS_TOTAL}) reached, stopping.`); break; }
+      if (totalOpportunities >= EFFECTIVE_MAX_OPPS_TOTAL) { console.log(`[Search] Total opp cap (${EFFECTIVE_MAX_OPPS_TOTAL}) reached, stopping.`); break; }
 
       const client = clientMap.get(candidate.clientId)!;
       const { thread, heuristicScore, threadDate, threadAge } = candidate;
@@ -322,10 +337,18 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       // ── AI scoring (expensive, final filter) ──
       let relevanceScore = heuristicScore;
       let aiRelevanceNote: string | null = null;
-      if (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL) {
+      
+      // Check per-client AI budget if equal allocation mode is enabled
+      const clientAiCallCount = aiCallsPerClient.get(client.id) ?? 0;
+      const canUseAi = MIN_OPPS_PER_CLIENT > 0 
+        ? (hasAiKey && clientAiCallCount < AI_CALLS_PER_CLIENT)
+        : (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL);
+      
+      if (canUseAi) {
         try {
           pipelineStatus.progress = `AI scoring ${thread.threadId} for ${client.name} (${aiCalls + 1}/${topCandidates.length} candidates)...`;
           aiCalls++;
+          aiCallsPerClient.set(client.id, clientAiCallCount + 1);
           const aiResult = await aiScoreRelevance({
             threadTitle: thread.title,
             threadBody: thread.selftext,

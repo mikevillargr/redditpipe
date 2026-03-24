@@ -209,6 +209,7 @@ model Settings {
   maxAiCallsTotal         Int    @default(200)
   maxOppsPerClient        Int    @default(20)
   maxOppsTotal            Int    @default(50)
+  minOppsPerClient        Int    @default(0)
   pileOnEnabled           Boolean @default(false)
   pileOnDelayMinHours     Int     @default(2)
   pileOnDelayMaxHours     Int     @default(6)

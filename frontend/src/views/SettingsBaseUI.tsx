@@ -155,6 +155,7 @@ export default function SettingsBaseUI() {
   const [maxAiCallsTotal, setMaxAiCallsTotal] = useState(50)
   const [maxOppsPerClient, setMaxOppsPerClient] = useState(15)
   const [maxOppsTotal, setMaxOppsTotal] = useState(100)
+  const [minOppsPerClient, setMinOppsPerClient] = useState(0)
   const [searchRunning, setSearchRunning] = useState(false)
   const [showRunConfirm, setShowRunConfirm] = useState(false)
   const [searchResult, setSearchResult] = useState('')
@@ -208,6 +209,7 @@ export default function SettingsBaseUI() {
       setMaxAiCallsTotal(data.maxAiCallsTotal ?? 50)
       setMaxOppsPerClient(data.maxOppsPerClient ?? 15)
       setMaxOppsTotal(data.maxOppsTotal ?? 100)
+      setMinOppsPerClient(data.minOppsPerClient ?? 0)
       setPileOnEnabled(data.pileOnEnabled ?? false)
       setPileOnAutoCreate(data.pileOnAutoCreate ?? false)
       setPileOnMaxPerPrimary(data.pileOnMaxPerPrimary ?? 2)
@@ -259,6 +261,7 @@ export default function SettingsBaseUI() {
           maxAiCallsTotal,
           maxOppsPerClient,
           maxOppsTotal,
+          minOppsPerClient,
           pileOnEnabled,
           pileOnAutoCreate,
           pileOnMaxPerPrimary,
@@ -848,6 +851,13 @@ export default function SettingsBaseUI() {
                     helperText="Total AI calls per search run across all clients. Prevents runaway costs."
                   />
                   <Input
+                    label="Min Opps Per Client"
+                    type="number"
+                    value={minOppsPerClient.toString()}
+                    onChange={(e) => setMinOppsPerClient(parseInt(e.target.value) || 0)}
+                    helperText="Minimum opportunities each client should receive (0 = disabled). Enables equal allocation mode."
+                  />
+                  <Input
                     label="Max Opps Per Client"
                     type="number"
                     value={maxOppsPerClient.toString()}
@@ -859,10 +869,10 @@ export default function SettingsBaseUI() {
                     type="number"
                     value={maxOppsTotal.toString()}
                     onChange={(e) => setMaxOppsTotal(parseInt(e.target.value) || 100)}
-                    helperText="Total opportunities per run across all clients. Final safety cap."
+                    helperText="Total opportunities per run across all clients. Auto-adjusts if minimums exceed this."
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Adjust these as you add more clients. Higher values = more AI cost and processing time.
+                    <strong>Equal Allocation Mode:</strong> When Min Opps Per Client &gt; 0, AI budget is divided equally among clients to ensure fair distribution.
                   </p>
                 </div>
               </div>
