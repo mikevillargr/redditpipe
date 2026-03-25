@@ -390,14 +390,15 @@ export async function runSearchPipeline(): Promise<SearchResult> {
           skippedLowScore++;
           continue; // Skip this thread instead of using heuristic score
         }
-      } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
-        // AI budget exhausted - skip all remaining threads to ensure 100% AI validation
-        console.log(`[Search] AI budget exhausted (${MAX_AI_CALLS_TOTAL} calls), skipping ${thread.threadId}`);
-        skippedLowScore++;
-        continue;
-      } else if (!hasAiKey) {
-        // No AI key configured - skip all threads to ensure 100% AI validation
-        console.log(`[Search] No AI key configured, skipping ${thread.threadId}`);
+      } else {
+        // AI budget exhausted (either global or per-client) - skip to ensure 100% AI validation
+        if (MIN_OPPS_PER_CLIENT > 0 && clientAiCallCount >= AI_CALLS_PER_CLIENT) {
+          console.log(`[Search] ${client.name} AI budget exhausted (${clientAiCallCount}/${AI_CALLS_PER_CLIENT} calls), skipping ${thread.threadId}`);
+        } else if (aiCalls >= MAX_AI_CALLS_TOTAL) {
+          console.log(`[Search] Global AI budget exhausted (${MAX_AI_CALLS_TOTAL} calls), skipping ${thread.threadId}`);
+        } else if (!hasAiKey) {
+          console.log(`[Search] No AI key configured, skipping ${thread.threadId}`);
+        }
         skippedLowScore++;
         continue;
       }
@@ -433,6 +434,116 @@ export async function runSearchPipeline(): Promise<SearchResult> {
       totalOpportunities++;
       oppsPerClient.set(client.id, clientOppCount + 1);
       pipelineStatus.opportunitiesCreated = totalOpportunities;
+    }
+
+    // ── Phase 3: Backfill to ensure minimum opportunities per client ────────
+    if (MIN_OPPS_PER_CLIENT > 0 && !abortRequested) {
+      pipelineStatus.phase = "backfill";
+      pipelineStatus.progress = "Ensuring minimum opportunities per client...";
+      
+      for (const client of clients) {
+        const clientOppCount = oppsPerClient.get(client.id) ?? 0;
+        if (clientOppCount >= MIN_OPPS_PER_CLIENT) continue;
+        
+        const needed = MIN_OPPS_PER_CLIENT - clientOppCount;
+        console.log(`[Search] Backfill: ${client.name} needs ${needed} more opportunities (has ${clientOppCount}/${MIN_OPPS_PER_CLIENT})`);
+        
+        // Find unprocessed candidates for this client (those that were ranked out or skipped due to AI budget)
+        const clientCandidates = candidates
+          .filter(c => c.clientId === client.id)
+          .filter(c => !existingSet.has(`${c.thread.threadId}::${client.id}`))
+          .slice(0, needed * 3); // Get 3x needed to account for AI rejections
+        
+        let backfilled = 0;
+        for (const candidate of clientCandidates) {
+          if (backfilled >= needed) break;
+          if (totalOpportunities >= EFFECTIVE_MAX_OPPS_TOTAL) break;
+          
+          const { thread, heuristicScore, threadDate, threadAge } = candidate;
+          const keywords = client.keywords.split(",").map((k) => k.trim()).filter(Boolean);
+          
+          // Fetch comments if not cached
+          let topComments = threadCommentsCache.get(thread.threadId) ?? "";
+          if (!threadCommentsCache.has(thread.threadId)) {
+            try {
+              const comments = await getThreadComments(token, thread.threadId, thread.subreddit, redditConfig);
+              topComments = comments.map((c) => `u/${c.author}: ${c.body.slice(0, 200)}`).join("\n\n");
+            } catch (err) {
+              console.error(`Failed to fetch comments for ${thread.threadId}:`, err);
+            }
+            threadCommentsCache.set(thread.threadId, topComments);
+          }
+          
+          // AI score with remaining budget
+          let relevanceScore = heuristicScore;
+          let aiRelevanceNote: string | null = null;
+          
+          if (hasAiKey && aiCalls < MAX_AI_CALLS_TOTAL) {
+            try {
+              aiCalls++;
+              const aiResult = await aiScoreRelevance({
+                threadTitle: thread.title,
+                threadBody: thread.selftext,
+                topComments,
+                subreddit: thread.subreddit,
+                clientName: client.name,
+                clientDescription: client.description,
+                clientKeywords: keywords,
+                clientNuance: client.nuance,
+                threshold: relevanceThreshold,
+              });
+              relevanceScore = aiResult.score;
+              aiRelevanceNote = JSON.stringify({ note: aiResult.note, factors: aiResult.factors || null });
+              
+              if (aiResult.note.includes('AI scoring failed')) {
+                aiScoringFailures++;
+              } else {
+                aiScoringSuccesses++;
+              }
+              
+              if (!aiResult.shouldKeep) continue; // Skip if AI rejects
+            } catch (err) {
+              console.error(`Backfill AI scoring failed for ${thread.threadId}/${client.name}:`, err);
+              continue; // Skip on error
+            }
+          } else {
+            // No AI budget left - skip to maintain 100% AI validation
+            console.log(`[Search] Backfill: No AI budget for ${client.name}, cannot backfill`);
+            break;
+          }
+          
+          // Create opportunity
+          const bestAccount = findBestAccount({ subreddit: thread.subreddit, clientId: client.id, accounts });
+          
+          await db.opportunity.create({
+            data: {
+              clientId: client.id,
+              accountId: bestAccount?.id || null,
+              threadId: thread.threadId,
+              threadUrl: thread.threadUrl || `https://www.reddit.com${thread.permalink}`,
+              subreddit: thread.subreddit,
+              title: thread.title,
+              bodySnippet: thread.selftext.slice(0, 500),
+              relevanceScore,
+              aiRelevanceNote,
+              score: thread.threadScore,
+              commentCount: thread.numComments,
+              threadCreatedAt: threadDate,
+              threadAge,
+              discoveredVia: thread.discoveredVia,
+            },
+          });
+          
+          backfilled++;
+          totalOpportunities++;
+          oppsPerClient.set(client.id, clientOppCount + backfilled);
+          pipelineStatus.opportunitiesCreated = totalOpportunities;
+        }
+        
+        if (backfilled > 0) {
+          console.log(`[Search] Backfill: Created ${backfilled} additional opportunities for ${client.name}`);
+        }
+      }
     }
 
     const durationMs = Date.now() - startTime;
