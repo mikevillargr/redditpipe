@@ -62,6 +62,13 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
         if (attempt < MAX_RETRIES) { await delay(backoff); continue; }
       }
 
+      if (response.status === 403 && attempt < MAX_RETRIES) {
+        const backoff = 5000 * Math.pow(2, attempt) + Math.random() * 2000;
+        console.warn(`[Reddit RL] 403 Forbidden (attempt ${attempt + 1}/${MAX_RETRIES + 1}). Backing off ${(backoff / 1000).toFixed(1)}s`);
+        await delay(backoff);
+        continue;
+      }
+
       if ((response.status === 503 || response.status === 502) && attempt < MAX_RETRIES) {
         const backoff = 2000 * Math.pow(2, attempt) + Math.random() * 1000;
         console.warn(`[Reddit RL] ${response.status} (attempt ${attempt + 1}). Retrying in ${(backoff / 1000).toFixed(1)}s`);
@@ -113,7 +120,7 @@ export async function getRedditConfig(): Promise<RedditConfig> {
   cachedConfig = {
     mode,
     token,
-    userAgent: "RedditPipe/2.0 (internal tool)",
+    userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     delayMs: mode === "oauth" ? 1500 : 3000,
   };
   configCachedAt = Date.now();
