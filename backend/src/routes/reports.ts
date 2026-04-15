@@ -39,22 +39,27 @@ interface ReportOpportunity {
 }
 
 reports.get("/clients/:clientId", async (c) => {
-  const clientId = c.req.param("clientId");
+  const clientIdParam = c.req.param("clientId");
   const db = createPrismaClient();
 
   try {
-    // Fetch client(s) to get mention terms for citation extraction
-    const clients = clientId === 'all' 
-      ? await db.client.findMany({ select: { id: true, mentionTerms: true, name: true } })
-      : [await db.client.findUnique({
-          where: { id: clientId },
-          select: { id: true, mentionTerms: true, name: true },
-        })];
+    // Parse client IDs - can be 'all', single ID, or comma-separated IDs
+    const clientIds = clientIdParam === 'all' 
+      ? [] 
+      : clientIdParam.split(',').map(id => id.trim()).filter(Boolean);
 
-    const clientMap = new Map(clients.filter((c): c is { id: string; mentionTerms: string | null; name: string } => c !== null).map(c => [c.id, c]));
+    // Fetch client(s) to get mention terms for citation extraction
+    const clients = clientIds.length === 0
+      ? await db.client.findMany({ select: { id: true, mentionTerms: true, name: true } })
+      : await db.client.findMany({
+          where: { id: { in: clientIds } },
+          select: { id: true, mentionTerms: true, name: true },
+        });
+
+    const clientMap = new Map(clients.map(c => [c.id, c]));
 
     const opportunities = await db.opportunity.findMany({
-      where: clientId === 'all' ? undefined : { clientId },
+      where: clientIds.length === 0 ? undefined : { clientId: { in: clientIds } },
       orderBy: { createdAt: "desc" },
       include: {
         client: {

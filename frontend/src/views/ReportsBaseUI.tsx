@@ -50,7 +50,7 @@ interface ReportOpportunity {
 
 export function ReportsBaseUI() {
   const [clients, setClients] = useState<Client[]>([])
-  const [selectedClientId, setSelectedClientId] = useState<string>('all')
+  const [selectedClientIds, setSelectedClientIds] = useState<string[]>([])
   const [allOpportunities, setAllOpportunities] = useState<ReportOpportunity[]>([])
   const [opportunities, setOpportunities] = useState<ReportOpportunity[]>([])
   const [loading, setLoading] = useState(false)
@@ -78,13 +78,15 @@ export function ReportsBaseUI() {
   }
 
   useEffect(() => {
-    fetchReportData(selectedClientId)
-  }, [selectedClientId])
+    fetchReportData()
+  }, [selectedClientIds])
 
-  const fetchReportData = async (clientId: string) => {
+  const fetchReportData = async () => {
     setLoading(true)
     setError(null)
     try {
+      // If no clients selected, fetch all
+      const clientId = selectedClientIds.length === 0 ? 'all' : selectedClientIds.join(',')
       const res = await fetch(`/api/reports/clients/${clientId}`)
       if (res.ok) {
         const data = await res.json()
@@ -122,7 +124,9 @@ export function ReportsBaseUI() {
   const handleExportExcel = async () => {
     setExporting('excel')
     try {
-      const selectedClient = clients.find((c) => c.id === selectedClientId)
+      const clientNames = selectedClientIds.length === 0 
+        ? 'all-clients'
+        : selectedClientIds.map(id => clients.find(c => c.id === id)?.name).filter(Boolean).join('-')
       const exportData = opportunities.map((opp) => ({
         'Thread Title': opp.threadTitle,
         'Thread URL': opp.threadUrl,
@@ -144,7 +148,7 @@ export function ReportsBaseUI() {
       const ws = XLSX.utils.json_to_sheet(exportData)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, 'Report')
-      XLSX.writeFile(wb, `${selectedClient?.name || 'report'}-opportunities.xlsx`)
+      XLSX.writeFile(wb, `${clientNames}-opportunities.xlsx`)
     } catch (err) {
       console.error('Excel export failed:', err)
     } finally {
@@ -168,7 +172,21 @@ export function ReportsBaseUI() {
     }
   }
 
-  const selectedClient = clients.find((c) => c.id === selectedClientId)
+  const toggleClientSelection = (clientId: string) => {
+    setSelectedClientIds(prev => 
+      prev.includes(clientId) 
+        ? prev.filter(id => id !== clientId)
+        : [...prev, clientId]
+    )
+  }
+
+  const toggleAllClients = () => {
+    if (selectedClientIds.length === clients.length) {
+      setSelectedClientIds([])
+    } else {
+      setSelectedClientIds(clients.map(c => c.id))
+    }
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -191,23 +209,43 @@ export function ReportsBaseUI() {
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex items-center gap-4 flex-wrap">
-            {/* Client Selector */}
-            <div className="flex items-center gap-2">
-              <Building2Icon size={13} className="text-slate-500" />
-              <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">Client:</span>
-              <select
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                disabled={clients.length === 0}
-                className="px-3 py-1.5 text-sm rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[180px]"
-              >
-                <option value="all">All Clients</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {client.name}
-                  </option>
-                ))}
-              </select>
+            {/* Client Multi-Selector */}
+            <div className="flex items-start gap-2">
+              <Building2Icon size={13} className="text-slate-500 mt-1" />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">Clients:</span>
+                  <button
+                    onClick={toggleAllClients}
+                    className="text-xs text-orange-600 dark:text-orange-400 hover:underline"
+                  >
+                    {selectedClientIds.length === clients.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    ({selectedClientIds.length} selected)
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 max-w-2xl">
+                  {clients.map((client) => (
+                    <label
+                      key={client.id}
+                      className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                      style={{
+                        borderColor: selectedClientIds.includes(client.id) ? '#f97316' : undefined,
+                        backgroundColor: selectedClientIds.includes(client.id) ? '#fff7ed' : undefined,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedClientIds.includes(client.id)}
+                        onChange={() => toggleClientSelection(client.id)}
+                        className="w-3 h-3 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                      />
+                      <span className="text-slate-700 dark:text-slate-300">{client.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="w-px h-5 bg-slate-300 dark:bg-slate-700" />
