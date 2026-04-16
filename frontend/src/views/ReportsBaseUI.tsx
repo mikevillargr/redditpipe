@@ -60,6 +60,7 @@ export function ReportsBaseUI() {
   const [endDate, setEndDate] = useState<Date | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [expandedRows, setExpandedRows] = useState<Record<string, { commentary: boolean; comment: boolean }>>({})
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
 
   useEffect(() => {
     fetchClients()
@@ -209,42 +210,65 @@ export function ReportsBaseUI() {
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex items-center gap-4 flex-wrap">
-            {/* Client Multi-Selector */}
-            <div className="flex items-start gap-2">
-              <Building2Icon size={13} className="text-slate-500 mt-1" />
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">Clients:</span>
-                  <button
-                    onClick={toggleAllClients}
-                    className="text-xs text-orange-600 dark:text-orange-400 hover:underline"
-                  >
-                    {selectedClientIds.length === clients.length ? 'Deselect All' : 'Select All'}
-                  </button>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    ({selectedClientIds.length} selected)
+            {/* Client Multi-Selector Dropdown */}
+            <div className="flex items-center gap-2 relative">
+              <Building2Icon size={13} className="text-slate-500" />
+              <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">Clients:</span>
+              <div className="relative">
+                <button
+                  onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+                  className="px-3 py-1.5 text-sm rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[200px] flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <span className="text-xs">
+                    {selectedClientIds.length === 0
+                      ? 'All Clients'
+                      : selectedClientIds.length === clients.length
+                      ? 'All Clients'
+                      : `${selectedClientIds.length} selected`}
                   </span>
-                </div>
-                <div className="flex flex-wrap gap-2 max-w-2xl">
-                  {clients.map((client) => (
-                    <label
-                      key={client.id}
-                      className="flex items-center gap-1.5 px-2 py-1 text-xs rounded-md border cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                      style={{
-                        borderColor: selectedClientIds.includes(client.id) ? '#f97316' : undefined,
-                        backgroundColor: selectedClientIds.includes(client.id) ? '#fff7ed' : undefined,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedClientIds.includes(client.id)}
-                        onChange={() => toggleClientSelection(client.id)}
-                        className="w-3 h-3 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
-                      />
-                      <span className="text-slate-700 dark:text-slate-300">{client.name}</span>
-                    </label>
-                  ))}
-                </div>
+                  <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {clientDropdownOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setClientDropdownOpen(false)}
+                    />
+                    <div className="absolute z-20 mt-1 w-[280px] max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                      <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            toggleAllClients()
+                          }}
+                          className="w-full px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950 rounded transition-colors"
+                        >
+                          {selectedClientIds.length === clients.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                      </div>
+                      <div className="p-1">
+                        {clients.map((client) => (
+                          <label
+                            key={client.id}
+                            className="flex items-center gap-2 px-3 py-2 text-sm rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedClientIds.includes(client.id)}
+                              onChange={() => toggleClientSelection(client.id)}
+                              className="w-4 h-4 text-orange-600 border-slate-300 rounded focus:ring-orange-500"
+                            />
+                            <span className="text-slate-700 dark:text-slate-300">{client.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
