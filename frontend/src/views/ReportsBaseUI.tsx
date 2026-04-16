@@ -61,6 +61,8 @@ export function ReportsBaseUI() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [expandedRows, setExpandedRows] = useState<Record<string, { commentary: boolean; comment: boolean }>>({})
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null)
+  const dropdownButtonRef = React.useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     fetchClients()
@@ -216,7 +218,17 @@ export function ReportsBaseUI() {
               <span className="text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">Clients:</span>
               <div className="relative">
                 <button
-                  onClick={() => setClientDropdownOpen(!clientDropdownOpen)}
+                  ref={dropdownButtonRef}
+                  onClick={() => {
+                    if (!clientDropdownOpen && dropdownButtonRef.current) {
+                      const rect = dropdownButtonRef.current.getBoundingClientRect()
+                      setDropdownPosition({
+                        top: rect.bottom + window.scrollY + 4,
+                        left: rect.left + window.scrollX
+                      })
+                    }
+                    setClientDropdownOpen(!clientDropdownOpen)
+                  }}
                   className="px-3 py-1.5 text-sm rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 min-w-[200px] flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
                 >
                   <span className="text-xs">
@@ -231,13 +243,16 @@ export function ReportsBaseUI() {
                   </svg>
                 </button>
                 
-                {clientDropdownOpen && (
+                {clientDropdownOpen && dropdownPosition && (
                   <>
                     <div 
                       className="fixed inset-0 z-[100]" 
                       onClick={() => setClientDropdownOpen(false)}
                     />
-                    <div className="absolute z-[101] mt-1 w-[280px] max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                    <div 
+                      className="fixed z-[101] w-[280px] max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg shadow-lg"
+                      style={{ top: `${dropdownPosition.top}px`, left: `${dropdownPosition.left}px` }}
+                    >
                       <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2">
                         <button
                           onClick={(e) => {
