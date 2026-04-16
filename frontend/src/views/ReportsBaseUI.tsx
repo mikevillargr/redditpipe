@@ -234,10 +234,10 @@ export function ReportsBaseUI() {
                 {clientDropdownOpen && (
                   <>
                     <div 
-                      className="fixed inset-0 z-10" 
+                      className="fixed inset-0 z-[100]" 
                       onClick={() => setClientDropdownOpen(false)}
                     />
-                    <div className="absolute z-20 mt-1 w-[280px] max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
+                    <div className="absolute z-[101] mt-1 w-[280px] max-h-[400px] overflow-y-auto bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg shadow-lg">
                       <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2">
                         <button
                           onClick={(e) => {
