@@ -103,7 +103,7 @@ function getProxyAgent(config: RedditConfig): any | undefined {
   return cachedProxyAgent;
 }
 
-async function redditFetch(url: string, init: RequestInit, config: RedditConfig): Promise<Response> {
+async function redditFetch(url: string, init: RequestInit, config: RedditConfig): Promise<any> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
