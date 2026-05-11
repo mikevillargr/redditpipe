@@ -784,8 +784,19 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     clientFilter === 'all'
       ? opportunities
       : opportunities.filter((o) => o.clientId === clientFilter)
+  
+  console.log('[Dashboard Debug] Total opportunities:', opportunities.length)
+  console.log('[Dashboard Debug] After client filter:', clientFilteredOpps.length)
+  console.log('[Dashboard Debug] Filters:', { statusFilter, scoreFilter, aiScoreFilter, showPileOnOnly, clientFilter })
+  if (opportunities.length > 0) {
+    console.log('[Dashboard Debug] First opportunity:', opportunities[0])
+  }
+  
   const filteredOpportunities = clientFilteredOpps.filter((o) => {
-    if (statusFilter !== 'all' && o.status !== statusFilter) return false
+    if (statusFilter !== 'all' && o.status !== statusFilter) {
+      console.log('[Dashboard Debug] Filtered by status:', o.id, 'has:', o.status, 'need:', statusFilter)
+      return false
+    }
     if (scoreFilter === '<0.5' && o.relevanceScore > 0.5) return false
     if (scoreFilter !== 'any' && scoreFilter !== '<0.5' && o.relevanceScore < parseFloat(scoreFilter))
       return false
@@ -799,6 +810,8 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     }
     return true
   })
+  
+  console.log('[Dashboard Debug] After all filters:', filteredOpportunities.length)
 
   // Reset visible count and selection when filters change
   useEffect(() => {
