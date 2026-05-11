@@ -615,8 +615,8 @@ export function DashboardBaseUI({ userRole = 'admin' }: DashboardProps) {
       return new Date(o.createdAt)
     })()
 
-    if (dateStart && relevantDate < new Date(dateStart)) return false
-    if (dateEnd && relevantDate > new Date(dateEnd + 'T23:59:59')) return false
+    if (dateStart && relevantDate < new Date(dateStart + 'T00:00:00Z')) return false
+    if (dateEnd && relevantDate > new Date(dateEnd + 'T23:59:59.999Z')) return false
 
     // Status filtering
     if (statusFilter !== 'all' && o.status !== statusFilter) return false
