@@ -18,10 +18,12 @@
     "@prisma/client": "^7.4.2",
     "@types/jsonwebtoken": "^9.0.10",
     "hono": "^4.7.4",
+    "https-proxy-agent": "^9.0.0",
     "jsonwebtoken": "^9.0.3",
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
-    "prisma": "^7.4.2"
+    "prisma": "^7.4.2",
+    "undici": "^8.2.0"
   },
   "devDependencies": {
     "@types/node": "^20",

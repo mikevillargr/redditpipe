@@ -222,4 +222,11 @@ model Settings {
   deletionCheckTime       String  @default("19:00")
   deletionCheckTimezone   String  @default("UTC")
   deletionCheckDays       Int     @default(30)
+  // Proxy settings
+  proxyEnabled            Boolean @default(false)
+  proxyHost               String?
+  proxyPort               Int?
+  proxyUsername           String?
+  proxyPassword           String?
+  proxyRotationMode       String  @default("daily") // daily, per_request, none
 }

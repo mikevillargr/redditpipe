@@ -1,4 +1,6 @@
 import { prisma } from "./prisma.js";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { fetch as undiciFetch } from "undici";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -7,11 +9,21 @@ interface RedditToken {
   expiresAt: number;
 }
 
+interface ProxyConfig {
+  enabled: boolean;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  rotationMode: "daily" | "per_request" | "none";
+}
+
 export interface RedditConfig {
   mode: "oauth" | "public_json";
   token?: string;
   userAgent: string;
   delayMs: number;
+  proxy?: ProxyConfig;
 }
 
 // ── Cached state ─────────────────────────────────────────────────────────────
@@ -20,6 +32,10 @@ let cachedToken: RedditToken | null = null;
 let cachedConfig: RedditConfig | null = null;
 let configCachedAt = 0;
 const CONFIG_TTL_MS = 60_000;
+
+// Proxy agent cache (rotates daily)
+let cachedProxyAgent: any = null;
+let proxyAgentCachedDate: string | null = null;
 
 // ── Rate Limiter ────────────────────────────────────────────────────────────
 
@@ -34,7 +50,60 @@ export function resetRateLimiter(mode: "oauth" | "public_json" = "public_json"):
 const MAX_RETRIES = 3;
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-async function redditFetch(url: string, init: RequestInit): Promise<Response> {
+function getProxyAgent(config: RedditConfig): any | undefined {
+  if (!config.proxy?.enabled || !config.proxy.host || !config.proxy.port) {
+    return undefined;
+  }
+
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+  // Daily rotation: create new agent each day
+  if (config.proxy.rotationMode === "daily") {
+    if (cachedProxyAgent && proxyAgentCachedDate === today) {
+      return cachedProxyAgent;
+    }
+    // Create new agent with session ID based on date for daily rotation
+    const sessionId = `session-${today}`;
+    const auth = config.proxy.username && config.proxy.password
+      ? `${config.proxy.username}:${config.proxy.password}`
+      : undefined;
+    const proxyUrl = auth
+      ? `http://${auth}@${config.proxy.host}:${config.proxy.port}`
+      : `http://${config.proxy.host}:${config.proxy.port}`;
+    
+    cachedProxyAgent = new HttpsProxyAgent(proxyUrl, {
+      headers: { 'Proxy-Authorization': `Basic ${Buffer.from(sessionId).toString('base64')}` }
+    });
+    proxyAgentCachedDate = today;
+    console.log(`[Proxy] Created new proxy agent for ${today}`);
+    return cachedProxyAgent;
+  }
+
+  // Per-request rotation: create new agent each time
+  if (config.proxy.rotationMode === "per_request") {
+    const auth = config.proxy.username && config.proxy.password
+      ? `${config.proxy.username}:${config.proxy.password}`
+      : undefined;
+    const proxyUrl = auth
+      ? `http://${auth}@${config.proxy.host}:${config.proxy.port}`
+      : `http://${config.proxy.host}:${config.proxy.port}`;
+    return new HttpsProxyAgent(proxyUrl);
+  }
+
+  // No rotation: reuse same agent
+  if (!cachedProxyAgent) {
+    const auth = config.proxy.username && config.proxy.password
+      ? `${config.proxy.username}:${config.proxy.password}`
+      : undefined;
+    const proxyUrl = auth
+      ? `http://${auth}@${config.proxy.host}:${config.proxy.port}`
+      : `http://${config.proxy.host}:${config.proxy.port}`;
+    cachedProxyAgent = new HttpsProxyAgent(proxyUrl);
+  }
+  return cachedProxyAgent;
+}
+
+async function redditFetch(url: string, init: RequestInit, config: RedditConfig): Promise<Response> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -46,10 +115,12 @@ async function redditFetch(url: string, init: RequestInit): Promise<Response> {
       }
       lastRequestTime = Date.now();
 
-      const response = await fetch(url, {
+      const proxyAgent = getProxyAgent(config);
+      const response = await undiciFetch(url, {
         ...init,
+        dispatcher: proxyAgent,
         signal: AbortSignal.timeout(15_000),
-      });
+      } as any) as unknown as Response;
 
       if (response.ok) return response;
 
@@ -117,11 +188,22 @@ export async function getRedditConfig(): Promise<RedditConfig> {
     );
   }
 
+  // Get proxy settings
+  const proxy: ProxyConfig = {
+    enabled: settings?.proxyEnabled ?? false,
+    host: settings?.proxyHost ?? undefined,
+    port: settings?.proxyPort ?? undefined,
+    username: settings?.proxyUsername ?? undefined,
+    password: settings?.proxyPassword ?? undefined,
+    rotationMode: (settings?.proxyRotationMode as "daily" | "per_request" | "none") ?? "daily",
+  };
+
   cachedConfig = {
     mode,
     token,
     userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     delayMs: mode === "oauth" ? 1500 : 3000,
+    proxy,
   };
   configCachedAt = Date.now();
   baseDelay = cachedConfig.delayMs;
@@ -201,7 +283,7 @@ export async function searchReddit(
   const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) headers["Authorization"] = `Bearer ${cfg.token}`;
 
-  const response = await redditFetch(url, { headers });
+  const response = await redditFetch(url, { headers }, cfg);
   if (!response.ok) throw new Error(`Reddit search failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
 
@@ -249,7 +331,7 @@ export async function searchRedditComments(
   const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) headers["Authorization"] = `Bearer ${cfg.token}`;
 
-  const response = await redditFetch(url, { headers });
+  const response = await redditFetch(url, { headers }, cfg);
   if (!response.ok) throw new Error(`Reddit comment search failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
 
@@ -270,12 +352,6 @@ export async function searchRedditComments(
 
 // ── Thread comments ──────────────────────────────────────────────────────────
 
-export interface RedditComment {
-  author: string;
-  body: string;
-  score: number;
-}
-
 export async function getThreadComments(
   token: string,
   threadId: string,
@@ -290,7 +366,7 @@ export async function getThreadComments(
   const headers: Record<string, string> = { "User-Agent": cfg.userAgent };
   if (cfg.mode === "oauth" && cfg.token) headers["Authorization"] = `Bearer ${cfg.token}`;
 
-  const response = await redditFetch(url, { headers });
+  const response = await redditFetch(url, { headers }, cfg);
   if (!response.ok) throw new Error(`Reddit comments fetch failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
 
@@ -316,9 +392,10 @@ export interface RedditUserProfile {
 }
 
 export async function getUserProfile(username: string): Promise<RedditUserProfile> {
+  const cfg = await getRedditConfig();
   const response = await redditFetch(`https://www.reddit.com/user/${username}/about.json`, {
-    headers: { "User-Agent": "RedditPipe/2.0 (internal tool)" },
-  });
+    headers: { "User-Agent": cfg.userAgent },
+  }, cfg);
   if (!response.ok) throw new Error(`Reddit profile fetch failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
   return {
@@ -340,9 +417,11 @@ export interface RedditUserComment {
 }
 
 export async function getUserComments(username: string, limit: number = 25): Promise<RedditUserComment[]> {
+  const cfg = await getRedditConfig();
   const response = await redditFetch(
     `https://www.reddit.com/user/${username}/comments.json?limit=${limit}&sort=new`,
-    { headers: { "User-Agent": "RedditPipe/2.0 (internal tool)" } }
+    { headers: { "User-Agent": cfg.userAgent } },
+    cfg
   );
   if (!response.ok) throw new Error(`Reddit user comments fetch failed: ${response.status} ${response.statusText}`);
   const data = await response.json();
@@ -415,6 +494,7 @@ export async function postComment(
     );
 
     // Post comment via Reddit API
+    const cfg = await getRedditConfig();
     const response = await redditFetch("https://oauth.reddit.com/api/comment", {
       method: "POST",
       headers: {
@@ -427,7 +507,7 @@ export async function postComment(
         text,
         thing_id: parentId,
       }).toString(),
-    });
+    }, cfg);
 
     const data = await response.json();
 
