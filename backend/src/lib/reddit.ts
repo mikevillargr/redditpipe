@@ -1,6 +1,5 @@
 import { prisma } from "./prisma.js";
 import { HttpsProxyAgent } from "https-proxy-agent";
-import { fetch as undiciFetch } from "undici";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,11 +115,12 @@ async function redditFetch(url: string, init: RequestInit, config: RedditConfig)
       lastRequestTime = Date.now();
 
       const proxyAgent = getProxyAgent(config);
-      const response = await undiciFetch(url, {
+      const response = await fetch(url, {
         ...init,
-        dispatcher: proxyAgent,
+        // @ts-ignore - Node.js fetch supports agent but types don't reflect it
+        agent: proxyAgent,
         signal: AbortSignal.timeout(15_000),
-      } as any) as unknown as Response;
+      });
 
       if (response.ok) return response;
 
