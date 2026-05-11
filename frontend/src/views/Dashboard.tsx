@@ -181,10 +181,8 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('any')
   const [aiScoreFilter, setAiScoreFilter] = useState<AiScoreFilter>('all')
   const [showPileOnOnly, setShowPileOnOnly] = useState(false)
-  const today = new Date().toISOString().split('T')[0]
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  const [dateStart, setDateStart] = useState(sevenDaysAgo)
-  const [dateEnd, setDateEnd] = useState(today)
+  const [dateStart, setDateStart] = useState(() => new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+  const [dateEnd, setDateEnd] = useState(() => new Date().toISOString().split('T')[0])
   const applyPreset = (preset: string) => {
     const end = new Date().toISOString().split('T')[0]
     let start = end
@@ -204,6 +202,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     setDateEnd(end)
   }
   const activePreset = (() => {
+    const today = new Date().toISOString().split('T')[0]
     const diffDays = Math.round(
       (new Date(dateEnd).getTime() - new Date(dateStart).getTime()) /
         (1000 * 60 * 60 * 24),
@@ -784,19 +783,8 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     clientFilter === 'all'
       ? opportunities
       : opportunities.filter((o) => o.clientId === clientFilter)
-  
-  console.log('[Dashboard Debug] Total opportunities:', opportunities.length)
-  console.log('[Dashboard Debug] After client filter:', clientFilteredOpps.length)
-  console.log('[Dashboard Debug] Filters:', { statusFilter, scoreFilter, aiScoreFilter, showPileOnOnly, clientFilter })
-  if (opportunities.length > 0) {
-    console.log('[Dashboard Debug] First opportunity:', opportunities[0])
-  }
-  
   const filteredOpportunities = clientFilteredOpps.filter((o) => {
-    if (statusFilter !== 'all' && o.status !== statusFilter) {
-      console.log('[Dashboard Debug] Filtered by status:', o.id, 'has:', o.status, 'need:', statusFilter)
-      return false
-    }
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false
     if (scoreFilter === '<0.5' && o.relevanceScore > 0.5) return false
     if (scoreFilter !== 'any' && scoreFilter !== '<0.5' && o.relevanceScore < parseFloat(scoreFilter))
       return false
@@ -810,8 +798,6 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
     }
     return true
   })
-  
-  console.log('[Dashboard Debug] After all filters:', filteredOpportunities.length)
 
   // Reset visible count and selection when filters change
   useEffect(() => {
@@ -1207,7 +1193,7 @@ export function Dashboard({ userRole = 'admin' }: DashboardProps) {
               size="small"
               value={dateEnd}
               onChange={(e) => setDateEnd(e.target.value)}
-              inputProps={{ min: dateStart, max: today }}
+              inputProps={{ min: dateStart, max: new Date().toISOString().split('T')[0] }}
               sx={{
                 width: 135,
                 '& .MuiOutlinedInput-root': {
