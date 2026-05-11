@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { HttpsProxyAgent } from "https-proxy-agent";
+import fetch from "node-fetch";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,10 +118,9 @@ async function redditFetch(url: string, init: RequestInit, config: RedditConfig)
       const proxyAgent = getProxyAgent(config);
       const response = await fetch(url, {
         ...init,
-        // @ts-ignore - Node.js fetch supports agent but types don't reflect it
         agent: proxyAgent,
-        signal: AbortSignal.timeout(15_000),
-      });
+        timeout: 15000,
+      } as any);
 
       if (response.ok) return response;
 
