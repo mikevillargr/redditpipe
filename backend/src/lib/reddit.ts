@@ -352,6 +352,12 @@ export async function searchRedditComments(
 
 // ── Thread comments ──────────────────────────────────────────────────────────
 
+export interface RedditComment {
+  author: string;
+  body: string;
+  score: number;
+}
+
 export async function getThreadComments(
   token: string,
   threadId: string,
